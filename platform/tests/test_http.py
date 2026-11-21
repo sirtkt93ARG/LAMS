@@ -121,7 +121,7 @@ class TestHttp(unittest.TestCase):
                 names = M._nrps_names(user)
         finally:
             M.LTI_SERVICE_URL = original_url
-        label = M._student_label("alumno-h1", "escuela-h")
+        label = M._student_key("alumno-h1", "escuela-h")
         self.assertEqual(names, {label: "Nombre Alumno"})
         self.assertNotIn("private@example.test", str(names))
 
