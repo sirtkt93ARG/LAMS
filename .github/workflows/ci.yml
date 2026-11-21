@@ -99,3 +99,84 @@ jobs:
           MATHEVAL_TEST_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/matheval_test
           MATHEVAL_TEST_POSTGRES_URL: postgresql://matheval_app:cambiar-en-produccion@localhost:5432/matheval_test
         run: python -m pytest -q tests/test_postgres_integration.py
+
+  lti-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: platform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install real LTI and API dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[api,lti]"
+      - name: Generate ephemeral LTI signing keys
+        run: python scripts/gen_lti_keys.py
+      - name: Install and build web client
+        working-directory: platform/web
+        env:
+          NEXT_PUBLIC_DEV: "1"
+        run: |
+          npm install
+          npm run build
+      - name: Start API, real PyLTI1p3 service, mock LMS, and web
+        env:
+          MATHEVAL_DEV: "1"
+          SESSION_SECRET: "ci-session-secret-0123456789abcdef0123456789abcdef"
+          LTI_HANDOFF_SECRET: "ci-handoff-secret-0123456789abcdef0123456789"
+          LTI_SECRET_KEY: "ci-flask-secret-0123456789abcdef0123456789"
+          PSEUDONYM_SECRET: "ci-pseudonym-secret-0123456789abcdef0123456789"
+          DATABASE_URL: "sqlite:///data/matheval-smoke.db"
+          WEB_ORIGIN: "http://localhost:3000"
+          LTI_CONFIG: "lti_service/configs/lti.mock.json"
+          WEB_URL: "http://localhost:3000"
+          TOOL_BASE: "http://localhost:8200"
+          LTI_SERVICE_URL: "http://localhost:8200"
+          NEXT_PUBLIC_DEV: "1"
+        run: |
+          set -euo pipefail
+          export PYTHONPATH="$PWD/src"
+          python -m uvicorn api.app.main:app --host 127.0.0.1 --port 8000 > /tmp/lams-api.log 2>&1 &
+          API_PID=$!
+          python -m flask --app lti_service.app run --host 127.0.0.1 --port 8200 > /tmp/lams-lti.log 2>&1 &
+          LTI_PID=$!
+          python -m flask --app tools.mock_lms.app run --host 127.0.0.1 --port 8300 > /tmp/lams-lms.log 2>&1 &
+          LMS_PID=$!
+          (cd web && npm start -- --hostname 127.0.0.1 --port 3000) > /tmp/lams-web.log 2>&1 &
+          WEB_PID=$!
+
+          cleanup() {
+            code=$?
+            kill "$API_PID" "$LTI_PID" "$LMS_PID" "$WEB_PID" 2>/dev/null || true
+            if [ "$code" -ne 0 ]; then
+              echo "===== API ====="; tail -n 160 /tmp/lams-api.log || true
+              echo "===== LTI ====="; tail -n 160 /tmp/lams-lti.log || true
+              echo "===== MOCK LMS ====="; tail -n 160 /tmp/lams-lms.log || true
+              echo "===== WEB ====="; tail -n 160 /tmp/lams-web.log || true
+            fi
+            exit "$code"
+          }
+          trap cleanup EXIT
+
+          wait_for() {
+            url="$1"
+            for attempt in $(seq 1 60); do
+              if curl --silent --fail "$url" >/dev/null; then return 0; fi
+              sleep 2
+            done
+            echo "Servicio no disponible: $url"
+            return 1
+          }
+          wait_for http://localhost:8000/healthz
+          wait_for http://localhost:8200/lti/jwks/
+          wait_for http://localhost:8300/
+          wait_for http://localhost:3000/
+          python scripts/smoke_http.py
