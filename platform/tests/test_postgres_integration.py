@@ -116,6 +116,18 @@ class TestPostgresStore(unittest.TestCase):
         self.assertEqual(self.store.load_session(session_id, tenant)["state"], {"step": 1})
         self.assertEqual(len(self.store.responses_for_pid(tenant, pid)), 1)
 
+    def test_delete_learner_redacts_audit_actor_inside_tenant_scope(self):
+        suffix = uuid4().hex
+        tenant, pid, actor = f"tenant-erase-{suffix}", f"pid-erase-{suffix}", f"actor-erase-{suffix}"
+        self.store.create_session(f"erase-{suffix}", tenant, pid, "practica", {"step": 0})
+        self.store.audit(tenant, actor, "exportacion_csv", "dato-privado")
+        out = self.store.delete_learner(tenant, pid, actor=actor)
+        self.assertEqual(out["sessions"], 1)
+        self.assertEqual(out["audit_events_redacted"], 1)
+        events = self.store.audit_list(tenant)
+        self.assertTrue(any(e["actor"] == "redacted" and e["detail"] is None for e in events))
+        self.assertFalse(any(e["actor"] == actor for e in events))
+
     def test_concurrent_postgres_answers_from_same_version_commit_once(self):
         suffix = uuid4().hex
         session_id, tenant, pid = f"answer-race-{suffix}", f"tenant-race-{suffix}", f"pid-race-{suffix}"
