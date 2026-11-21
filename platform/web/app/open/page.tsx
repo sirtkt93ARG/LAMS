@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Shell } from "@/components/Shell";
 import { api, messageFor } from "@/lib/api";
+import { Stimulus } from "@/components/Stimulus";
 import type { OpenAssignment } from "@/lib/types";
 
 export default function OpenAssignmentsPage() {
@@ -25,9 +26,9 @@ export default function OpenAssignmentsPage() {
     {assignments.length === 0 && <p>No tenés actividades abiertas asignadas en este momento.</p>}
     {assignments.map((a) => <article key={a.id}>
       <h2>{a.title}</h2><p>{a.instructions}</p>
-      {a.item && <div className="notice"><p className="stem">{a.item.stem}</p></div>}
+      {a.item && <div className="notice"><p className="stem">{a.item.stem}</p><Stimulus s={a.item.stimulus} /></div>}
       {a.status === "corregida" ? <div className="notice">
-        <p><strong>Calificación: {a.score}/100</strong></p><p>{a.feedback}</p>
+        <p><strong>Calificación: {a.score}/100</strong></p><p>{a.feedback}</p>{a.rubric && <ul>{Object.entries(a.rubric).map(([criterion, value]) => <li key={criterion}>{criterion}: {value}/4</li>)}</ul>}
       </div> : a.submission_id ? <p className="muted">Entrega enviada. Está pendiente de corrección docente.</p> : <>
         <label className="field"><span>Tu desarrollo</span><textarea rows={7} maxLength={20000} value={drafts[a.id] ?? ""} onChange={(e) => setDrafts((old) => ({ ...old, [a.id]: e.target.value }))} /></label>
         <button className="btn" type="button" disabled={busy === a.id || !(drafts[a.id] ?? "").trim()} onClick={() => submit(a.id)}>Entregar respuesta</button>
