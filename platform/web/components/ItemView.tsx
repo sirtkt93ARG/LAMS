@@ -28,7 +28,7 @@ export function ItemView({ item, busy, onSubmit, onHint }: Props) {
   return (
     <section className="sheet" aria-labelledby={`${uid}-stem`}>
       <p id={`${uid}-stem`} className="stem">{item.stem}</p>
-      <form onSubmit={submit}>
+      <form onSubmit={submit} aria-labelledby={`${uid}-stem`}>
 
       <Stimulus s={item.stimulus} />
 
@@ -46,18 +46,18 @@ export function ItemView({ item, busy, onSubmit, onHint }: Props) {
       )}
 
       {item.kind === "numeric" && (
-        <label className="field">
+        <label className="field" htmlFor={`${uid}-numeric`}>
           <span>Tu respuesta (escribí solo el número)</span>
-          <input ref={inputRef} inputMode="decimal" autoComplete="off" value={value}
+          <input id={`${uid}-numeric`} ref={inputRef} inputMode="decimal" autoComplete="off" value={value}
             onChange={(e) => setValue(e.target.value)} required name="response" />
         </label>
       )}
 
       {item.kind === "expression" && (
         <div>
-          <label className="field">
+          <label className="field" htmlFor={`${uid}-expression`}>
             <span>Tu expresión (podés escribir 200n o 200*n)</span>
-            <input ref={inputRef} autoComplete="off" spellCheck={false} value={value}
+            <input id={`${uid}-expression`} ref={inputRef} autoComplete="off" spellCheck={false} value={value}
               onChange={(e) => setValue(e.target.value)} required name="response" />
           </label>
           <MathPreview source={value} />
