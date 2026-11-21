@@ -128,6 +128,17 @@ class TestPostgresStore(unittest.TestCase):
         self.assertTrue(any(e["actor"] == "redacted" and e["detail"] is None for e in events))
         self.assertFalse(any(e["actor"] == actor for e in events))
 
+    def test_app_role_cannot_modify_immutable_audit_columns(self):
+        suffix = uuid4().hex
+        tenant = f"tenant-audit-perms-{suffix}"
+        with psycopg.connect(APP_URL) as conn:
+            conn.execute("SELECT set_config('app.tenant_id', %s, true)", (tenant,))
+            with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                conn.execute(
+                    "UPDATE audit_log SET action = %s WHERE tenant_id = %s",
+                    ("tampered", tenant),
+                )
+
     def test_concurrent_postgres_answers_from_same_version_commit_once(self):
         suffix = uuid4().hex
         session_id, tenant, pid = f"answer-race-{suffix}", f"tenant-race-{suffix}", f"pid-race-{suffix}"
