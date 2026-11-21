@@ -2,14 +2,15 @@
 import { useEffect, useState } from "react";
 import { Shell } from "@/components/Shell";
 import { api, messageFor } from "@/lib/api";
-import type { Course, OpenAssignment, OpenItem, OpenSubmission } from "@/lib/types";
+import type { Course, OpenAssignment, OpenItem, OpenSubmission, RubricCriterion } from "@/lib/types";
 
-const criteria = ["Comprensión", "Estrategia", "Procedimiento", "Argumentación"];
+const fallbackCriteria: RubricCriterion[] = ["Comprensión", "Estrategia", "Procedimiento", "Argumentación"].map((label) => ({ id: label, label, descriptors: {} }));
 
 export default function OpenReviewPage() {
   const [items, setItems] = useState<OpenItem[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState("");
+  const [selectedCompetency, setSelectedCompetency] = useState("");
   const [assignments, setAssignments] = useState<OpenAssignment[]>([]);
   const [selected, setSelected] = useState("");
   const [submissions, setSubmissions] = useState<OpenSubmission[]>([]);
@@ -32,7 +33,10 @@ export default function OpenReviewPage() {
     setItems(catalog.items);
     setAssignments(list.assignments);
     setCourses(courseList.courses);
-    if (!itemId && catalog.items.length) setItemId(catalog.items[0].id);
+    if (!itemId && catalog.items.length) {
+      setItemId(catalog.items[0].id);
+      setSelectedCompetency(catalog.items[0].competencies?.[0]?.id ?? "");
+    }
   };
   const loadSubmissions = async (id: string) => {
     const out = await api.openSubmissions(id); setSubmissions(out.submissions);
@@ -45,6 +49,7 @@ export default function OpenReviewPage() {
       await api.createOpenAssignment({
         item_id: itemId, title, instructions,
         ...(selectedCourse ? { course_id: selectedCourse } : {}),
+        ...(selectedCompetency ? { competency_id: selectedCompetency } : {}),
         ...(dueAt ? { due_at: new Date(dueAt).toISOString() } : {}),
       });
       setTitle(""); setInstructions(""); setDueAt(""); await loadAssignments();
@@ -57,7 +62,8 @@ export default function OpenReviewPage() {
   };
   const startGrade = (submission: OpenSubmission) => {
     setActive(submission); setScore(String(submission.score ?? 0)); setFeedback(submission.feedback ?? "");
-    setRubric(submission.rubric ?? { Comprensión: 0, Estrategia: 0, Procedimiento: 0, Argumentación: 0 });
+    const criteria = submission.rubric_snapshot?.criteria ?? fallbackCriteria;
+    setRubric(submission.rubric ?? Object.fromEntries(criteria.map((criterion) => [criterion.id, 0])));
   };
   const grade = async (e: React.FormEvent) => {
     e.preventDefault(); if (!active) return;
@@ -69,6 +75,9 @@ export default function OpenReviewPage() {
     } catch (e) { setError(messageFor(e)); } finally { setBusy(false); }
   };
 
+  const selectedItem = items.find((item) => item.id === itemId);
+  const selectedRubric = selectedItem?.competencies?.find((entry) => entry.id === selectedCompetency)?.rubric;
+
   return <Shell><section className="sheet">
     <h1>Corrección de respuestas abiertas</h1>
     <p className="lead">Asigná una consigna, leé las entregas y devolvé una calificación con criterios y comentarios.</p>
@@ -77,8 +86,26 @@ export default function OpenReviewPage() {
     <h2>Crear actividad</h2>
     {items.length === 0 ? <p>No hay preguntas abiertas disponibles en el banco actual.</p> : <form onSubmit={create}>
       <label className="field"><span>Consigna del banco</span>
-        <select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((item) => <option key={item.id} value={item.id}>{item.stem.slice(0, 110)}</option>)}</select>
+        <select value={itemId} onChange={(e) => {
+          const next = items.find((item) => item.id === e.target.value);
+          setItemId(e.target.value); setSelectedCompetency(next?.competencies?.[0]?.id ?? "");
+        }}>{items.map((item) => <option key={item.id} value={item.id}>{item.stem.slice(0, 110)}</option>)}</select>
       </label>
+      {selectedItem?.competencies?.length ? <>
+        <label className="field"><span>Competencia que se evaluará</span>
+          <select value={selectedCompetency} onChange={(e) => setSelectedCompetency(e.target.value)}>
+            {selectedItem.competencies.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+          </select>
+        </label>
+        {selectedRubric && <details className="notice"><summary>Ver rúbrica: {selectedRubric.competency}</summary>
+          <p>{selectedRubric.focus}</p>
+          {selectedRubric.criteria.map((criterion) => <div key={criterion.id}>
+            <strong>{criterion.label}</strong>
+            <ul>{Object.entries(criterion.descriptors ?? {}).map(([level, descriptor]) => <li key={level}>{level}/4 — {descriptor}</li>)}</ul>
+          </div>)}
+          <p className="muted">{selectedRubric.notice}</p>
+        </details>}
+      </> : <p className="muted">Esta plantilla no tiene una competencia vinculada en el mapa del banco; se usará la corrección orientativa general.</p>}
       <label className="field"><span>Curso destinatario</span>
         <select value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)}>
           <option value="">Toda la escuela (sin curso específico)</option>
@@ -95,6 +122,7 @@ export default function OpenReviewPage() {
     {assignments.length === 0 ? <p>Todavía no creaste actividades abiertas.</p> : <ul>
       {assignments.map((a) => <li key={a.id}>
         <button className="btn ghost" type="button" onClick={() => choose(a.id)} aria-pressed={selected === a.id}>{a.title} — {a.pending ?? 0} pendientes / {a.submissions ?? 0} entregas</button>
+        {a.competency_id && <p className="muted">Competencia: {a.rubric_snapshot?.competency ?? a.competency_id}</p>}
         {a.due_at && <p className="muted">Vence: {new Date(a.due_at).toLocaleString()}</p>}
       </li>)}
     </ul>}
@@ -113,11 +141,13 @@ export default function OpenReviewPage() {
       <blockquote>{active.response}</blockquote>
       <label className="field"><span>Calificación (0 a 100)</span><input type="number" min="0" max="100" step="1" value={score} onChange={(e) => setScore(e.target.value)} required /></label>
       <h3>Rúbrica orientativa (0 a 4)</h3>
-      {criteria.map((criterion) => <label className="field" key={criterion}><span>{criterion}</span>
-        <select value={rubric[criterion] ?? 0} onChange={(e) => setRubric((old) => ({ ...old, [criterion]: Number(e.target.value) }))}>
+      {(active.rubric_snapshot?.criteria ?? fallbackCriteria).map((criterion) => <label className="field" key={criterion.id}><span>{criterion.label}</span>
+        <select value={rubric[criterion.id] ?? 0} onChange={(e) => setRubric((old) => ({ ...old, [criterion.id]: Number(e.target.value) }))}>
           {[0,1,2,3,4].map((v) => <option key={v} value={v}>{v}</option>)}
         </select>
+        {criterion.descriptors && <p className="muted">{criterion.descriptors[String(rubric[criterion.id] ?? 0)]}</p>}
       </label>)}
+      {active.rubric_snapshot && <p className="muted">{active.rubric_snapshot.notice}</p>}
       <label className="field"><span>Retroalimentación</span><textarea rows={5} maxLength={10000} value={feedback} onChange={(e) => setFeedback(e.target.value)} /></label>
       <div className="actions"><button className="btn" type="submit" disabled={busy}>Guardar corrección</button>
         <button className="btn ghost" type="button" onClick={() => setActive(null)}>Cancelar</button></div>

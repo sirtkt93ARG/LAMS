@@ -40,6 +40,7 @@ class TestPostgresStore(unittest.TestCase):
                 root / "db/010_migracion_v15.sql",
                 root / "db/011_migracion_v16.sql",
                 root / "db/012_migracion_v17.sql",
+                root / "db/013_migracion_v18.sql",
             ):
                 conn.execute(migration.read_text(encoding="utf-8"), prepare=False)
         cls.store = Store(APP_URL)
@@ -88,6 +89,23 @@ class TestPostgresStore(unittest.TestCase):
         self.assertTrue(self.store.open_assignment_expired(tenant, assignment))
         self.assertFalse(self.store.submit_open_response(f"submission-{suffix}", assignment, tenant, pid, "late"))
         self.assertEqual(self.store.open_submissions_for_assignment(tenant, assignment), [])
+
+    def test_competency_rubric_snapshot_is_persisted_under_rls(self):
+        suffix = uuid4().hex
+        tenant, pid, assignment = f"school-rubric-{suffix}", f"student-{suffix}", f"assignment-{suffix}"
+        snapshot = {
+            "version": 1, "competency_id": "porcentajes", "competency": "Porcentajes",
+            "criteria": [{"id": "interpretacion", "label": "Interpretación",
+                          "descriptors": {"0": "Sin evidencia"}}],
+        }
+        self.store.create_open_assignment(assignment, tenant, None, "open-item", "Rúbrica", "",
+                                           "teacher", None, "porcentajes", snapshot)
+        student_assignment = self.store.open_assignments_for_student(tenant, None, pid)[0]
+        self.assertEqual(student_assignment["rubric_snapshot"], snapshot)
+        submission = f"submission-{suffix}"
+        self.assertTrue(self.store.submit_open_response(submission, assignment, tenant, pid, "respuesta"))
+        self.assertEqual(self.store.rubric_snapshot_for_submission(tenant, submission), snapshot)
+        self.assertIsNone(self.store.rubric_snapshot_for_submission(f"other-{suffix}", submission))
 
     def test_open_response_review_is_tenant_scoped_and_persisted(self):
         suffix = uuid4().hex
