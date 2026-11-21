@@ -2,9 +2,9 @@
 import { useEffect, useState } from "react";
 import { Shell } from "@/components/Shell";
 import { api, messageFor } from "@/lib/api";
-import type { Course, OpenAssignment, OpenItem, OpenSubmission } from "@/lib/types";
+import type { Course, OpenAssignment, OpenItem, OpenSubmission, RubricCriterion } from "@/lib/types";
 
-const fallbackCriteria = ["Comprensión", "Estrategia", "Procedimiento", "Argumentación"].map((label) => ({ id: label, label, descriptors: {} }));
+const fallbackCriteria: RubricCriterion[] = ["Comprensión", "Estrategia", "Procedimiento", "Argumentación"].map((label) => ({ id: label, label, descriptors: {} }));
 
 export default function OpenReviewPage() {
   const [items, setItems] = useState<OpenItem[]>([]);
