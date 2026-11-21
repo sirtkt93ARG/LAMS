@@ -68,6 +68,9 @@ export const api = {
   networkSummary: () => req<NetworkSummary>("/v1/network/summary"),
   networkAdd: (tenant: string) => req<{ tenants: string[]; pending_tenants: string[] }>("/v1/network/tenants", { method: "POST", body: JSON.stringify({ tenant_id: tenant }) }),
   networkInvites: () => req<{ invites: string[] }>("/v1/teacher/network-invites"),
+  networkMemberships: () => req<{ memberships: string[] }>("/v1/teacher/network-memberships"),
+  networkMembershipRevoke: (networkId: string) =>
+    req<{ memberships: string[] }>(`/v1/teacher/network-memberships/${encodeURIComponent(networkId)}`, { method: "DELETE" }),
   networkInviteAnswer: (networkId: string, decision: "accept" | "decline") =>
     req<{ invites: string[] }>(`/v1/teacher/network-invites/${encodeURIComponent(networkId)}/${decision}`, { method: "POST" }),
   consent: () => req<Consent>("/v1/teacher/consent"),
