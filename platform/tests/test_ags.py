@@ -1,10 +1,11 @@
 """Prueba real por HTTP (en localhost) del cliente de notas contra el LMS simulado."""
+import importlib.util
 import os, sys, threading, unittest, urllib.error
 sys.path.insert(0, os.getcwd())
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-HAS_FLASK = __import__("importlib").util.find_spec("flask") is not None
+HAS_FLASK = importlib.util.find_spec("flask") is not None
 
 
 def _keys():

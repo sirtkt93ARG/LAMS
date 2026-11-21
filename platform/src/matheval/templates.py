@@ -42,13 +42,16 @@ def t8_lectura_tabla(rng):
 
 
 def t7_compra_simple(rng):
-    p, q = rng.choice([120, 150, 180, 250, 300]), rng.choice([3, 4, 6, 7, 8, 12])
+    name = rng.choice(["Ana", "Luis", "Sofía", "Mateo", "Valentina", "Joaquín", "Camila", "Tomás"])
+    what, each = rng.choice([("paquetes de figuritas", "uno"), ("cajas de alfajores", "una"), ("bolsas de pan", "una"),
+                             ("entradas para la feria", "una"), ("cuadernos", "uno"), ("jugos", "uno")])
+    p, q = rng.choice(range(100, 410, 10)), rng.choice(range(3, 16))
     total = p * q
     options, cid = _choices(rng, fmt_ars(total),
                             [(fmt_ars(p + q), "suma_en_lugar_de_multiplicar"),
                              (fmt_ars(p * (q - 1)), "cuenta_una_unidad_menos"),
                              (fmt_ars(total * 10), "error_de_orden_de_magnitud")])
-    return dict(stem=f"Ana compra {q} paquetes de figuritas a {fmt_ars(p)} cada uno. ¿Cuánto paga en total?",
+    return dict(stem=f"{name} compra {q} {what} a {fmt_ars(p)} cada {each}. ¿Cuánto paga en total?",
                 kind="choice", options=options, correct=cid,
                 params={"p": p, "q": q, "answer": str(total), "answer_text": fmt_ars(total)})
 
@@ -101,28 +104,33 @@ def t3_tarifa_lineal(rng):
 
 
 def t4_area_escala(rng):
-    k, w, h = rng.choice([200, 500]), rng.choice([2, 3, 4, 5, 6]), rng.choice([2, 3, 4, 5])
+    k, w, h = rng.choice([200, 500, 1000]), rng.choice(range(2, 10)), rng.choice(range(2, 9))
     real = sp.Rational(w * h * k * k, 10000)
     if real.q != 1:
         raise TemplateError("área no entera")
     real = int(real)
+    place = rng.choice(["una habitación", "un patio", "un salón", "una cancha chica"])
     options, cid = _choices(rng, f"{real} m²",
                             [(f"{w * h * k // 100} m²", "escala_lineal_aplicada_al_area"),
                              (f"{w * h} m²", "sin_aplicar_la_escala"),
                              (f"{w * h * k * k // 100} m²", "error_de_unidades")])
-    return dict(stem=f"En un plano a escala 1:{k}, una habitación rectangular mide {w} cm por {h} cm. ¿Cuál es el área real de la habitación?",
+    return dict(stem=f"En un plano a escala 1:{k}, {place} rectangular mide {w} cm por {h} cm. ¿Cuál es el área real?",
                 kind="choice", options=options, correct=cid,
                 params={"k": k, "w": w, "h": h, "answer": str(real), "answer_text": f"{real} m²"})
 
 
 def t5_probabilidad(rng):
-    total = rng.choice([40, 60, 80, 100])
-    pcts = rng.choice([(20, 30, 50), (10, 40, 50), (25, 25, 50), (15, 35, 50), (30, 30, 40)])
+    total = rng.choice([40, 60, 80, 100, 120, 160, 200])
+    pcts = rng.choice([(20, 30, 50), (10, 40, 50), (25, 25, 50), (15, 35, 50), (30, 30, 40), (5, 45, 50), (10, 30, 60), (20, 20, 60),
+                       (35, 35, 30), (25, 35, 40), (45, 35, 20), (15, 25, 60), (40, 40, 20)])
     counts = [sp.Rational(total * p, 100) for p in pcts]
     if any(c.q != 1 for c in counts):
         raise TemplateError("frecuencias no enteras")
     counts = [int(c) for c in counts]
-    cats = ["bicicleta", "colectivo", "a pie"]
+    topic, header, cats = rng.choice([("cómo viaja al colegio", "Medio", ["bicicleta", "colectivo", "a pie"]),
+                                      ("qué deporte prefiere", "Deporte", ["fútbol", "vóley", "básquet"]),
+                                      ("qué materia le gusta más", "Materia", ["matemática", "lengua", "ciencias"]),
+                                      ("qué fruta elige en el recreo", "Fruta", ["manzana", "banana", "mandarina"])])
     k = rng.randrange(3)
     pct = pcts[k]
     options, cid = _choices(rng, fmt_pct(pct),
@@ -130,9 +138,9 @@ def t5_probabilidad(rng):
                              (fmt_pct(100 / 3, 1), "supone_igual_probabilidad"),
                              (fmt_pct(100 - pct), "usa_el_complemento"),
                              (fmt_pct(counts[k] * 100 / (total - counts[k]), 1), "denominador_equivocado")])
-    return dict(stem=f"En un curso de {total} estudiantes se registró cómo viaja cada uno al colegio. Si se elige un estudiante al azar, ¿cuál es la probabilidad de que viaje {cats[k] if k == 2 else 'en ' + cats[k]}?",
+    return dict(stem=f"En un curso de {total} estudiantes se preguntó {topic}. Si se elige un estudiante al azar, ¿cuál es la probabilidad de que haya respondido «{cats[k]}»?",
                 kind="choice", options=options, correct=cid,
-                stimulus={"type": "table", "header": ["Medio", "Estudiantes"], "rows": [[c, str(n)] for c, n in zip(cats, counts)]},
+                stimulus={"type": "table", "header": [header, "Estudiantes"], "rows": [[c, str(n)] for c, n in zip(cats, counts)]},
                 params={"counts": counts, "total": total, "k": k, "answer": str(pct), "answer_text": fmt_pct(pct)})
 
 
@@ -146,16 +154,17 @@ def t6_comparar_planes(rng):
 
 
 def t9_resta_simple(rng):
-    a, b = rng.choice([420, 530, 645, 780, 905, 1250]), rng.choice([85, 130, 275, 360, 415])
+    a, b = rng.choice(range(300, 2005, 5)), rng.choice(range(50, 905, 5))
     if b >= a:
         raise TemplateError("resta negativa")
+    thing = rng.choice(["Un tanque", "Una cisterna", "Una pileta", "Un bidón grande"])
     ans = a - b
     options, cid = _choices(rng, f"{fmt_int(ans)} litros",
                             [(f"{fmt_int(a + b)} litros", "suma_en_lugar_de_restar"),
                              (f"{fmt_int(ans + 10)} litros", "error_de_reagrupacion"),
                              (f"{fmt_int(ans * 10)} litros", "error_de_orden_de_magnitud"),
                              (f"{fmt_int(ans - 100)} litros", "error_de_reagrupacion")])
-    return dict(stem=f"Un tanque tiene {fmt_int(a)} litros de agua y se usan {fmt_int(b)} litros. ¿Cuántos litros quedan?",
+    return dict(stem=f"{thing} tiene {fmt_int(a)} litros de agua y se usan {fmt_int(b)} litros. ¿Cuántos litros quedan?",
                 kind="choice", options=options, correct=cid,
                 params={"a": a, "b": b, "answer": str(ans), "answer_text": f"{fmt_int(ans)} litros"})
 
@@ -169,11 +178,13 @@ def _count_ways(coins, amount):
 
 
 def t10_monedas(rng):
-    coins, amount = rng.choice([(2, 5, 10), (1, 5, 10), (2, 3, 5), (5, 10, 20)]), rng.choice([20, 25, 30, 40])
+    coins = tuple(sorted(rng.sample([1, 2, 3, 5, 10, 20, 50], 3)))
+    amount = rng.choice(range(15, 66, 5))
     n = _count_ways(coins, amount)
-    if not 3 <= n <= 14:
+    if not 3 <= n <= 16:
         raise TemplateError("cantidad de formas fuera de rango")
-    return dict(stem=(f"En un kiosco solo hay monedas de {fmt_ars(coins[0])}, {fmt_ars(coins[1])} y {fmt_ars(coins[2])}. "
+    where = rng.choice(["En un kiosco", "En una cantina", "En una feria"])
+    return dict(stem=(f"{where} solo hay monedas de {fmt_ars(coins[0])}, {fmt_ars(coins[1])} y {fmt_ars(coins[2])}. "
                       f"¿De cuántas maneras distintas se pueden juntar exactamente {fmt_ars(amount)}? "
                       "Se pueden repetir monedas y el orden no importa."),
                 kind="numeric", options=[], correct=n, tolerance=0.0,
@@ -181,22 +192,30 @@ def t10_monedas(rng):
 
 
 def t11_patron_baldosas(rng):
-    d = rng.choice([2, 3, 4, 5])
-    a = d + rng.choice([1, 2, 3, 4, 5, 6])
-    return dict(stem=(f"Un diseño de baldosas se arma agregando siempre la misma cantidad en cada paso. Escribí una expresión "
-                      "para la cantidad de baldosas del diseño n."),
+    d = rng.choice(range(2, 10))
+    a = d + rng.choice(range(1, 10))
+    noun, unit = rng.choice([("baldosas", "diseño"), ("fósforos", "figura"), ("cubitos", "torre")])
+    return dict(stem=f"Una serie de {unit}s se arma agregando siempre la misma cantidad de {noun} en cada paso. Escribí una expresión "
+                     f"para la cantidad de {noun} del {unit} n.",
                 kind="expression", options=[], correct=f"{d}*n+{a - d}", variables=["n"],
-                stimulus={"type": "table", "header": ["Diseño", "Baldosas"],
+                stimulus={"type": "table", "header": [unit.capitalize(), noun.capitalize()],
                           "rows": [[str(i + 1), str(a + i * d)] for i in range(3)]},
-                params={"a": a, "d": d, "answer": f"{d}*n+{a - d}", "answer_text": f"{d}*n+{a - d}"})
+                params={"a": a, "d": d, "noun": noun, "unit": unit, "answer": f"{d}*n+{a - d}", "answer_text": f"{d}*n+{a - d}"})
 
 
 def t12_cuadrado_crece(rng):
-    k = rng.choice([2, 3, 4, 5])
-    return dict(stem=(f"Un cuadrado tiene un lado de n cm. Si se agranda el lado {k} cm, ¿cuántos cm² aumenta su área? "
-                      "Escribí una expresión en función de n."),
-                kind="expression", options=[], correct=f"{2 * k}*n+{k * k}", variables=["n"],
-                params={"k": k, "answer": f"{2 * k}*n+{k * k}", "answer_text": f"{2 * k}*n+{k * k}"})
+    k = rng.choice(range(2, 10))
+    a = rng.choice([0] + list(range(1, 9)))            # a = 0: cuadrado de lado n; a > 0: rectángulo de lados n y n + a
+    if a == 0:
+        stem = (f"Un cuadrado tiene un lado de n cm. Si se agranda el lado {k} cm, ¿cuántos cm² aumenta su área? "
+                "Escribí una expresión en función de n.")
+        correct = f"{2 * k}*n+{k * k}"
+    else:
+        stem = (f"Un rectángulo tiene lados de n cm y de (n + {a}) cm. Si cada lado se agranda {k} cm, ¿cuántos cm² aumenta su área? "
+                "Escribí una expresión en función de n.")
+        correct = f"{2 * k}*n+{k * (a + k)}"
+    return dict(stem=stem, kind="expression", options=[], correct=correct, variables=["n"],
+                params={"k": k, "a": a, "answer": correct, "answer_text": correct})
 
 
 # ---- Plantillas con gráficos, geometría, estadística, modelos y finanzas (T13 a T24) -------------------
@@ -233,13 +252,14 @@ def t14_lineas_diferencia(rng):
 
 
 def t15_perimetro(rng):
-    w, h = rng.choice([6, 8, 10, 12, 15, 20]), rng.choice([4, 5, 7, 9, 11])
+    w, h = rng.choice(range(5, 31)), rng.choice(range(3, 26))
     if w == h:
         raise TemplateError("cuadrado")
     ans = 2 * (w + h)
+    what = rng.choice(["un terreno", "un patio", "una quinta", "una cancha"])
     options, cid = _choices(rng, f"{ans} m", [(f"{w * h} m", "confunde_area_con_perimetro"), (f"{w + h} m", "olvida_duplicar"),
                                              (f"{2 * w * h} m", "confunde_area_con_perimetro")])
-    return dict(stem=f"Se quiere cercar un terreno rectangular de {w} m por {h} m con alambrado. ¿Cuántos metros de alambrado se necesitan?",
+    return dict(stem=f"Se quiere cercar {what} rectangular de {w} m por {h} m con alambrado. ¿Cuántos metros de alambrado se necesitan?",
                 kind="choice", options=options, correct=cid,
                 stimulus={"type": "rect", "width": w, "height": h, "unit": "m"},
                 params={"w": w, "h": h, "answer": str(ans), "answer_text": f"{ans} m"})
@@ -256,15 +276,16 @@ def t16_receta(rng):
 
 
 def t17_porcentajes_sucesivos(rng):
-    P, a, b = rng.choice([1000, 2000, 2500, 4000, 5000]), rng.choice([10, 20, 25, 50]), rng.choice([10, 20, 25])
+    P, a, b = rng.choice(range(1000, 8001, 500)), rng.choice([5, 10, 15, 20, 25, 30, 40, 50]), rng.choice([5, 10, 15, 20, 25, 30])
     val = sp.Rational(P * (100 + a) * (100 - b), 10000)
     if val.q != 1:
         raise TemplateError("precio no entero")
     ans = int(val)
+    thing = rng.choice(["producto", "par de zapatillas", "electrodoméstico", "libro"])
     options, cid = _choices(rng, fmt_ars(ans),
                             [(fmt_ars(P * (100 + a - b) // 100), "suma_porcentajes_sucesivos"),
                              (fmt_ars(P * (100 + a) // 100), "ignora_la_baja"), (fmt_ars(P * (100 - b) // 100), "ignora_el_aumento")])
-    return dict(stem=(f"Un producto costaba {fmt_ars(P)}. Primero aumentó {a} % y después, con una oferta, bajó {b} % sobre el precio "
+    return dict(stem=(f"Un {thing} costaba {fmt_ars(P)}. Primero aumentó {a} % y después, con una oferta, bajó {b} % sobre el precio "
                       "ya aumentado. ¿Cuánto cuesta ahora?"),
                 kind="choice", options=options, correct=cid,
                 params={"P": P, "a": a, "b": b, "answer": str(ans), "answer_text": fmt_ars(ans)})
@@ -299,12 +320,13 @@ def t19_mediana(rng):
 
 
 def t20_funcion_tabla(rng):
-    m, b0 = rng.choice([2, 3, 4, 5, 6]), rng.choice([1, 2, 3, 5, 8])
+    m, b0 = rng.choice(range(2, 10)), rng.choice(range(1, 13))
     ys = [m * x + b0 for x in (1, 2, 3)]
     ans = m * 10 + b0
-    return dict(stem="Un sensor registra una medida que crece siempre al mismo ritmo, como muestra la tabla. ¿Qué valor va a registrar en la medición 10?",
+    what, unit = rng.choice([("Un sensor registra una medida", "Medición"), ("Una planta crece", "Semana"), ("Un ahorro aumenta", "Mes")])
+    return dict(stem=f"{what} que crece siempre al mismo ritmo, como muestra la tabla. ¿Qué valor va a tener en la fila 10?",
                 kind="numeric", options=[], correct=ans, tolerance=0.0,
-                stimulus={"type": "table", "header": ["Medición", "Valor"], "rows": [[str(x), str(y)] for x, y in zip((1, 2, 3), ys)]},
+                stimulus={"type": "table", "header": [unit, "Valor"], "rows": [[str(x), str(y)] for x, y in zip((1, 2, 3), ys)]},
                 params={"m": m, "b": b0, "answer": str(ans), "answer_text": str(ans)})
 
 
@@ -321,19 +343,25 @@ def t21_sistema_cine(rng):
 
 
 def t22_pitagoras(rng):
-    a, b, c = rng.choice([(3, 4, 5), (5, 12, 13), (8, 15, 17), (7, 24, 25)])
-    k = rng.choice([1, 2])
-    leg, h, l = a * k, b * k, c * k
+    a, b, c = rng.choice([(3, 4, 5), (6, 8, 10), (9, 12, 15), (12, 16, 20), (15, 20, 25), (18, 24, 30), (5, 12, 13), (10, 24, 26),
+                          (8, 15, 17), (7, 24, 25), (20, 21, 29)])
+    if rng.random() < 0.5:
+        a, b = b, a
+    leg, h, l = a, b, c
     options, cid = _choices(rng, f"{h} m", [(f"{l - leg} m", "resta_los_lados"), (f"{l + leg} m", "suma_los_lados"),
                                            (f"{h * h} m", "olvida_la_raiz"), (f"{l * leg} m", "multiplica_los_lados")])
-    return dict(stem=(f"Una escalera de {l} m está apoyada en una pared vertical. El pie de la escalera está a {leg} m de la pared. "
-                      "¿A qué altura de la pared llega la escalera?"),
-                kind="choice", options=options, correct=cid,
+    stem = rng.choice([
+        f"Una escalera de {l} m está apoyada en una pared vertical. El pie de la escalera está a {leg} m de la pared. ¿A qué altura de la pared llega la escalera?",
+        f"Un cable de {l} m va desde la punta de un poste vertical hasta el suelo, a {leg} m de la base del poste. ¿Qué altura tiene el poste?",
+        f"Una rampa de {l} m de largo llega a una plataforma. Medida sobre el suelo, la rampa avanza {leg} m. ¿A qué altura está la plataforma?"])
+    return dict(stem=stem, kind="choice", options=options, correct=cid,
                 params={"leg": leg, "l": l, "answer": str(h), "answer_text": f"{h} m"})
 
 
 def t23_interes_simple(rng):
-    C, t, n = rng.choice([10000, 20000, 50000]), rng.choice([4, 5, 6, 8, 10]), rng.choice([2, 3, 4])
+    C, t, n = rng.choice([5000, 10000, 20000, 30000, 50000, 100000]), rng.choice(range(3, 13)), rng.choice(range(2, 7))
+    if sp.Rational(C * t * n, 100).q != 1:
+        raise TemplateError("interés no entero")
     ans = C * t * n // 100
     return dict(stem=(f"Una persona deposita {fmt_ars(C)} a plazo fijo con un interés simple de {t} % anual. "
                       f"¿Cuánto interés gana en {n} años? Escribí solo el número."),
@@ -342,7 +370,9 @@ def t23_interes_simple(rng):
 
 
 def t24_mapa(rng):
-    k, x = rng.choice([500000, 1000000, 2000000]), rng.choice([2, 3, 4, 5, 6, 8])
+    k, x = rng.choice([250000, 500000, 1000000, 2000000, 5000000]), rng.choice(range(2, 13))
+    if sp.Rational(x * k, 100000).q != 1:
+        raise TemplateError("distancia no entera")
     ans = x * k // 100000
     return dict(stem=f"En un mapa a escala 1:{fmt_int(k)}, dos ciudades están a {x} cm una de la otra. ¿A cuántos kilómetros están en la realidad?",
                 kind="numeric", options=[], correct=ans, tolerance=0.0,
@@ -378,6 +408,14 @@ SPEC = {
 }
 
 
+def fingerprint(item: Item) -> str:
+    """Huella del contenido (no del número de semilla): dos ejercicios con la misma huella son el mismo ejercicio."""
+    import hashlib, json
+    body = json.dumps([item.template, item.stem, sorted(o.text for o in item.options), item.stimulus,
+                       item.params.get("answer_text")], ensure_ascii=False, sort_keys=True)
+    return hashlib.sha1(body.encode()).hexdigest()[:12]
+
+
 def generate(template_id: str, seed: int, max_tries: int = 50) -> Item:
     fn, axis, process, context, level, title = SPEC[template_id]
     for attempt in range(max_tries):
@@ -390,6 +428,7 @@ def generate(template_id: str, seed: int, max_tries: int = 50) -> Item:
                     context=context, target_level=level, status=Status.VERIFICADO,
                     provenance={"method": "plantilla", "template": template_id, "title": title, "seed": seed,
                                 "verified_with": "sympy"}, **d)
+        item.provenance["fp"] = fingerprint(item)
         verify_item(item)
         return item
     raise TemplateError(f"no se pudo generar {template_id} con semilla {seed}")
@@ -466,8 +505,9 @@ def verify_item(item: Item) -> None:
         assert [int(r[1]) for r in item.stimulus["rows"]] == [a, a + d, a + 2 * d]
         return
     if item.template == "T12":
-        k = item.params["k"]
-        assert sp.expand((n + k) ** 2 - n ** 2 - to_sympy(item.correct, ["n"])) == 0
+        k, a = item.params["k"], item.params["a"]
+        grown = (n + k) ** 2 - n ** 2 if a == 0 else (n + k) * (n + a + k) - n * (n + a)
+        assert sp.expand(grown - to_sympy(item.correct, ["n"])) == 0
         return
     exp = _expected(item)
     assert sp.Rational(item.params["answer"]) == exp, f"{item.id}: clave {item.params['answer']} != {exp}"

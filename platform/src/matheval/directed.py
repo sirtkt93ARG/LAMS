@@ -10,12 +10,13 @@ from .skills import skills_of_item
 
 
 def build_catalog(items: list[Item], skill: str) -> dict:
-    cat = {"levels": defaultdict(list), "by_template": defaultdict(list), "level_of": {}, "kind": {}}
+    cat = {"levels": defaultdict(list), "by_template": defaultdict(list), "level_of": {}, "kind": {}, "fp": {}}
     for it in items:
         if skill in skills_of_item(it.id):
             cat["levels"][it.target_level].append(it.id)
             cat["by_template"][it.template].append(it.id)
             cat["level_of"][it.id], cat["kind"][it.id] = it.target_level, it.kind
+            cat["fp"][it.id] = it.provenance.get("fp", it.id)
     cat["levels"], cat["by_template"] = dict(cat["levels"]), dict(cat["by_template"])
     return cat
 
@@ -44,14 +45,16 @@ class DirectedSession:
         if len(self.administered) >= self.total:
             return None
         rng = random.Random(f"{self.seed}:{len(self.administered)}")
+        fp = self.cat.get("fp", {})
+        asked_fp = {fp.get(i, i) for i in self.administered}
         asked = set(self.administered)
         if self.responses and not self.responses[-1][1] and self.consec_wrong == 1:      # ejercicio espejo
-            cands = [i for i in self.cat["by_template"].get(_tid(self.responses[-1][0]), []) if i not in asked]
+            cands = [i for i in self.cat["by_template"].get(_tid(self.responses[-1][0]), []) if i not in asked and fp.get(i, i) not in asked_fp]
             if cands:
                 return rng.choice(cands)
         order = sorted(self.levels, key=lambda x: (abs(x - self.level), x))
         for lvl in order:
-            cands = [i for i in self.cat["levels"][lvl] if i not in asked]
+            cands = [i for i in self.cat["levels"][lvl] if i not in asked and fp.get(i, i) not in asked_fp]
             if self.responses:
                 alt = [i for i in cands if _tid(i) != _tid(self.responses[-1][0])]
                 cands = alt or cands

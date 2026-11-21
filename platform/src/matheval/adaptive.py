@@ -12,6 +12,7 @@ class PoolItem:
     id: str
     axis: str
     params: IRTParams
+    fp: str | None = None     # huella del contenido: dos ítems con la misma huella son el mismo ejercicio
 
 
 # ---- Multietapa -----------------------------------------------------------------------
@@ -24,32 +25,48 @@ class MSTDesign:
     cut3: tuple[float, float] = (-1.6, -0.2)   # umbrales de ruteo tras la etapa 2
 
 
-def _round_robin(cands: list[PoolItem], center: float, size: int) -> list[PoolItem]:
+def _round_robin(cands: list[PoolItem], center: float, size: int, rng: random.Random | None = None, spread: int = 1,
+                 used_fp: set | None = None) -> list[PoolItem]:
+    """Arma un bloque balanceado por eje con ítems cercanos a `center`. Con `rng`, cada elección se sortea entre los `spread`
+    ítems más cercanos de su eje (control de exposición); nunca repite contenido (huella) dentro del diseño."""
+    used_fp = used_fp if used_fp is not None else set()
     by_axis = defaultdict(list)
     for it in sorted(cands, key=lambda x: abs(x.params.b - center)):
         by_axis[it.axis].append(it)
     out, axes = [], sorted(by_axis)
     while len(out) < size and any(by_axis.values()):
         for ax in axes:
-            if by_axis[ax] and len(out) < size:
-                out.append(by_axis[ax].pop(0))
+            lst = by_axis[ax]
+            while lst and len(out) < size:
+                it = lst.pop(rng.randrange(min(spread, len(lst))) if rng else 0)
+                if it.fp is not None and it.fp in used_fp:
+                    continue
+                if it.fp is not None:
+                    used_fp.add(it.fp)
+                out.append(it)
+                break
     return out
 
 
 def build_design(pool: list[PoolItem], size: int = 8, center1: float = -1.0,
-                 centers2=(-2.0, -1.0, 0.4), centers3=(-2.4, -0.9, 1.0)) -> MSTDesign:
-    left = list(pool)
+                 centers2=(-2.0, -1.0, 0.4), centers3=(-2.4, -0.9, 1.0),
+                 rng: random.Random | None = None, spread: int = 16) -> MSTDesign:
+    left, used_fp = list(pool), set()
 
     def take(center):
-        blk = _round_robin(left, center, size)
-        for it in blk:
-            left.remove(it)
+        blk = _round_robin(left, center, size, rng, spread, used_fp)
+        ids = {it.id for it in blk}
+        left[:] = [x for x in left if x.id not in ids and not (x.fp is not None and x.fp in used_fp)]
         return [it.id for it in blk]
 
     s1 = take(center1)
     s2 = {k: take(c) for k, c in zip(("low", "mid", "high"), centers2)}
     s3 = {k: take(c) for k, c in zip(("low", "mid", "high"), centers3)}
     return MSTDesign(s1, s2, s3)
+
+
+def _route(theta: float, cuts) -> str:
+    return "low" if theta < cuts[0] else ("high" if theta >= cuts[1] else "mid")
 
 
 def design_to_dict(d: MSTDesign) -> dict:
@@ -59,9 +76,6 @@ def design_to_dict(d: MSTDesign) -> dict:
 def design_from_dict(x: dict) -> MSTDesign:
     return MSTDesign(x["stage1"], x["stage2"], x["stage3"], tuple(x["cut2"]), tuple(x["cut3"]))
 
-
-def _route(theta: float, cuts) -> str:
-    return "low" if theta < cuts[0] else ("high" if theta >= cuts[1] else "mid")
 
 
 class MSTSession:
