@@ -24,6 +24,7 @@ class TestProductionConfig(unittest.TestCase):
             "PSEUDONYM_SECRET": "p" * 48,
             "OIDC_ISSUER": "https://identity.example/realms/matheval",
             "WEB_ORIGIN": "https://app.example",
+            "DATABASE_URL": "postgresql://app:secret@db.example/matheval",
         }
         errors, _ = check_config(env, False)
         self.assertEqual(errors, [])
@@ -33,6 +34,7 @@ class TestProductionConfig(unittest.TestCase):
             "PSEUDONYM_SECRET": "p" * 48,
             "OIDC_ISSUER": "http://identity.example/realms/matheval",
             "WEB_ORIGIN": "http://app.example",
+            "DATABASE_URL": "postgresql://app:secret@db.example/matheval",
         }
         errors, _ = check_config(env, False)
         self.assertTrue(any("OIDC_ISSUER" in x for x in errors))
@@ -44,6 +46,8 @@ class TestProductionConfig(unittest.TestCase):
             "LTI_HANDOFF_SECRET": "h" * 48,
             "SESSION_SECRET": "s" * 48,
             "LTI_SECRET_KEY": "k" * 48,
+            "WEB_ORIGIN": "https://app.example",
+            "DATABASE_URL": "postgresql://app:secret@db.example/matheval",
         }
         errors, _ = check_config(env, False)
         self.assertEqual(errors, [])
