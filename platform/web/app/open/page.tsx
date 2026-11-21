@@ -35,7 +35,7 @@ export default function OpenAssignmentsPage() {
           <p>{a.rubric_snapshot.focus}</p>
           <ul>{a.rubric_snapshot.criteria.map((criterion) => {
             const value = a.rubric?.[criterion.id] ?? 0;
-            return <li key={criterion.id}><strong>{criterion.label}: {value}/4.</strong> {criterion.descriptors[String(value)]}</li>;
+            return <li key={criterion.id}><strong>{criterion.label}: {value}/4.</strong> {criterion.descriptors?.[String(value)]}</li>;
           })}</ul>
           <p className="muted">{a.rubric_snapshot.notice}</p>
         </div>}
