@@ -18,7 +18,7 @@ Los servicios institucionales/productivos y la revisión manual siguen pendiente
 | Supresión de entregas abiertas junto con los datos locales del estudiante | Mantiene coherencia con el derecho de supresión | Incluido en el flujo de borrado y probado en PostgreSQL 16 |
 | Identificación de entregas mediante seudónimo | Evita exponer nombres personales en la plataforma | El docente ve una etiqueta seudónima; la vinculación con el roster del LMS requiere integración institucional adicional |
 
-**Límites del primer corte:** cada estudiante puede entregar una sola vez; no hay todavía reentrega, historial de revisiones, cancelación de actividades ni avisos de vencimiento. La rúbrica permite puntuar criterios definidos en la interfaz, pero aún no ofrece bibliotecas de rúbricas por competencia ni descriptores por nivel. El flujo no forma parte del motor adaptativo ni de la calibración psicométrica.
+**Límites del primer corte:** cada estudiante puede entregar una sola vez; no hay todavía reentrega, historial de revisiones, cancelación de actividades ni avisos automáticos de vencimiento. Las actividades admiten fecha y hora límite con zona horaria: el servidor valida el dato, informa si venció y bloquea de forma atómica las entregas tardías. La rúbrica permite puntuar criterios definidos en la interfaz, pero aún no ofrece bibliotecas de rúbricas por competencia ni descriptores por nivel. El flujo no forma parte del motor adaptativo ni de la calibración psicométrica.
 
 ## Incorporado en la versión 0.7: microdatos de PISA, errores estándar y brechas
 
