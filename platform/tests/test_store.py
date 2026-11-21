@@ -146,7 +146,7 @@ class TestStore(unittest.TestCase):
         bank = ItemBank([T.generate("T1", i) for i in range(5)] + [T.generate("T2", i) for i in range(5)])
         R.apply_reviews(bank, self.store)
         self.assertTrue(all(i.status == Status.VERIFICADO for i in bank.items.values()))
-        self.store.add_review("template:T1", "docente-1", "aprobar", "", {k: True for k in R.CHECKLIST})
+        self.assertTrue(self.store.add_review("template:T1", "docente-1", "aprobar", "", {k: True for k in R.CHECKLIST}))
         R.apply_reviews(bank, self.store)
         t1 = [i for i in bank.items.values() if i.template == "T1"]
         self.assertTrue(all(i.status == Status.REVISADO and i.provenance["reviewed_by"] == "docente-1" for i in t1))
@@ -157,8 +157,26 @@ class TestStore(unittest.TestCase):
         self.assertEqual(len(bank.pool("practica")), 5)
         R.apply_reviews(bank, self.store)                       # idempotente
         self.assertEqual(len(bank.pool("practica")), 5)
-        with self.assertRaises(Exception):                       # un revisor no vota dos veces
+        self.assertFalse(                                      # un revisor no vota dos veces
             self.store.add_review("template:T1", "docente-1", "aprobar", "", {})
+        )
+        self.assertEqual(len(self.store.reviews("template:T1")), 1)
+
+    def test_concurrent_review_submission_has_one_winner_across_connections(self):
+        other = Store(f"sqlite:///{self.tmp.name}/t.db")
+        barrier = threading.Barrier(2)
+        scope = "template:T3"
+        try:
+            def submit(store):
+                barrier.wait(timeout=5)
+                return store.add_review(scope, "curador-1", "aprobar", "", {})
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(submit, (self.store, other)))
+            self.assertCountEqual(results, [True, False])
+            self.assertEqual(len(self.store.reviews(scope)), 1)
+        finally:
+            other._conn.close()
 
     def test_template_status_needs_required_approvals(self):
         old = R.REQUIRED
