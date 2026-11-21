@@ -21,9 +21,8 @@ export default function TeacherPage() {
   const [periods, setPeriods] = useState<Period[]>([]);
   const [invites, setInvites] = useState<string[]>([]);
   const [inviteBusy, setInviteBusy] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isAdmin = getAuth()?.role === "admin";
-
   const load = useCallback(async (c: string) => {
     setError(null);
     const cc = c || undefined;
@@ -37,7 +36,9 @@ export default function TeacherPage() {
   }, []);
 
   useEffect(() => {
-    if (!getAuth()) { router.replace("/"); return; }
+    const auth = getAuth();
+    if (!auth) { router.replace("/"); return; }
+    setIsAdmin(auth.role === "admin");
     load("");
   }, [router, load]);
 
