@@ -445,6 +445,13 @@ def courses(user: User = Depends(current_user)):
     return {"courses": STORE.courses(user.tenant_id)}
 
 
+@app.get("/v1/teacher/open-items")
+def teacher_open_items(user: User = Depends(current_user)):
+    _teacher(user)
+    return {"items": [{"id": item.id, "stem": item.stem, "stimulus": item.stimulus}
+                      for item in BANK.items.values() if item.kind == "open"]}
+
+
 @app.post("/v1/teacher/open-assignments")
 def teacher_create_open_assignment(body: OpenAssignmentIn, user: User = Depends(current_user)):
     _teacher(user)
