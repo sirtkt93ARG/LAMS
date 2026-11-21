@@ -82,9 +82,9 @@ def _pid(user: User) -> str:
     return pseudonymize(user.sub, SECRET + user.tenant_id.encode())
 
 
-def _student_label(sub: str, tenant: str) -> str:
+def _student_key(sub: str, tenant: str) -> str:
     pid = pseudonymize(sub, SECRET + tenant.encode())
-    return "Estudiante " + hashlib.sha256(pid.encode()).hexdigest()[:6].upper()
+    return hashlib.sha256(pid.encode()).hexdigest()
 
 
 def _nrps_names(user: User) -> dict[str, str]:
@@ -101,7 +101,7 @@ def _nrps_names(user: User) -> dict[str, str]:
         with urllib.request.urlopen(req, timeout=5) as response:  # noqa: S310 (servicio interno configurado)
             members = json.loads(response.read()).get("members", [])
         return {
-            _student_label(member["user_id"], user.tenant_id): member["name"]
+            _student_key(member["user_id"], user.tenant_id): member["name"]
             for member in members
             if isinstance(member, dict) and isinstance(member.get("user_id"), str)
             and isinstance(member.get("name"), str) and member["name"].strip()
@@ -547,7 +547,8 @@ def teacher_open_submissions(assignment_id: str, user: User = Depends(current_us
     submissions = STORE.open_submissions_for_assignment(user.tenant_id, assignment_id)
     names = _nrps_names(user)
     for submission in submissions:
-        student_name = names.get(submission["student_label"])
+        student_key = submission.pop("student_key", None)
+        student_name = names.get(student_key)
         if student_name:
             submission["student_name"] = student_name
     return {"submissions": submissions}
