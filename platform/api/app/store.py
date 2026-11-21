@@ -4,6 +4,7 @@
 Privacidad: solo se guarda el identificador seudónimo (`pid`), nunca el identificador real del usuario.
 Defensa en profundidad: toda consulta por escuela filtra por tenant_id además de la política RLS."""
 from __future__ import annotations
+import hashlib
 import json
 import sqlite3
 import threading
@@ -34,8 +35,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL DEFAULT (datetime('now')), tenant_id TEXT, actor TEXT NOT NULL,
   action TEXT NOT NULL, detail TEXT);
 CREATE TABLE IF NOT EXISTS xapi_erasure_blocks (
-  tenant_id TEXT NOT NULL, pid TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  PRIMARY KEY (tenant_id, pid));
+  tenant_id TEXT NOT NULL, pid_hash TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (tenant_id, pid_hash));
 """
 _SQLITE_NEW_COLUMNS = [("sessions", "course_id", "TEXT"), ("sessions", "course_label", "TEXT"),
                        ("responses", "hints", "INTEGER NOT NULL DEFAULT 0"),
@@ -206,7 +207,7 @@ class Store:
                           "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (tenant, sid, item_id, response, score, tag, duration_s, hints))
 
     def sessions_of(self, tenant: str, pid: str, limit: int = 30) -> list[dict]:
-        rows = self._run(tenant, "SELECT id, mode, result, started_at, finished_at FROM sessions WHERE tenant_id = ? AND pid = ? "
+        rows = self._run(tenant, "SELECT id, mode, result, started_at, finished_at FROM sessions WHERE tenant_id = ? AND pid_hash = ? "
                                  "ORDER BY started_at DESC LIMIT " + str(int(limit)), (tenant, pid), fetch=True)
         return [{**r, "result": _loads(r["result"]) if r["result"] else None} for r in rows]
 
@@ -348,14 +349,15 @@ class Store:
         El bloqueo se mantiene durante el POST: una supresión concurrente espera a que
         termine un envío ya iniciado, o gana la carrera e impide que el envío comience.
         """
-        lock_key = f"{len(tenant)}:{tenant}{pid}"
+        pid_hash = hashlib.sha256(pid.encode("utf-8")).hexdigest()
+        lock_key = f"{len(tenant)}:{tenant}{pid_hash}"
         if self.dialect == "sqlite":
             with self._lock:
                 self._conn.execute("BEGIN IMMEDIATE")
                 try:
                     blocked = self._conn.execute(
                         "SELECT 1 FROM xapi_erasure_blocks WHERE tenant_id = ? AND pid = ?",
-                        (tenant, pid),
+                        (tenant, pid_hash),
                     ).fetchone()
                     if blocked:
                         self._conn.rollback()
@@ -372,7 +374,7 @@ class Store:
                 conn.execute("SELECT set_config('app.tenant_id', %s, true)", (tenant,))
                 conn.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (lock_key,))
                 blocked = conn.execute(
-                    "SELECT 1 FROM xapi_erasure_blocks WHERE tenant_id = %s AND pid = %s",
+                    "SELECT 1 FROM xapi_erasure_blocks WHERE tenant_id = %s AND pid_hash = %s",
                     (tenant, pid),
                 ).fetchone()
                 if blocked:
@@ -412,7 +414,7 @@ class Store:
                     self._conn.execute(q_delete_responses, (tenant, tenant, pid))
                     self._conn.execute(q_delete_sessions, (tenant, pid))
                     self._conn.execute(
-                        "INSERT OR IGNORE INTO xapi_erasure_blocks (tenant_id, pid) VALUES (?, ?)",
+                        "INSERT OR IGNORE INTO xapi_erasure_blocks (tenant_id, pid_hash) VALUES (?, ?)",
                         (tenant, pid),
                     )
                     summary = {"sessions": n_s, "responses": n_r, "audit_events_redacted": n_a}
@@ -438,7 +440,7 @@ class Store:
                 conn.execute(q_delete_responses, (tenant, tenant, pid))
                 conn.execute(q_delete_sessions, (tenant, pid))
                 conn.execute(
-                    "INSERT INTO xapi_erasure_blocks (tenant_id, pid) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                    "INSERT INTO xapi_erasure_blocks (tenant_id, pid_hash) VALUES (%s, %s) ON CONFLICT DO NOTHING",
                     (tenant, pid),
                 )
                 summary = {"sessions": n_s, "responses": n_r, "audit_events_redacted": n_a}
