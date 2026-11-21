@@ -141,6 +141,20 @@ class TestPostgresStore(unittest.TestCase):
         self.assertFalse(self.store.run_if_xapi_export_allowed(tenant, pid, lambda: sent.append("after")))
         self.assertEqual(sent, ["before"])
 
+    def test_xapi_erasure_block_is_isolated_between_tenants(self):
+        suffix = uuid4().hex
+        pid = f"shared-pid-{suffix}"
+        tenant_a, tenant_b = f"tenant-a-{suffix}", f"tenant-b-{suffix}"
+        self.store.delete_learner(tenant_a, pid)
+        sent = []
+        self.assertFalse(self.store.run_if_xapi_export_allowed(
+            tenant_a, pid, lambda: sent.append("blocked")
+        ))
+        self.assertTrue(self.store.run_if_xapi_export_allowed(
+            tenant_b, pid, lambda: sent.append("other-tenant")
+        ))
+        self.assertEqual(sent, ["other-tenant"])
+
     def test_concurrent_xapi_send_finishes_before_erasure_and_blocks_later_sends(self):
         suffix = uuid4().hex
         tenant, pid = f"tenant-xapi-race-{suffix}", f"pid-xapi-race-{suffix}"
