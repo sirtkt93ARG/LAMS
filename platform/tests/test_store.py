@@ -201,6 +201,11 @@ class TestStoreV05(unittest.TestCase):
         self.st._conn.close()
         self.st = Store(f"sqlite:///{self.tmp.name}/v5.db")
         self.assertFalse(self.st.run_if_xapi_export_allowed("e1", "p1", lambda: self.fail("exportación tras supresión")))
+        marker = self.st._conn.execute(
+            "SELECT pid_hash FROM xapi_erasure_blocks WHERE tenant_id = ?", ("e1",)
+        ).fetchone()["pid_hash"]
+        self.assertEqual(marker, hashlib.sha256(b"p1").hexdigest())
+        self.assertNotEqual(marker, "p1")
         sent_other_tenant = []
         self.assertTrue(self.st.run_if_xapi_export_allowed("e2", "p1", lambda: sent_other_tenant.append("ok")))
         self.assertEqual(sent_other_tenant, ["ok"])
