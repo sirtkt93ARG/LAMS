@@ -101,7 +101,7 @@ export default function OpenReviewPage() {
           <p>{selectedRubric.focus}</p>
           {selectedRubric.criteria.map((criterion) => <div key={criterion.id}>
             <strong>{criterion.label}</strong>
-            <ul>{Object.entries(criterion.descriptors).map(([level, descriptor]) => <li key={level}>{level}/4 — {descriptor}</li>)}</ul>
+            <ul>{Object.entries(criterion.descriptors ?? {}).map(([level, descriptor]) => <li key={level}>{level}/4 — {descriptor}</li>)}</ul>
           </div>)}
           <p className="muted">{selectedRubric.notice}</p>
         </details>}
