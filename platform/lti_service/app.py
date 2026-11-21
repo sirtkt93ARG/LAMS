@@ -8,6 +8,7 @@ import os
 import pathlib
 import time
 import uuid
+from urllib.parse import urlparse
 import jwt
 from flask import Flask, jsonify, redirect, request
 from flask_caching import Cache
@@ -29,7 +30,8 @@ if not DEV:
         raise RuntimeError("LTI_SECRET_KEY y LTI_HANDOFF_SECRET deben tener al menos 32 caracteres en producción")
     if not WEB_URL:
         raise RuntimeError("WEB_URL es obligatorio cuando LTI está habilitado")
-    if WEB_URL.startswith("http://") and not WEB_URL.startswith(("http://localhost", "http://127.0.0.1")):
+    web_url = urlparse(WEB_URL)
+    if web_url.scheme == "http" and web_url.hostname not in {"localhost", "127.0.0.1", "::1"}:
         raise RuntimeError("WEB_URL debe usar HTTPS fuera de localhost")
 ROLES = "https://purl.imsglobal.org/spec/lti/claim/roles"
 DEPLOYMENT = "https://purl.imsglobal.org/spec/lti/claim/deployment_id"
