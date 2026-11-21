@@ -161,7 +161,7 @@ def restore(args: argparse.Namespace) -> int:
                 f"Confirmación incorrecta: la base destino es {database!r}; "
                 "pasá --confirm-database con ese nombre exacto"
             )
-        dump, manifest = load_and_verify_backup(Path(args.backup).expanduser().resolve())
+        dump, manifest = load_and_verify_backup(Path(args.backup).expanduser())
         listing = run(["pg_restore", "--list", str(dump)], env)
         if not listing:
             raise RuntimeError("El catálogo del backup está vacío")
