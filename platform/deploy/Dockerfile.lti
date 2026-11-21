@@ -7,6 +7,7 @@ RUN pip install --no-cache-dir flask flask-caching "PyLTI1p3>=2.0" "PyJWT[crypto
     && chown -R app:app /app
 COPY --chown=app:app lti_service ./lti_service
 COPY --chown=app:app scripts/gen_lti_keys.py ./scripts/gen_lti_keys.py
+ENV HOME=/tmp
 USER app
 EXPOSE 8200
 # FlaskCacheDataStorage uses SimpleCache (process-local); keep one worker until shared Redis storage exists.
