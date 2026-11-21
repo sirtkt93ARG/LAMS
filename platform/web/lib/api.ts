@@ -70,6 +70,9 @@ export const api = {
   networkInvites: () => req<{ invites: string[] }>("/v1/teacher/network-invites"),
   networkInviteAnswer: (networkId: string, decision: "accept" | "decline") =>
     req<{ invites: string[] }>(`/v1/teacher/network-invites/${encodeURIComponent(networkId)}/${decision}`, { method: "POST" }),
+  networkMemberships: () => req<{ networks: string[] }>("/v1/teacher/network-memberships"),
+  networkLeave: (networkId: string) =>
+    req<{ networks: string[] }>(`/v1/teacher/network-memberships/${encodeURIComponent(networkId)}`, { method: "DELETE" }),
   consent: () => req<Consent>("/v1/teacher/consent"),
   attestConsent: () => req<Consent>("/v1/teacher/consent", { method: "POST" }),
   items: (sid: string) => req<SessionState>(`/v1/sessions/${sid}/items`),

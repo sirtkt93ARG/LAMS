@@ -20,18 +20,23 @@ export default function TeacherPage() {
   const [consent, setConsent] = useState<Consent | null>(null);
   const [periods, setPeriods] = useState<Period[]>([]);
   const [invites, setInvites] = useState<string[]>([]);
+  const [memberships, setMemberships] = useState<string[]>([]);
   const [inviteBusy, setInviteBusy] = useState<string | null>(null);
+  const [membershipBusy, setMembershipBusy] = useState<string | null>(null);
+  const [confirmLeave, setConfirmLeave] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async (c: string) => {
     setError(null);
     const cc = c || undefined;
     try {
-      const [coh, er, sk, co, cs, tr, ni] = await Promise.all([
-        api.cohort(cc), api.errors(cc), api.skills(cc), api.consent(), api.courses(), api.trends(cc), api.networkInvites(),
+      const [coh, er, sk, co, cs, tr, ni, nm] = await Promise.all([
+        api.cohort(cc), api.errors(cc), api.skills(cc), api.consent(), api.courses(), api.trends(cc),
+        api.networkInvites(), api.networkMemberships(),
       ]);
       setData(coh); setErrors(er.errors); setSkills(sk.skills); setConsent(co); setCourses(cs.courses);
-      setPeriods(tr.periods); setInvites(ni.invites);
+      setPeriods(tr.periods); setInvites(ni.invites); setMemberships(nm.networks);
     } catch (e) { setError(messageFor(e)); }
   }, []);
 
@@ -49,6 +54,16 @@ export default function TeacherPage() {
     catch (e) { setError(messageFor(e)); }
     finally { setInviteBusy(null); }
   };
+  const leaveNetwork = async (networkId: string) => {
+    setMembershipBusy(networkId); setError(null); setStatus(null);
+    try {
+      await api.networkLeave(networkId);
+      setConfirmLeave(null);
+      setStatus(`La escuela dejó de compartir resultados agregados con la red ${networkId}.`);
+      await load(course);
+    } catch (e) { setError(messageFor(e)); }
+    finally { setMembershipBusy(null); }
+  };
   const topics = topAdvice(errors, 5);
 
   return (
@@ -56,6 +71,7 @@ export default function TeacherPage() {
       <section className="sheet">
         <h1>Panel docente</h1>
         {error && <p className="error" role="alert">{error}</p>}
+        {status && <p className="ok" role="status">{status}</p>}
 
         {invites.length > 0 && (
           <div className="notice" role="region" aria-label="Invitaciones pendientes">
@@ -68,6 +84,31 @@ export default function TeacherPage() {
                   <button className="btn" type="button" disabled={inviteBusy === networkId} onClick={() => answerInvite(networkId, "accept")}>Aceptar</button>
                   <button className="btn ghost" type="button" disabled={inviteBusy === networkId} onClick={() => answerInvite(networkId, "decline")}>Rechazar</button>
                 </div>
+              </li>
+            ))}</ul>
+          </div>
+        )}
+
+        {memberships.length > 0 && (
+          <div className="notice">
+            <h2>Redes con acceso a resultados agregados</h2>
+            <p>La escuela comparte únicamente resultados agregados con estas redes. Puede retirar el consentimiento cuando lo necesite.</p>
+            <ul>{memberships.map((networkId) => (
+              <li key={networkId}>
+                <strong>{networkId}</strong>
+                {confirmLeave === networkId ? (
+                  <>
+                    <p>Al confirmar, esta red dejará de incluir los resultados agregados de la escuela.</p>
+                    <div className="actions">
+                      <button className="btn" type="button" disabled={membershipBusy === networkId} onClick={() => leaveNetwork(networkId)}>Confirmar salida</button>
+                      <button className="btn ghost" type="button" disabled={membershipBusy === networkId} onClick={() => setConfirmLeave(null)}>Cancelar</button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="actions">
+                    <button className="btn ghost" type="button" disabled={membershipBusy === networkId} onClick={() => setConfirmLeave(networkId)}>Retirar consentimiento</button>
+                  </div>
+                )}
               </li>
             ))}</ul>
           </div>
