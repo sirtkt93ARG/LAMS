@@ -29,6 +29,11 @@ def check_config(env: dict, dev: bool) -> tuple[list[str], list[str]]:
         for key in ("LTI_HANDOFF_SECRET", "SESSION_SECRET", "LTI_SECRET_KEY"):
             if _weak(env.get(key)):
                 errors.append(f"{key} falta o es demasiado débil (mínimo {MIN_SECRET} caracteres)")
+        lti_web = env.get("WEB_URL", "")
+        if not lti_web:
+            errors.append("WEB_URL es obligatorio cuando LTI está habilitado")
+        elif lti_web.startswith("http://") and not _local_http(lti_web):
+            errors.append("WEB_URL debe usar HTTPS fuera de localhost")
     if not env.get("OIDC_ISSUER") and not lti_enabled:
         errors.append("No hay autenticación configurada: definí OIDC_ISSUER o la configuración completa de LTI")
 
