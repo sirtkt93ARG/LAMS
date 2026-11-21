@@ -41,8 +41,8 @@ La restauración es deliberadamente conservadora: exige el nombre exacto de la b
 
 ```bash
 export DATABASE_URL='postgresql://admin:contraseña@staging:5432/matheval_restore?sslmode=verify-full'
-python scripts/postgres_backup.py restore \\
-  --backup /ruta/segura/backups/matheval-AAAAmmddTHHMMSSZ \\
+python scripts/postgres_backup.py restore \
+  --backup /ruta/segura/backups/matheval-AAAAmmddTHHMMSSZ \
   --confirm-database matheval_restore
 ```
 
