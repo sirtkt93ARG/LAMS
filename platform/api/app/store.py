@@ -586,7 +586,16 @@ class Store:
         if course_id:
             sql += " AND a.course_id = ?"; params += (course_id,)
         sql += " GROUP BY a.id ORDER BY a.created_at DESC"
-        return self._run(tenant, sql, params, fetch=True)
+        rows = self._run(tenant, sql, params, fetch=True)
+        return [{**r, "rubric_snapshot": _loads(r["rubric_snapshot"]) if r.get("rubric_snapshot") else None}
+                for r in rows]
+
+    def rubric_snapshot_for_submission(self, tenant: str, submission_id: str) -> dict | None:
+        rows = self._run(tenant, "SELECT a.rubric_snapshot FROM open_submissions s JOIN open_assignments a ON a.id = s.assignment_id AND a.tenant_id = s.tenant_id WHERE s.id = ? AND s.tenant_id = ?",
+                         (submission_id, tenant), fetch=True)
+        if not rows or not rows[0]["rubric_snapshot"]:
+            return None
+        return _loads(rows[0]["rubric_snapshot"])
 
     def open_submissions_for_assignment(self, tenant: str, assignment_id: str) -> list[dict]:
         rows = self._run(tenant, "SELECT s.id, s.pid, s.response, s.status, s.score, s.feedback, s.rubric, s.submitted_at, s.reviewed_by, s.reviewed_at, a.competency_id, a.rubric_snapshot FROM open_submissions s JOIN open_assignments a ON a.id = s.assignment_id AND a.tenant_id = s.tenant_id WHERE s.tenant_id = ? AND s.assignment_id = ? ORDER BY s.submitted_at",
