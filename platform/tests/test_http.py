@@ -17,7 +17,6 @@ except Exception:          # sin FastAPI/httpx reales (p. ej. con el sustituto d
 S = {"X-Dev-User": "alumno-h1:escuela-h:student"}
 T = {"X-Dev-User": "docente-h1:escuela-h:teacher"}
 A = {"X-Dev-User": "curador-h1:institucion:admin"}
-A = {"X-Dev-User": "curador-h1:institucion:admin"}
 
 
 @unittest.skipUnless(READY, "FastAPI o httpx no disponibles")
@@ -63,10 +62,11 @@ class TestHttp(unittest.TestCase):
 
     def test_review_over_http(self):
         self.assertEqual(self.c.get("/v1/review/templates", headers=S).status_code, 403)
-        lst = self.c.get("/v1/review/templates", headers=T).json()
+        self.assertEqual(self.c.get("/v1/review/templates", headers=T).status_code, 403)
+        lst = self.c.get("/v1/review/templates", headers=A).json()
         self.assertEqual(len(lst["templates"]), 24)
-        self.assertEqual(self.c.get("/v1/review/templates/ZZ/sample", headers=T).status_code, 404)
-        r = self.c.post("/v1/review/templates/T7", json={"decision": "aprobar", "checklist": {}}, headers=T)
+        self.assertEqual(self.c.get("/v1/review/templates/ZZ/sample", headers=A).status_code, 404)
+        r = self.c.post("/v1/review/templates/T7", json={"decision": "aprobar", "checklist": {}}, headers=A)
         self.assertEqual(r.status_code, 400)
 
     def test_new_endpoints_over_http(self):
