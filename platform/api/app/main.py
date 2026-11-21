@@ -334,7 +334,6 @@ def delete_my_data(user: User = Depends(current_user)):
     """Elimina datos locales; si hay un LRS externo, informa que su supresión requiere acción del proveedor."""
     pid = _pid(user)
     out = STORE.delete_learner(user.tenant_id, pid, actor=user.sub)
-    STORE.audit(user.tenant_id, "system", "supresion_local_de_datos", json.dumps(out))
     result = {**out, "local_data_deleted": True}
     if LRS_URL:
         result["external_lrs"] = {
