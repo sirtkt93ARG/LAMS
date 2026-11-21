@@ -79,6 +79,14 @@ def _pid(user: User) -> str:
     return pseudonymize(user.sub, SECRET + user.tenant_id.encode())
 
 
+def _post_xapi_if_not_erased(tenant: str, pid: str, lrs_url: str, statements: list[dict],
+                             user: str, password: str) -> bool:
+    """Envía xAPI bajo el mismo bloqueo durable que usa la supresión del alumno."""
+    return STORE.run_if_xapi_export_allowed(
+        tenant, pid, lambda: post_statements(lrs_url, statements, user, password)
+    )
+
+
 def _pool(mode: str):
     bank_mode = "practica" if mode in ("dirigida", "piloto") else mode
     # Los ítems abiertos requieren corrección manual; no se pueden administrar en CAT/MST.
@@ -303,7 +311,7 @@ def answer(sid: str, body: AnswerIn, tasks: BackgroundTasks, user: User = Depend
                                   response=res.normalized or "", score=res.score, success=bool(res.score),
                                   level_target=item.target_level, axis=item.axis.value, process=item.process.value,
                                   tag=res.tag, duration_s=body.duration_s)
-        tasks.add_task(post_statements, LRS_URL, [stmt], LRS_USER, LRS_PASS)
+        tasks.add_task(_post_xapi_if_not_erased, user.tenant_id, pid, LRS_URL, [stmt], LRS_USER, LRS_PASS)
     if result and s["mode"] in ("practica", "medicion"):
         tasks.add_task(_send_grade, user, result, s["mode"])
     out = _state(s)
