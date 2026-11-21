@@ -141,6 +141,32 @@ class TestPostgresStore(unittest.TestCase):
         self.assertFalse(self.store.run_if_xapi_export_allowed(tenant, pid, lambda: sent.append("after")))
         self.assertEqual(sent, ["before"])
 
+    def test_concurrent_xapi_send_finishes_before_erasure_and_blocks_later_sends(self):
+        suffix = uuid4().hex
+        tenant, pid = f"tenant-xapi-race-{suffix}", f"pid-xapi-race-{suffix}"
+        started = threading.Event()
+        release = threading.Event()
+        sent = []
+
+        def send():
+            started.set()
+            if not release.wait(timeout=10):
+                raise TimeoutError("test did not release the in-flight xAPI send")
+            sent.append("sent")
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            sending = pool.submit(self.store.run_if_xapi_export_allowed, tenant, pid, send)
+            self.assertTrue(started.wait(timeout=5))
+            deleting = pool.submit(self.store.delete_learner, tenant, pid)
+            self.assertFalse(deleting.done(), "erasure must wait for the in-flight send lock")
+            release.set()
+            self.assertTrue(sending.result(timeout=10))
+            deleting.result(timeout=10)
+
+        self.assertEqual(sent, ["sent"])
+        self.assertFalse(self.store.run_if_xapi_export_allowed(tenant, pid, lambda: sent.append("late")))
+        self.assertEqual(sent, ["sent"])
+
     def test_app_role_cannot_modify_immutable_audit_columns(self):
         suffix = uuid4().hex
         tenant = f"tenant-audit-perms-{suffix}"
