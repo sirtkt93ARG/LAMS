@@ -7,10 +7,17 @@ from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.postgres_backup import backup, backup_directory_name, connection_environment, digest, load_and_verify_backup, restore
+from scripts.postgres_backup import backup, backup_directory_name, client_major_version, connection_environment, digest, load_and_verify_backup, restore, server_major_version
 
 
 class TestPostgresBackupSafety(unittest.TestCase):
+    def test_major_version_parsers(self):
+        self.assertEqual(server_major_version("16.16 (Debian 16.16-1)"), 16)
+        self.assertEqual(client_major_version("pg_dump (PostgreSQL) 16.16 (Debian 16.16-1)"), 16)
+        with self.assertRaises(ValueError):
+            server_major_version("unknown")
+        with self.assertRaises(ValueError):
+            client_major_version("unknown")
     def test_connection_url_is_mapped_to_libpq_environment_and_private_pgpass(self):
         database, env, passfile = connection_environment(
             "postgresql://matheval:p%3Aa%5Css@db.internal:5433/matheval%20prod?sslmode=verify-full"
@@ -84,13 +91,13 @@ class TestPostgresBackupSafety(unittest.TestCase):
 
     def test_restore_refuses_nonempty_database_before_pg_restore(self):
         args = Namespace(database_url=None, confirm_database="restore_target", backup="/synthetic")
-        results = iter(["archive contents", "t", "2"])
+        results = iter(["pg_restore (PostgreSQL) 16.16", "16.16", "archive contents", "t", "2"])
         with patch("scripts.postgres_backup.connection_environment", return_value=("restore_target", {}, "")):
-            with patch("scripts.postgres_backup.load_and_verify_backup", return_value=(Path("/synthetic/database.dump"), {"database": "source"})):
+            with patch("scripts.postgres_backup.load_and_verify_backup", return_value=(Path("/synthetic/database.dump"), {"database": "source", "server_version": "16.16", "pg_dump_version": "pg_dump (PostgreSQL) 16.16"})):
                 with patch("scripts.postgres_backup.run", side_effect=lambda *a, **k: next(results)) as mocked:
                     with self.assertRaisesRegex(RuntimeError, "no está vacía"):
                         restore(args)
-                    self.assertEqual(mocked.call_count, 3)
+                    self.assertEqual(mocked.call_count, 5)
 
 
 if __name__ == "__main__":
