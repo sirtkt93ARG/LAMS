@@ -353,8 +353,14 @@ def delete_my_data(user: User = Depends(current_user)):
         }
         result["erasure_complete"] = False
         return JSONResponse(status_code=202, content=result)
-    result["external_lrs"] = {"status": "not_configured"}
-    result["erasure_complete"] = True
+    result["external_lrs"] = {
+        "status": "not_configured_currently",
+        "message": (
+            "No hay un LRS configurado en este momento. Si se utilizó uno anteriormente, "
+            "la configuración actual no permite confirmar si quedan exportaciones históricas."
+        ),
+    }
+    result["erasure_complete"] = None
     return result
 
 
