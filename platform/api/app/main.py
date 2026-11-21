@@ -535,9 +535,8 @@ def review_submit(tid: str, body: ReviewIn, user: User = Depends(current_user)):
         raise HTTPException(400, "para aprobar hay que tildar toda la lista de control")
     if body.decision == "rechazar" and len(body.comment.strip()) < 10:
         raise HTTPException(400, "para rechazar, explicá el motivo (al menos 10 caracteres)")
-    if any(r["reviewer"] == user.sub for r in STORE.reviews(scope_of(tid))):
+    if not STORE.add_review(scope_of(tid), user.sub, body.decision, body.comment.strip(), body.checklist):
         raise HTTPException(409, "ya revisaste esta plantilla")
-    STORE.add_review(scope_of(tid), user.sub, body.decision, body.comment.strip(), body.checklist)
     STORE.audit(user.tenant_id, user.sub, f"revision_{body.decision}", tid)
     apply_reviews(BANK, STORE)
     return template_status(STORE.reviews(scope_of(tid)))
