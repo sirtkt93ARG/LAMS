@@ -3,6 +3,7 @@ web con un token de un solo uso (60 s). El identificador de la escuela (tenant) 
 Probado aquí con sustitutos de PyLTI1p3; la validación real contra un LMS se hace con el LMS simulado
 (tools/mock_lms) o con Moodle."""
 import json
+import hmac
 import logging
 import os
 import pathlib
@@ -108,7 +109,7 @@ def jwks():
 @app.route("/lti/nrps/roster", methods=["POST"])
 def nrps_roster():
     """Uso interno: devuelve únicamente identificador y nombre de alumnos del contexto LTI."""
-    if request.headers.get("X-Internal-Secret") != HANDOFF_SECRET:
+    if not hmac.compare_digest(request.headers.get("X-Internal-Secret", ""), HANDOFF_SECRET):
         return jsonify({"error": "no autorizado"}), 401
     body = request.get_json(force=True, silent=True) or {}
     if not isinstance(body, dict) or not isinstance(body.get("nrps"), dict):
