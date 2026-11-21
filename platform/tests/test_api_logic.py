@@ -141,6 +141,23 @@ class TestApiLogic(unittest.TestCase):
                             for event in events))
         self.assertEqual(M.STORE.sessions_of(user.tenant_id, M._pid(user)), [])
 
+    def test_queued_xapi_send_is_blocked_after_local_erasure(self):
+        user = User("alumno-xapi-bloqueado", "escuela-xapi-bloqueado", "student")
+        started = M.start(M.StartIn(), user)
+        sid = started["session_id"]
+        item = M.BANK.items[started["items"][0]["id"]]
+        tasks = BackgroundTasks()
+        with patch.object(M, "LRS_URL", "https://lrs.example"):
+            M.answer(sid, M.AnswerIn(item_id=item.id, response=str(item.correct)), tasks, user)
+        xapi_tasks = [task for task in tasks.tasks if task[0] is M._post_xapi_if_not_erased]
+        self.assertEqual(len(xapi_tasks), 1)
+
+        M.delete_my_data(user)
+        with patch.object(M, "post_statements") as send:
+            fn, args = xapi_tasks[0]
+            fn(*args)
+        send.assert_not_called()
+
     def test_data_erasure_is_complete_when_no_external_lrs_is_configured(self):
         user = User("alumno-borrar-local", "escuela-borrar-local", "student")
         M.start(M.StartIn(), user)
