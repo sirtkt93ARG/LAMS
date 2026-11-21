@@ -47,6 +47,8 @@ def verify_handoff(token: str) -> User:
         raise HTTPException(401, "token de acceso inválido o vencido") from e
     if c.get("role") not in ("student", "teacher", "admin"):
         raise HTTPException(403, "rol no permitido")
+    if not isinstance(c.get("jti"), str) or not c["jti"].strip():
+        raise HTTPException(401, "token de acceso sin identificador único")
     if _token_consumer is None:
         raise HTTPException(503, "protección de reutilización LTI no configurada")
     if not _token_consumer(c["jti"]):
