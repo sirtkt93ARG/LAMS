@@ -16,6 +16,7 @@ export default function OpenReviewPage() {
   const [active, setActive] = useState<OpenSubmission | null>(null);
   const [title, setTitle] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [dueAt, setDueAt] = useState("");
   const [itemId, setItemId] = useState("");
   const [score, setScore] = useState("0");
   const [feedback, setFeedback] = useState("");
@@ -44,8 +45,9 @@ export default function OpenReviewPage() {
       await api.createOpenAssignment({
         item_id: itemId, title, instructions,
         ...(selectedCourse ? { course_id: selectedCourse } : {}),
+        ...(dueAt ? { due_at: new Date(dueAt).toISOString() } : {}),
       });
-      setTitle(""); setInstructions(""); await loadAssignments();
+      setTitle(""); setInstructions(""); setDueAt(""); await loadAssignments();
       setNotice(selectedCourse ? "Actividad asignada al curso correctamente." : "Actividad asignada a toda la escuela correctamente.");
     } catch (e) { setError(messageFor(e)); } finally { setBusy(false); }
   };
@@ -86,12 +88,14 @@ export default function OpenReviewPage() {
       {courses.length === 0 && <p className="muted">No hay cursos registrados en esta sesión. La actividad se asignará a toda la escuela.</p>}
       <label className="field"><span>Título de la actividad</span><input value={title} maxLength={160} onChange={(e) => setTitle(e.target.value)} required /></label>
       <label className="field"><span>Indicaciones para el estudiante</span><textarea value={instructions} maxLength={4000} rows={3} onChange={(e) => setInstructions(e.target.value)} /></label>
+      <label className="field"><span>Fecha y hora límite (opcional)</span><input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} /></label>
       <button className="btn" type="submit" disabled={busy || !itemId || !title.trim()}>Asignar actividad</button>
     </form>}
     <h2>Actividades y entregas</h2>
     {assignments.length === 0 ? <p>Todavía no creaste actividades abiertas.</p> : <ul>
       {assignments.map((a) => <li key={a.id}>
         <button className="btn ghost" type="button" onClick={() => choose(a.id)} aria-pressed={selected === a.id}>{a.title} — {a.pending ?? 0} pendientes / {a.submissions ?? 0} entregas</button>
+        {a.due_at && <p className="muted">Vence: {new Date(a.due_at).toLocaleString()}</p>}
       </li>)}
     </ul>}
     {selected && <><h2>Entregas</h2>

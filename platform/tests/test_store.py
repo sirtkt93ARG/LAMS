@@ -47,6 +47,14 @@ class TestStore(unittest.TestCase):
         self.assertIsNone(self.store.open_submission_for_student("school-erase", "sub-erase", "pid-erase"))
         self.assertEqual(self.store.open_assignments_for_teacher("school-erase")[0]["submissions"], 0)
 
+    def test_open_assignment_deadline_blocks_submission_atomically(self):
+        self.store.create_open_assignment("oa-expired", "school-deadline", None, "open-1",
+                                          "Actividad vencida", "", "teacher", "2000-01-01T00:00:00+00:00")
+        self.assertTrue(self.store.open_assignment_expired("school-deadline", "oa-expired"))
+        self.assertFalse(self.store.submit_open_response("sub-expired", "oa-expired", "school-deadline",
+                                                         "pid-deadline", "Respuesta tardía"))
+        self.assertEqual(self.store.open_submissions_for_assignment("school-deadline", "oa-expired"), [])
+
     def test_open_assignment_submission_and_single_teacher_grade(self):
         self.store.create_open_assignment("oa-1", "school-a", None, "open-1", "Argumentá", "Mostrá el procedimiento", "teacher", None)
         self.assertEqual(len(self.store.open_assignments_for_student("school-a", None, "pid-a")), 1)
