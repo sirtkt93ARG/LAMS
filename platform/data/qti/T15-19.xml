@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T15-19" title="Perímetro de un terreno" adaptive="false" time-dependent="false" xml:lang="es-AR">
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
+    <qti-correct-response>
+      <qti-value>A</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
+    <qti-default-value>
+      <qti-value>0</qti-value>
+    </qti-default-value>
+  </qti-outcome-declaration>
+  <qti-item-body>
+    <p>Figura: rectángulo de 10 m por 11 m.</p>
+    <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
+      <qti-prompt>Se quiere cercar un terreno rectangular de 10 m por 11 m con alambrado. ¿Cuántos metros de alambrado se necesitan?</qti-prompt>
+      <qti-simple-choice identifier="A">42 m</qti-simple-choice>
+      <qti-simple-choice identifier="B">220 m</qti-simple-choice>
+      <qti-simple-choice identifier="C">21 m</qti-simple-choice>
+      <qti-simple-choice identifier="D">110 m</qti-simple-choice>
+    </qti-choice-interaction>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-response-condition>
+      <qti-response-if>
+        <qti-match>
+          <qti-variable identifier="RESPONSE"/>
+          <qti-correct identifier="RESPONSE"/>
+        </qti-match>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">1</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-if>
+      <qti-response-else>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">0</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-else>
+    </qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>

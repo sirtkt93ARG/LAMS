@@ -1,0 +1,67 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T13-4" title="Lectura de un gráfico de barras" adaptive="false" time-dependent="false" xml:lang="es-AR">
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
+    <qti-correct-response>
+      <qti-value>A</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
+    <qti-default-value>
+      <qti-value>0</qti-value>
+    </qti-default-value>
+  </qti-outcome-declaration>
+  <qti-item-body>
+    <p>Datos del gráfico: Bicicletas vendidas por día.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Día</th>
+          <th>Bicicletas</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Lunes</td>
+          <td>40</td>
+        </tr>
+        <tr>
+          <td>Martes</td>
+          <td>25</td>
+        </tr>
+        <tr>
+          <td>Miércoles</td>
+          <td>50</td>
+        </tr>
+        <tr>
+          <td>Jueves</td>
+          <td>55</td>
+        </tr>
+      </tbody>
+    </table>
+    <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
+      <qti-prompt>El gráfico muestra cuántas bicicletas vendió una tienda cada día. ¿Cuántas vendió el martes?</qti-prompt>
+      <qti-simple-choice identifier="A">25</qti-simple-choice>
+      <qti-simple-choice identifier="B">50</qti-simple-choice>
+      <qti-simple-choice identifier="C">55</qti-simple-choice>
+      <qti-simple-choice identifier="D">40</qti-simple-choice>
+    </qti-choice-interaction>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-response-condition>
+      <qti-response-if>
+        <qti-match>
+          <qti-variable identifier="RESPONSE"/>
+          <qti-correct identifier="RESPONSE"/>
+        </qti-match>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">1</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-if>
+      <qti-response-else>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">0</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-else>
+    </qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>

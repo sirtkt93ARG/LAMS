@@ -1,0 +1,66 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T8-1" title="Lectura directa de una tabla" adaptive="false" time-dependent="false" xml:lang="es-AR">
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
+    <qti-correct-response>
+      <qti-value>A</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
+    <qti-default-value>
+      <qti-value>0</qti-value>
+    </qti-default-value>
+  </qti-outcome-declaration>
+  <qti-item-body>
+    <table>
+      <thead>
+        <tr>
+          <th>Artículo</th>
+          <th>Precio</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Goma</td>
+          <td>$760</td>
+        </tr>
+        <tr>
+          <td>Mochila</td>
+          <td>$440</td>
+        </tr>
+        <tr>
+          <td>Regla</td>
+          <td>$610</td>
+        </tr>
+        <tr>
+          <td>Cuaderno</td>
+          <td>$890</td>
+        </tr>
+      </tbody>
+    </table>
+    <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
+      <qti-prompt>La tabla muestra los precios de una librería. ¿Cuánto cuesta el artículo «Cuaderno»?</qti-prompt>
+      <qti-simple-choice identifier="A">$890</qti-simple-choice>
+      <qti-simple-choice identifier="B">$440</qti-simple-choice>
+      <qti-simple-choice identifier="C">$610</qti-simple-choice>
+      <qti-simple-choice identifier="D">$760</qti-simple-choice>
+    </qti-choice-interaction>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-response-condition>
+      <qti-response-if>
+        <qti-match>
+          <qti-variable identifier="RESPONSE"/>
+          <qti-correct identifier="RESPONSE"/>
+        </qti-match>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">1</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-if>
+      <qti-response-else>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">0</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-else>
+    </qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>

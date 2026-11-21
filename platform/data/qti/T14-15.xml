@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T14-15" title="Variación en un gráfico de líneas" adaptive="false" time-dependent="false" xml:lang="es-AR">
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
+    <qti-correct-response>
+      <qti-value>A</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
+    <qti-default-value>
+      <qti-value>0</qti-value>
+    </qti-default-value>
+  </qti-outcome-declaration>
+  <qti-item-body>
+    <p>Datos del gráfico: Temperatura durante el día.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Hora</th>
+          <th>°C</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>6 h</td>
+          <td>12</td>
+        </tr>
+        <tr>
+          <td>9 h</td>
+          <td>10</td>
+        </tr>
+        <tr>
+          <td>12 h</td>
+          <td>15</td>
+        </tr>
+        <tr>
+          <td>15 h</td>
+          <td>13</td>
+        </tr>
+        <tr>
+          <td>18 h</td>
+          <td>17</td>
+        </tr>
+      </tbody>
+    </table>
+    <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
+      <qti-prompt>El gráfico muestra la temperatura durante un día. ¿Cuántos grados subió entre las 9 h y las 15 h?</qti-prompt>
+      <qti-simple-choice identifier="A">3 °C</qti-simple-choice>
+      <qti-simple-choice identifier="B">13 °C</qti-simple-choice>
+      <qti-simple-choice identifier="C">5 °C</qti-simple-choice>
+      <qti-simple-choice identifier="D">23 °C</qti-simple-choice>
+    </qti-choice-interaction>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-response-condition>
+      <qti-response-if>
+        <qti-match>
+          <qti-variable identifier="RESPONSE"/>
+          <qti-correct identifier="RESPONSE"/>
+        </qti-match>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">1</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-if>
+      <qti-response-else>
+        <qti-set-outcome-value identifier="SCORE">
+          <qti-base-value base-type="float">0</qti-base-value>
+        </qti-set-outcome-value>
+      </qti-response-else>
+    </qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>
