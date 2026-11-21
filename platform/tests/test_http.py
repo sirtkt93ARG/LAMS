@@ -113,6 +113,16 @@ class TestHttp(unittest.TestCase):
         if item is None:
             self.skipTest("el banco de pruebas no tiene ítems abiertos vinculados a competencias")
         competency = competencies_for_item(item.id)[0]
+        invalid = self.c.post("/v1/teacher/open-assignments", headers=T, json={
+            "item_id": item.id, "title": "Competencia ajena", "competency_id": "competencia_inexistente",
+        })
+        self.assertEqual(invalid.status_code, 400, invalid.text)
+        catalog = self.c.get("/v1/teacher/open-items", headers=T)
+        self.assertEqual(catalog.status_code, 200, catalog.text)
+        catalog_item = next(entry for entry in catalog.json()["items"] if entry["id"] == item.id)
+        self.assertEqual(catalog_item["competencies"][0]["id"], competency["id"])
+        self.assertEqual(set(catalog_item["competencies"][0]["rubric"]["criteria"][0]["descriptors"]),
+                         {"0", "1", "2", "3", "4"})
         created = self.c.post("/v1/teacher/open-assignments", headers=T, json={
             "item_id": item.id, "title": "Rúbrica por competencia",
             "competency_id": competency["id"],
