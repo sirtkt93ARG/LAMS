@@ -81,9 +81,11 @@ def _pid(user: User) -> str:
 
 def _pool(mode: str):
     bank_mode = "practica" if mode in ("dirigida", "piloto") else mode
-    items = BANK.pool(bank_mode)
+    # Los ítems abiertos requieren corrección manual; no se pueden administrar en CAT/MST.
+    items = [i for i in BANK.pool(bank_mode) if i.kind != "open"]
     if DEV and bank_mode == "practica":                                  # solo desarrollo: permite ítems solo verificados
-        items = items + [i for i in BANK.items.values() if i.status == Status.VERIFICADO]
+        items += [i for i in BANK.items.values()
+                  if i.status == Status.VERIFICADO and i.kind != "open"]
     return items
 
 
