@@ -40,6 +40,21 @@ class TestProductionConfig(unittest.TestCase):
         self.assertTrue(any("OIDC_ISSUER" in x for x in errors))
         self.assertTrue(any("WEB_ORIGIN" in x for x in errors))
 
+    def test_production_rejects_development_secrets_even_when_long(self):
+        env = {
+            "PSEUDONYM_SECRET": "dev-pseudonym-secret-cambiar-0123456789abcdef",
+            "LTI_HANDOFF_SECRET": "dev-handoff-secret-cambiar-0123456789abcdef",
+            "SESSION_SECRET": "dev-session-secret-cambiar-0123456789abcdef",
+            "LTI_SECRET_KEY": "k" * 48,
+            "WEB_ORIGIN": "https://app.example",
+            "WEB_URL": "https://app.example",
+            "DATABASE_URL": "postgresql://app:secret@db.example/matheval",
+        }
+        errors, _ = check_config(env, False)
+        self.assertTrue(any("PSEUDONYM_SECRET" in x for x in errors))
+        self.assertTrue(any("LTI_HANDOFF_SECRET" in x for x in errors))
+        self.assertTrue(any("SESSION_SECRET" in x for x in errors))
+
     def test_lti_requires_all_signing_secrets(self):
         env = {
             "PSEUDONYM_SECRET": "p" * 48,
