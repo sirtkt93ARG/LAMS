@@ -9,4 +9,5 @@ COPY --chown=app:app lti_service ./lti_service
 COPY --chown=app:app scripts/gen_lti_keys.py ./scripts/gen_lti_keys.py
 USER app
 EXPOSE 8200
-CMD ["gunicorn", "--bind", "0.0.0.0:8200", "--workers", "2", "--access-logfile", "-", "lti_service.app:app"]
+# FlaskCacheDataStorage uses SimpleCache (process-local); keep one worker until shared Redis storage exists.
+CMD ["gunicorn", "--bind", "0.0.0.0:8200", "--workers", "1", "--access-logfile", "-", "lti_service.app:app"]
