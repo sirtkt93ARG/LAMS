@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/rebuild-data.yml"
+      - "platform/src/matheval/templates.py"
+      - "platform/scripts/generate_bank.py"
   workflow_dispatch:
 
 permissions:
