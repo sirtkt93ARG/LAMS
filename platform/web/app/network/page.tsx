@@ -43,10 +43,10 @@ export default function NetworkPage() {
           </div>
         )}
         {data && <p className="muted">{data.note}</p>}
-        <label className="field"><span>Agregar una escuela a la red (identificador)</span>
+        <label className="field"><span>Invitar una escuela a la red (identificador)</span>
           <input value={school} onChange={(e) => setSchool(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
         </label>
-        <div className="actions"><button className="btn ghost" type="button" onClick={add}>Agregar escuela</button></div>
+        <div className="actions"><button className="btn ghost" type="button" onClick={add}>Enviar invitación</button></div>
       </section>
     </Shell>
   );
