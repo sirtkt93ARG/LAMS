@@ -30,6 +30,7 @@ class TestPostgresStore(unittest.TestCase):
                 root / "db/003_migracion_v08.sql",
                 root / "db/004_migracion_v09.sql",
                 root / "db/005_migracion_v10.sql",
+                root / "db/006_migracion_v11.sql",
             ):
                 conn.execute(migration.read_text(encoding="utf-8"), prepare=False)
         cls.store = Store(APP_URL)
@@ -48,6 +49,16 @@ class TestPostgresStore(unittest.TestCase):
         self.assertFalse(self.store.answer_invite(network, school, True))
         self.assertEqual(self.store.network_tenants(network), [school])
         self.assertEqual(self.store.pending_invites(school), [])
+
+    def test_school_can_revoke_network_sharing_after_acceptance(self):
+        suffix = uuid4().hex
+        network, school = f"net-{suffix}", f"school-{suffix}"
+        self.store.add_network_tenant(network, school)
+        self.assertTrue(self.store.answer_invite(network, school, True))
+        self.assertEqual(self.store.network_memberships(school), [network])
+        self.assertTrue(self.store.revoke_network_membership(network, school))
+        self.assertEqual(self.store.network_tenants(network), [])
+        self.assertFalse(self.store.revoke_network_membership(network, school))
 
     def test_school_cannot_forge_network_memberships(self):
         suffix = uuid4().hex
