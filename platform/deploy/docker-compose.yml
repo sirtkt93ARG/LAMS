@@ -46,6 +46,7 @@ services:
       MOCK_AUTH_LOGIN_URL: http://localhost:8300/auth
       MOCK_AUTH_TOKEN_URL: http://mock-lms:8300/token
       MOCK_KEY_SET_URL: http://mock-lms:8300/jwks
+      MOCK_NRPS_ALLOWED_HOSTS: mock-lms
     volumes:
       - lti-config:/app/lti_service/configs
       - tool-public-key:/app/public-key
@@ -109,6 +110,7 @@ services:
     environment:
       MOCK_ISS: http://localhost:8300
       MOCK_LINEITEM_BASE: http://mock-lms:8300
+      MOCK_NRPS_BASE: http://mock-lms:8300
       TOOL_BASE: http://localhost:8200
       TOOL_INTERNAL_BASE: http://lti:8200
       TOOL_PUBLIC_KEY_FILE: /app/lti-public/public.key
