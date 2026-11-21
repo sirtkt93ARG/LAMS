@@ -197,6 +197,10 @@ class TestStoreV05(unittest.TestCase):
         events = self.st.audit_list("e1")
         self.assertTrue(any(e["actor"] == "redacted" and e["detail"] is None for e in events))
         self.assertFalse(any(e["actor"] == "actor-p1" for e in events))
+        self.assertTrue(any(
+            e["actor"] == "system" and e["action"] == "supresion_local_de_datos"
+            for e in events
+        ))
         self.assertIsNone(self.st.load_session("a", "e1"))
         self.assertIsNotNone(self.st.load_session("b", "e1"))
         self.assertIsNotNone(self.st.load_session("c", "e2"))                  # otra escuela intacta
