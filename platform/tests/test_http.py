@@ -105,6 +105,26 @@ class TestHttp(unittest.TestCase):
         self.assertEqual(self.c.get(f"/v1/student/open-submissions/{submission_id}",
                                     headers={"X-Dev-User": "otro:escuela-h:student"}).status_code, 404)
 
+    def test_open_assignment_deadline_validation_and_expiration_over_http(self):
+        item = next((i for i in M.BANK.items.values() if i.kind == "open"), None)
+        if item is None:
+            self.skipTest("el banco de pruebas no contiene ítems abiertos")
+        invalid = self.c.post("/v1/teacher/open-assignments", headers=T, json={
+            "item_id": item.id, "title": "Fecha sin zona", "due_at": "2099-01-01T12:00:00"
+        })
+        self.assertEqual(invalid.status_code, 400, invalid.text)
+
+        assignment_id = "http-expired-deadline"
+        M.STORE.create_open_assignment(assignment_id, "escuela-h", None, item.id,
+                                       "Actividad vencida", "", "teacher", "2000-01-01T00:00:00+00:00")
+        listed = self.c.get("/v1/student/open-assignments", headers=S)
+        self.assertEqual(listed.status_code, 200, listed.text)
+        expired = next(a for a in listed.json()["assignments"] if a["id"] == assignment_id)
+        self.assertTrue(expired["expired"])
+        submitted = self.c.post(f"/v1/student/open-assignments/{assignment_id}/submit", headers=S,
+                                json={"response": "Intento fuera de plazo"})
+        self.assertEqual(submitted.status_code, 410, submitted.text)
+
     def test_review_over_http(self):
         self.assertEqual(self.c.get("/v1/review/templates", headers=S).status_code, 403)
         self.assertEqual(self.c.get("/v1/review/templates", headers=T).status_code, 403)
