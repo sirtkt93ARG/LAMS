@@ -1,5 +1,5 @@
 -- Bloquea exportaciones xAPI futuras tras una solicitud de supresión local.
--- La fila es un tombstone persistente, aislado por escuela y seudónimo.
+-- La fila es un tombstone persistente, aislado por escuela y hash del seudónimo.
 CREATE TABLE IF NOT EXISTS xapi_erasure_blocks (
   tenant_id text NOT NULL,
   pid_hash text NOT NULL,
