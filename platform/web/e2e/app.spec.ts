@@ -111,13 +111,13 @@ test("network role can open the aggregated dashboard", async ({ page }) => {
 test("only network and administrator roles can open the network dashboard", async ({ page }) => {
   await login(page, "teacher");
   await page.goto("/network");
-  await expect(page).toHaveURL(/\\/teacher$/);
+  await expect(page).toHaveURL(/\/teacher$/);
   await expect(page.getByRole("heading", { name: "Resumen de la red de escuelas" })).toHaveCount(0);
 });
 
 test("network invitation form validates input and announces success", async ({ page }) => {
   await login(page, "network");
-  await expect(page).toHaveURL(/\\/network$/);
+  await expect(page).toHaveURL(/\/network$/);
 
   const tenantInput = page.getByRole("textbox", { name: "Identificador de la escuela" });
   await tenantInput.fill("   ");
