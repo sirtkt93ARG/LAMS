@@ -172,6 +172,30 @@ class Store:
                          (tenant,), fetch=True)
         return [r["network_id"] for r in rows]
 
+    def network_memberships(self, tenant: str) -> list[str]:
+        """Redes que actualmente reciben los resultados agregados de esta escuela."""
+        rows = self._run(tenant, "SELECT network_id FROM tenant_networks WHERE tenant_id = ? AND accepted = TRUE ORDER BY network_id",
+                         (tenant,), fetch=True)
+        return [r["network_id"] for r in rows]
+
+    def revoke_network_membership(self, network_id: str, tenant: str) -> bool:
+        """Retira el consentimiento de una escuela para compartir resultados con una red."""
+        if self.dialect == "sqlite":
+            with self._lock:
+                cur = self._conn.execute(
+                    "DELETE FROM tenant_networks WHERE network_id = ? AND tenant_id = ? AND accepted = 1",
+                    (network_id, tenant))
+                self._conn.commit()
+                return cur.rowcount == 1
+        import psycopg
+        with psycopg.connect(self.url) as conn:
+            with conn.transaction():
+                conn.execute("SELECT set_config('app.tenant_id', %s, true)", (tenant,))
+                cur = conn.execute(
+                    "DELETE FROM tenant_networks WHERE network_id = %s AND tenant_id = %s AND accepted = TRUE RETURNING tenant_id",
+                    (network_id, tenant))
+                return cur.fetchone() is not None
+
     def answer_invite(self, network_id: str, tenant: str, accept: bool) -> bool:
         """Acepta o rechaza una invitación pendiente de forma atómica."""
         if self.dialect == "sqlite":
