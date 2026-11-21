@@ -35,11 +35,14 @@ def check_config(env: dict, dev: bool) -> tuple[list[str], list[str]]:
     issuer = env.get("OIDC_ISSUER", "")
     if issuer and issuer.startswith("http://") and not _local_http(issuer):
         errors.append("OIDC_ISSUER debe usar HTTPS fuera de localhost")
-    origin = env.get("WEB_ORIGIN", "http://localhost:3000")
-    if origin.startswith("http://") and not _local_http(origin):
+    origin = env.get("WEB_ORIGIN", "")
+    if not origin:
+        errors.append("WEB_ORIGIN es obligatorio en producción")
+    elif origin.startswith("http://") and not _local_http(origin):
         errors.append("WEB_ORIGIN debe usar HTTPS fuera de localhost")
+    database_url = env.get("DATABASE_URL", "")
+    if not database_url.startswith(("postgresql://", "postgres://")):
+        errors.append("DATABASE_URL debe apuntar a PostgreSQL en producción")
     if env.get("REQUIRE_CONSENT") == "0":
         warnings.append("REQUIRE_CONSENT=0: la práctica no exige constancia de consentimiento institucional")
-    if env.get("DATABASE_URL", "").startswith("sqlite:///"):
-        warnings.append("SQLite configurado fuera de desarrollo; se recomienda PostgreSQL para despliegues multiusuario")
     return errors, warnings
