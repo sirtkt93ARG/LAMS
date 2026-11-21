@@ -1,0 +1,106 @@
+"use client";
+import { useEffect, useState } from "react";
+import { Shell } from "@/components/Shell";
+import { api, messageFor } from "@/lib/api";
+import type { OpenAssignment, OpenItem, OpenSubmission } from "@/lib/types";
+
+const criteria = ["Comprensión", "Estrategia", "Procedimiento", "Argumentación"];
+
+export default function OpenReviewPage() {
+  const [items, setItems] = useState<OpenItem[]>([]);
+  const [assignments, setAssignments] = useState<OpenAssignment[]>([]);
+  const [selected, setSelected] = useState("");
+  const [submissions, setSubmissions] = useState<OpenSubmission[]>([]);
+  const [active, setActive] = useState<OpenSubmission | null>(null);
+  const [title, setTitle] = useState("");
+  const [instructions, setInstructions] = useState("");
+  const [itemId, setItemId] = useState("");
+  const [score, setScore] = useState("0");
+  const [feedback, setFeedback] = useState("");
+  const [rubric, setRubric] = useState<Record<string, number>>({ Comprensión: 0, Estrategia: 0, Procedimiento: 0, Argumentación: 0 });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const loadAssignments = async () => {
+    const [catalog, list] = await Promise.all([api.openItems(), api.teacherOpenAssignments()]);
+    setItems(catalog.items); setAssignments(list.assignments);
+    if (!itemId && catalog.items.length) setItemId(catalog.items[0].id);
+  };
+  const loadSubmissions = async (id: string) => {
+    const out = await api.openSubmissions(id); setSubmissions(out.submissions);
+  };
+  useEffect(() => { loadAssignments().catch((e) => setError(messageFor(e))); }, []);
+
+  const create = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true); setError(""); setNotice("");
+    try {
+      await api.createOpenAssignment({ item_id: itemId, title, instructions });
+      setTitle(""); setInstructions(""); await loadAssignments();
+      setNotice("Actividad asignada correctamente.");
+    } catch (e) { setError(messageFor(e)); } finally { setBusy(false); }
+  };
+  const choose = async (id: string) => {
+    setSelected(id); setActive(null); setError("");
+    try { await loadSubmissions(id); } catch (e) { setError(messageFor(e)); }
+  };
+  const startGrade = (submission: OpenSubmission) => {
+    setActive(submission); setScore(String(submission.score ?? 0)); setFeedback(submission.feedback ?? "");
+    setRubric(submission.rubric ?? { Comprensión: 0, Estrategia: 0, Procedimiento: 0, Argumentación: 0 });
+  };
+  const grade = async (e: React.FormEvent) => {
+    e.preventDefault(); if (!active) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await api.gradeOpenSubmission(active.id, Number(score), feedback, rubric);
+      setActive(null); await loadSubmissions(selected); await loadAssignments();
+      setNotice("Corrección guardada y devolución disponible para el estudiante.");
+    } catch (e) { setError(messageFor(e)); } finally { setBusy(false); }
+  };
+
+  return <Shell><section className="sheet">
+    <h1>Corrección de respuestas abiertas</h1>
+    <p className="lead">Asigná una consigna, leé las entregas y devolvé una calificación con criterios y comentarios.</p>
+    {error && <p className="error" role="alert">{error}</p>}
+    {notice && <p className="ok" role="status">{notice}</p>}
+    <h2>Crear actividad</h2>
+    {items.length === 0 ? <p>No hay preguntas abiertas disponibles en el banco actual.</p> : <form onSubmit={create}>
+      <label className="field"><span>Consigna del banco</span>
+        <select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((item) => <option key={item.id} value={item.id}>{item.stem.slice(0, 110)}</option>)}</select>
+      </label>
+      <label className="field"><span>Título de la actividad</span><input value={title} maxLength={160} onChange={(e) => setTitle(e.target.value)} required /></label>
+      <label className="field"><span>Indicaciones para el estudiante</span><textarea value={instructions} maxLength={4000} rows={3} onChange={(e) => setInstructions(e.target.value)} /></label>
+      <button className="btn" type="submit" disabled={busy || !itemId || !title.trim()}>Asignar actividad</button>
+    </form>}
+    <h2>Actividades y entregas</h2>
+    {assignments.length === 0 ? <p>Todavía no creaste actividades abiertas.</p> : <ul>
+      {assignments.map((a) => <li key={a.id}>
+        <button className="btn ghost" type="button" onClick={() => choose(a.id)} aria-pressed={selected === a.id}>{a.title} — {a.pending ?? 0} pendientes / {a.submissions ?? 0} entregas</button>
+      </li>)}
+    </ul>}
+    {selected && <><h2>Entregas</h2>
+      {submissions.length === 0 ? <p>Aún no hay entregas para esta actividad.</p> : <ul>
+        {submissions.map((s) => <li key={s.id}>
+          <p><strong>{s.student_label}</strong> · {s.status === "pendiente" ? "Pendiente" : `Corregida · ${s.score}/100`}</p>
+          <blockquote>{s.response}</blockquote>
+          {s.status === "pendiente" && <button className="btn" type="button" onClick={() => startGrade(s)}>Corregir entrega</button>}
+          {s.status === "corregida" && <p className="muted">{s.feedback}</p>}
+        </li>)}
+      </ul>}
+    </>}
+    {active && <form onSubmit={grade}>
+      <h2>Devolución para {active.student_label}</h2>
+      <blockquote>{active.response}</blockquote>
+      <label className="field"><span>Calificación (0 a 100)</span><input type="number" min="0" max="100" step="1" value={score} onChange={(e) => setScore(e.target.value)} required /></label>
+      <h3>Rúbrica orientativa (0 a 4)</h3>
+      {criteria.map((criterion) => <label className="field" key={criterion}><span>{criterion}</span>
+        <select value={rubric[criterion] ?? 0} onChange={(e) => setRubric((old) => ({ ...old, [criterion]: Number(e.target.value) }))}>
+          {[0,1,2,3,4].map((v) => <option key={v} value={v}>{v}</option>)}
+        </select>
+      </label>)}
+      <label className="field"><span>Retroalimentación</span><textarea rows={5} maxLength={10000} value={feedback} onChange={(e) => setFeedback(e.target.value)} /></label>
+      <div className="actions"><button className="btn" type="submit" disabled={busy}>Guardar corrección</button>
+        <button className="btn ghost" type="button" onClick={() => setActive(null)}>Cancelar</button></div>
+    </form>}
+  </section></Shell>;
+}

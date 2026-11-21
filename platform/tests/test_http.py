@@ -76,6 +76,35 @@ class TestHttp(unittest.TestCase):
         self.assertGreaterEqual(co["n"], 1)
         self.assertEqual(self.c.get("/v1/teacher/cohort", headers=S).status_code, 403)
 
+    def test_open_response_assignment_submission_and_teacher_grading(self):
+        item = next((i for i in M.BANK.items.values() if i.kind == "open"), None)
+        if item is None:
+            self.skipTest("el banco de pruebas no contiene ítems abiertos")
+        created = self.c.post("/v1/teacher/open-assignments", headers=T,
+                              json={"item_id": item.id, "title": "Explicá tu estrategia", "instructions": "Justificá cada paso."})
+        self.assertEqual(created.status_code, 200, created.text)
+        assignment_id = created.json()["id"]
+        self.assertEqual(self.c.get("/v1/student/open-assignments", headers=T).status_code, 403)
+        assignments = self.c.get("/v1/student/open-assignments", headers=S)
+        self.assertEqual(assignments.status_code, 200, assignments.text)
+        self.assertTrue(any(a["id"] == assignment_id for a in assignments.json()["assignments"]))
+        submitted = self.c.post(f"/v1/student/open-assignments/{assignment_id}/submit", headers=S,
+                                json={"response": "Primero analicé los datos y luego justifiqué el resultado."})
+        self.assertEqual(submitted.status_code, 200, submitted.text)
+        self.assertEqual(self.c.post(f"/v1/student/open-assignments/{assignment_id}/submit", headers=S,
+                                     json={"response": "duplicada"}).status_code, 409)
+        submissions = self.c.get(f"/v1/teacher/open-assignments/{assignment_id}/submissions", headers=T)
+        self.assertEqual(submissions.status_code, 200, submissions.text)
+        submission_id = submissions.json()["submissions"][0]["id"]
+        graded = self.c.post(f"/v1/teacher/open-submissions/{submission_id}/grade", headers=T,
+                             json={"score": 82, "feedback": "Buen desarrollo.", "rubric": {"argumentacion": 4}})
+        self.assertEqual(graded.status_code, 200, graded.text)
+        result = self.c.get(f"/v1/student/open-submissions/{submission_id}", headers=S)
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(result.json()["score"], 82)
+        self.assertEqual(self.c.get(f"/v1/student/open-submissions/{submission_id}",
+                                    headers={"X-Dev-User": "otro:escuela-h:student"}).status_code, 404)
+
     def test_review_over_http(self):
         self.assertEqual(self.c.get("/v1/review/templates", headers=S).status_code, 403)
         self.assertEqual(self.c.get("/v1/review/templates", headers=T).status_code, 403)

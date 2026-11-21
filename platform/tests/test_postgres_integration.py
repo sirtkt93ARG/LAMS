@@ -38,6 +38,7 @@ class TestPostgresStore(unittest.TestCase):
                 root / "db/009_migracion_v14.sql",
                 root / "db/010_migracion_v15.sql",
                 root / "db/011_migracion_v16.sql",
+                root / "db/012_migracion_v17.sql",
             ):
                 conn.execute(migration.read_text(encoding="utf-8"), prepare=False)
         cls.store = Store(APP_URL)
@@ -77,6 +78,22 @@ class TestPostgresStore(unittest.TestCase):
                     "INSERT INTO tenant_networks (network_id, tenant_id, accepted) VALUES (%s, %s, false)",
                     (f"forged-network-{suffix}", school),
                 )
+
+    def test_open_response_review_is_tenant_scoped_and_persisted(self):
+        suffix = uuid4().hex
+        tenant, other, pid = f"school-open-{suffix}", f"other-open-{suffix}", f"student-open-{suffix}"
+        assignment = f"assignment-{suffix}"
+        submission = f"submission-{suffix}"
+        self.store.create_open_assignment(assignment, tenant, None, "open-item", "Respuesta argumentada", "", "teacher", None)
+        self.assertEqual(len(self.store.open_assignments_for_student(tenant, None, pid)), 1)
+        self.assertEqual(self.store.open_assignments_for_student(other, None, pid), [])
+        self.assertTrue(self.store.submit_open_response(submission, assignment, tenant, pid, "Desarrollo razonado"))
+        self.assertFalse(self.store.submit_open_response(f"duplicate-{suffix}", assignment, tenant, pid, "Otra entrega"))
+        self.assertEqual(self.store.open_assignments_for_teacher(tenant)[0]["pending"], 1)
+        self.assertTrue(self.store.grade_open_submission(tenant, submission, "teacher-pseudonym", 91, "Muy bien", {"argumentacion": 4}))
+        self.assertFalse(self.store.grade_open_submission(tenant, submission, "teacher-pseudonym", 95, "Revisión duplicada", {}))
+        self.assertEqual(self.store.open_submission_for_student(tenant, submission, pid)["score"], 91)
+        self.assertIsNone(self.store.open_submission_for_student(other, submission, pid))
 
     def test_session_rows_are_isolated_by_tenant(self):
         suffix = uuid4().hex

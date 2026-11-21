@@ -40,6 +40,30 @@ class TestStore(unittest.TestCase):
         finally:
             other._conn.close()
 
+    def test_learner_erasure_deletes_open_submissions(self):
+        self.store.create_open_assignment("oa-erase", "school-erase", None, "open-1", "Actividad", "", "teacher", None)
+        self.store.submit_open_response("sub-erase", "oa-erase", "school-erase", "pid-erase", "respuesta privada")
+        self.store.delete_learner("school-erase", "pid-erase")
+        self.assertIsNone(self.store.open_submission_for_student("school-erase", "sub-erase", "pid-erase"))
+        self.assertEqual(self.store.open_assignments_for_teacher("school-erase")[0]["submissions"], 0)
+
+    def test_open_assignment_submission_and_single_teacher_grade(self):
+        self.store.create_open_assignment("oa-1", "school-a", None, "open-1", "Argumentá", "Mostrá el procedimiento", "teacher", None)
+        self.assertEqual(len(self.store.open_assignments_for_student("school-a", None, "pid-a")), 1)
+        self.assertEqual(self.store.open_assignments_for_student("school-b", None, "pid-a"), [])
+        self.assertTrue(self.store.submit_open_response("sub-1", "oa-1", "school-a", "pid-a", "Mi procedimiento"))
+        self.assertFalse(self.store.submit_open_response("sub-2", "oa-1", "school-a", "pid-a", "Otra respuesta"))
+        pending = self.store.open_submissions_for_assignment("school-a", "oa-1")
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["status"], "pendiente")
+        self.assertTrue(self.store.grade_open_submission("school-a", "sub-1", "teacher-pid", 85, "Buen razonamiento", {"argumentacion": 4}))
+        self.assertFalse(self.store.grade_open_submission("school-a", "sub-1", "teacher-pid", 90, "Cambio", {}))
+        result = self.store.open_submission_for_student("school-a", "sub-1", "pid-a")
+        self.assertEqual(result["score"], 85)
+        self.assertEqual(result["feedback"], "Buen razonamiento")
+        self.assertIsNone(self.store.open_submission_for_student("school-a", "sub-1", "pid-b"))
+        self.assertEqual(self.store.open_assignments_for_teacher("school-a")[0]["pending"], 0)
+
     def test_lti_handoff_jti_is_consumed_once(self):
         self.assertTrue(self.store.consume_token("jti-unico"))
         self.assertFalse(self.store.consume_token("jti-unico"))

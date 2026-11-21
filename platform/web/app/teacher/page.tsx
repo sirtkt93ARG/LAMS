@@ -176,6 +176,7 @@ export default function TeacherPage() {
           <button className="btn ghost" type="button" onClick={() => load(course)}>Actualizar</button>
           <button className="btn ghost" type="button" onClick={() => downloadCsv(course || undefined).catch((e) => setError(messageFor(e)))}>Descargar resumen (CSV)</button>
           {isAdmin && <Link className="btn" href="/review">Revisar plantillas de ejercicios</Link>}
+          <Link className="btn" href="/teacher/open">Corregir respuestas abiertas</Link>
           <Link className="btn ghost" href="/analysis">Análisis de ejercicios</Link>
           <Link className="btn ghost" href="/teacher/report">Informe para imprimir</Link>
         </div>

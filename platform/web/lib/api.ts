@@ -1,5 +1,5 @@
 import { authHeaders } from "./auth";
-import type { ClassSkill, Cohort, CompareRow, Consent, Course, FamilyStat, Focus, GapRow, NetworkSummary, ObsMeta, ObsSeriesOut, Period, Progress, Report, ReviewList, ReviewSample, SessionState, StartOut } from "./types";
+import type { OpenAssignment, OpenAssignmentDraft, OpenItem, OpenSubmission, ClassSkill, Cohort, CompareRow, Consent, Course, FamilyStat, Focus, GapRow, NetworkSummary, ObsMeta, ObsSeriesOut, Period, Progress, Report, ReviewList, ReviewSample, SessionState, StartOut } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -82,6 +82,15 @@ export const api = {
       body: JSON.stringify({ item_id: itemId, response, duration_s: durationS }),
     })),
   report: (sid: string) => req<Report>(`/v1/sessions/${sid}/report`),
+  openItems: () => req<{ items: OpenItem[] }>("/v1/teacher/open-items"),
+  createOpenAssignment: (draft: OpenAssignmentDraft) => req<{ id: string; status: string }>("/v1/teacher/open-assignments", { method: "POST", body: JSON.stringify(draft) }),
+  teacherOpenAssignments: (course?: string) => req<{ assignments: OpenAssignment[] }>(`/v1/teacher/open-assignments${q({ course })}`),
+  openSubmissions: (assignmentId: string) => req<{ submissions: OpenSubmission[] }>(`/v1/teacher/open-assignments/${assignmentId}/submissions`),
+  gradeOpenSubmission: (id: string, score: number, feedback: string, rubric: Record<string, number>) =>
+    req<{ status: string }>(`/v1/teacher/open-submissions/${id}/grade`, { method: "POST", body: JSON.stringify({ score, feedback, rubric }) }),
+  studentOpenAssignments: () => req<{ assignments: OpenAssignment[] }>("/v1/student/open-assignments"),
+  submitOpenResponse: (id: string, response: string) =>
+    req<{ status: string }>(`/v1/student/open-assignments/${id}/submit`, { method: "POST", body: JSON.stringify({ response }) }),
   cohort: (course?: string) => req<Cohort>(`/v1/teacher/cohort${q({ course })}`),
   reviewList: () => req<ReviewList>("/v1/review/templates"),
   reviewSample: (tid: string) => req<ReviewSample>(`/v1/review/templates/${tid}/sample?n=5`),
