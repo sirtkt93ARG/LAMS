@@ -11,6 +11,7 @@ import unittest
 from uuid import uuid4
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 
 import psycopg
 
@@ -78,6 +79,15 @@ class TestPostgresStore(unittest.TestCase):
                     "INSERT INTO tenant_networks (network_id, tenant_id, accepted) VALUES (%s, %s, false)",
                     (f"forged-network-{suffix}", school),
                 )
+
+    def test_open_assignment_deadline_is_enforced_by_postgres(self):
+        suffix = uuid4().hex
+        tenant, pid, assignment = f"school-deadline-{suffix}", f"student-{suffix}", f"assignment-{suffix}"
+        past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        self.store.create_open_assignment(assignment, tenant, None, "open-item", "Vencida", "", "teacher", past)
+        self.assertTrue(self.store.open_assignment_expired(tenant, assignment))
+        self.assertFalse(self.store.submit_open_response(f"submission-{suffix}", assignment, tenant, pid, "late"))
+        self.assertEqual(self.store.open_submissions_for_assignment(tenant, assignment), [])
 
     def test_open_response_review_is_tenant_scoped_and_persisted(self):
         suffix = uuid4().hex
