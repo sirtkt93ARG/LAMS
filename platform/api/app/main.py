@@ -311,7 +311,7 @@ def answer(sid: str, body: AnswerIn, tasks: BackgroundTasks, user: User = Depend
                                   response=res.normalized or "", score=res.score, success=bool(res.score),
                                   level_target=item.target_level, axis=item.axis.value, process=item.process.value,
                                   tag=res.tag, duration_s=body.duration_s)
-        tasks.add_task(_post_xapi_if_not_erased, user.tenant_id, pid, LRS_URL, [stmt], LRS_USER, LRS_PASS)
+        tasks.add_task(_post_xapi_if_not_erased, user.tenant_id, _pid(user), LRS_URL, [stmt], LRS_USER, LRS_PASS)
     if result and s["mode"] in ("practica", "medicion"):
         tasks.add_task(_send_grade, user, result, s["mode"])
     out = _state(s)
