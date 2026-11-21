@@ -87,11 +87,11 @@ def load_and_verify_backup(backup_dir: Path) -> tuple[Path, dict]:
         raise ValueError("La copia debe ser un directorio local existente y no un enlace simbólico")
     dump = backup_dir / "database.dump"
     manifest_path = backup_dir / "manifest.json"
-    if not dump.is_file() or not manifest_path.is_file():
-        raise ValueError("La copia debe contener database.dump y manifest.json")
+    if dump.is_symlink() or manifest_path.is_symlink() or not dump.is_file() or not manifest_path.is_file():
+        raise ValueError("La copia debe contener archivos regulares database.dump y manifest.json")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("format") != "pg_dump_custom":
-        raise ValueError("Formato de backup no reconocido")
+    if manifest.get("format") != "pg_dump_custom" or not isinstance(manifest.get("database"), str) or not manifest["database"]:
+        raise ValueError("Formato o metadatos de backup no reconocidos")
     if manifest.get("sha256") != digest(dump):
         raise ValueError("La suma SHA-256 no coincide: la copia está dañada o fue modificada")
     if manifest.get("size_bytes") != dump.stat().st_size:
@@ -116,7 +116,7 @@ def backup(args: argparse.Namespace) -> int:
     os.chmod(temporary, 0o700)
     try:
         dump = temporary / "database.dump"
-        run(["pg_dump", "--format=custom", "--no-owner", "--file", str(dump), "--dbname", database], env)
+        run(["pg_dump", "--format=custom", "--file", str(dump), "--dbname", database], env)
         os.chmod(dump, 0o600)
         # La lista del catálogo comprueba que pg_restore puede leer el archivo antes de publicarlo.
         listing = run(["pg_restore", "--list", str(dump)], env)
