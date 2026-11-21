@@ -92,5 +92,5 @@ export type Period = { period: string; n: number | null; suppressed: boolean; me
 export type NetRow = { school: string; n: number; mean_level: number; share_baseline: number };
 export type NetworkSummary = {
   network_id: string; min_cell: number; schools: NetRow[]; others: NetRow | null; total: Omit<NetRow, "school"> | null;
-  baseline_level: number; note: string;
+  baseline_level: number; note: string; pending_invitations: number; pending_tenants: string[];
 };
