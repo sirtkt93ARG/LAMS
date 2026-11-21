@@ -8,6 +8,8 @@ from matheval.qti3 import item_to_qti
 N_PER_TEMPLATE, QTI_PER_TEMPLATE = 200, 20
 bank = ItemBank()
 out = pathlib.Path("data/qti"); out.mkdir(parents=True, exist_ok=True)
+for stale in out.glob("*.xml"):
+    stale.unlink()  # evita conservar QTI de semillas descartadas o de generaciones anteriores
 for tid in T.SPEC:
     seen, seed, n = set(), 0, 0
     while n < N_PER_TEMPLATE and seed < 20 * N_PER_TEMPLATE:          # sin contenido repetido: se descartan semillas duplicadas
