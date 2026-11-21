@@ -6,7 +6,7 @@ import "./globals.css";
 const ui = Atkinson_Hyperlegible({ subsets: ["latin"], weight: ["400", "700"], variable: "--font-ui", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Práctica de matemática",
+  title: { default: "matheval — evaluación adaptativa de matemática", template: "%s | matheval" },
   description: "Practicá matemática con problemas de la vida real y conocé tu nivel.",
 };
 
