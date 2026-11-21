@@ -30,6 +30,7 @@ Estado: situación en la rama `main` a 21-11-2026. Los valores numéricos de evi
 | 7 | **Una red podía agregar a cualquier escuela** conociendo su identificador y ver sus resultados agregados | La invitación no necesitaba aceptación | Corregido: invitación, aceptación y revocación de consentimiento; RLS y pruebas PostgreSQL |
 | 8 | **Colores con poco contraste**: los celestes y ámbar de los gráficos quedaban por debajo de 3:1 y las etiquetas de línea coloreadas por debajo de 4,5:1 | Celeste #56B4E9 ≈ 2,3:1 y ámbar #E69F00 ≈ 2,3:1 sobre blanco | Corregido: paleta de mayor contraste; axe no detectó violaciones en los recorridos cubiertos |
 | 9 | **Pruebas frágiles**: dependían del orden de importación (`importlib.util`) | La suite fallaba al descubrir las pruebas en otro orden | Corregido: suite actual ejecutada en CI |
+| 10 | **Ítems abiertos sin flujo de corrección manual** podían entrar en pools automáticos y afectar la estimación de nivel | El motor admite `kind=open`, cuya puntuación es `None`; una práctica automática no debe convertirla silenciosamente en incorrecta | Corregido parcialmente: excluidos de pools adaptativos y rechazados en API; falta construir rúbricas y corrección docente |
 
 ## 3. Hallazgos abiertos (sin arreglo)
 
