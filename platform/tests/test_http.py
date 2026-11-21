@@ -87,7 +87,9 @@ class TestHttp(unittest.TestCase):
         self.assertEqual(self.c.delete("/v1/me/data", headers=S).status_code, 200)
 
     def test_lti_exchange_gives_working_bearer(self):
-        handoff = jwt.encode({"sub": "u-http", "tenant_id": "dep-http", "role": "student", "exp": int(time.time()) + 60},
+        handoff = jwt.encode({"sub": "u-http", "tenant_id": "dep-http", "role": "student",
+                             "iss": "matheval-lti", "aud": "matheval-api", "iat": int(time.time()),
+                             "jti": "http-handoff-1", "exp": int(time.time()) + 60},
                              os.environ["LTI_HANDOFF_SECRET"], algorithm="HS256")
         r = self.c.post("/v1/lti/exchange", json={"token": handoff})
         self.assertEqual(r.status_code, 200)
