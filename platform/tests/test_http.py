@@ -94,9 +94,15 @@ class TestHttp(unittest.TestCase):
         self.assertEqual(submitted.status_code, 200, submitted.text)
         self.assertEqual(self.c.post(f"/v1/student/open-assignments/{assignment_id}/submit", headers=S,
                                      json={"response": "duplicada"}).status_code, 409)
-        submissions = self.c.get(f"/v1/teacher/open-assignments/{assignment_id}/submissions", headers=T)
+        with patch.object(M, "_nrps_names", return_value={
+            M._student_key("alumno-h1", "escuela-h"): "Nombre de prueba",
+        }):
+            submissions = self.c.get(f"/v1/teacher/open-assignments/{assignment_id}/submissions", headers=T)
         self.assertEqual(submissions.status_code, 200, submissions.text)
-        submission_id = submissions.json()["submissions"][0]["id"]
+        submission_row = submissions.json()["submissions"][0]
+        self.assertEqual(submission_row["student_name"], "Nombre de prueba")
+        self.assertNotIn("student_key", submission_row)
+        submission_id = submission_row["id"]
         graded = self.c.post(f"/v1/teacher/open-submissions/{submission_id}/grade", headers=T,
                              json={"score": 82, "feedback": "Buen desarrollo.", "rubric": {"argumentacion": 4}})
         self.assertEqual(graded.status_code, 200, graded.text)
