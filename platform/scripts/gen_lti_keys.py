@@ -1,5 +1,6 @@
 """Crea el par de claves RSA de la herramienta LTI y la configuración para el LMS simulado."""
 import json, os, pathlib, sys
+from urllib.parse import urlparse
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
@@ -22,7 +23,8 @@ conf = {issuer: [{
     "auth_token_url": os.getenv("MOCK_AUTH_TOKEN_URL", f"{issuer}/token"),
     "key_set_url": os.getenv("MOCK_KEY_SET_URL", f"{issuer}/jwks"),
     "private_key_file": "private.key", "public_key_file": "public.key",
-    "deployment_ids": ["mock-deployment-1"]}]}
+    "deployment_ids": ["mock-deployment-1"],
+    "nrps_allowed_hosts": [urlparse(issuer).hostname] if urlparse(issuer).hostname else []}]}
 (cfg / output_name).write_text(json.dumps(conf, indent=2), encoding="utf-8")
 os.chmod(cfg / output_name, 0o600)
 print("Claves y configuración creadas en", cfg)
