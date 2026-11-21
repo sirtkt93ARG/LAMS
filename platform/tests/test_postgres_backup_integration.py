@@ -160,6 +160,7 @@ finally:
 
                     restore_env = os.environ.copy()
                     restore_env["DATABASE_URL"] = target_url
+                    restore_env["PATH"] = env["PATH"]
                     restore_result = subprocess.run(
                         [
                             sys.executable,
@@ -181,6 +182,9 @@ finally:
                         0,
                         f"restore failed:\\n{restore_result.stdout}\\n{restore_result.stderr}",
                     )
+
+            if restore_result.returncode != 0:
+                return
 
             with psycopg.connect(target_url) as restored:
                 restored_counts = {
