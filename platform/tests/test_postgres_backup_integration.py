@@ -33,12 +33,31 @@ class TestPostgresBackupRestore(unittest.TestCase):
         with psycopg.connect(ADMIN_URL, autocommit=True) as admin:
             admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(target_database)))
 
+        probe_marker = uuid4().hex
+        probe_payload = f"backup-restore-roundtrip:{probe_marker}"
         try:
+            with psycopg.connect(ADMIN_URL, autocommit=True) as admin:
+                admin.execute(
+                    "CREATE TABLE public.backup_restore_probe "
+                    "(marker text PRIMARY KEY, payload text NOT NULL)"
+                )
+                admin.execute(
+                    "INSERT INTO public.backup_restore_probe (marker, payload) VALUES (%s, %s)",
+                    (probe_marker, probe_payload),
+                )
+
             with psycopg.connect(ADMIN_URL) as source:
                 source_counts = {
                     "sessions": source.execute("SELECT count(*) FROM public.sessions").fetchone()[0],
                     "responses": source.execute("SELECT count(*) FROM public.responses").fetchone()[0],
                 }
+                self.assertEqual(
+                    source.execute(
+                        "SELECT payload FROM public.backup_restore_probe WHERE marker = %s",
+                        (probe_marker,),
+                    ).fetchone(),
+                    (probe_payload,),
+                )
 
             with self.subTest("logical backup and restore"):
                 with tempfile.TemporaryDirectory(prefix="matheval-backup-") as temporary:
@@ -192,6 +211,14 @@ finally:
                     "responses": restored.execute("SELECT count(*) FROM public.responses").fetchone()[0],
                 }
                 self.assertEqual(restored_counts, source_counts)
+                self.assertEqual(
+                    restored.execute(
+                        "SELECT payload FROM public.backup_restore_probe WHERE marker = %s",
+                        (probe_marker,),
+                    ).fetchone(),
+                    (probe_payload,),
+                    "the exact sentinel row and payload must survive backup and restore",
+                )
                 self.assertTrue(
                     restored.execute(
                         "SELECT relrowsecurity FROM pg_class WHERE oid = 'public.sessions'::regclass"
@@ -211,6 +238,7 @@ finally:
                         sql.Identifier(target_database)
                     )
                 )
+                admin.execute("DROP TABLE IF EXISTS public.backup_restore_probe")
 
 
 if __name__ == "__main__":
