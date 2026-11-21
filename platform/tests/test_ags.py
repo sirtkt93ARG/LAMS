@@ -61,6 +61,13 @@ class TestAgs(unittest.TestCase):
         ])
         self.assertNotIn("email", roster[0])
 
+    def test_nrps_next_link_parser_handles_link_rel_header(self):
+        from lti_service import nrps
+
+        header = '<https://lms.example/members?page=2>; rel="next", <https://lms.example/members?page=1>; rel="prev"'
+        self.assertEqual(nrps._next_link(header), "https://lms.example/members?page=2")
+        self.assertIsNone(nrps._next_link(None))
+
     def test_nrps_rejects_unapproved_host_before_request(self):
         from lti_service import nrps
 
