@@ -84,7 +84,7 @@ class TestHttp(unittest.TestCase):
         self.assertEqual(self.c.get("/v1/review/templates/ZZ/sample", headers=A).status_code, 404)
         r = self.c.post("/v1/review/templates/T7", json={"decision": "aprobar", "checklist": {}}, headers=A)
         self.assertEqual(r.status_code, 400)
-        valid = {"decision": "aprobar", "checklist": {k: True for k in R.CHECKLIST}}
+        valid = {"decision": "aprobar", "checklist": {k: True for k in M.CHECKLIST}}
         first = self.c.post("/v1/review/templates/T7", json=valid, headers=A)
         self.assertEqual(first.status_code, 200)
         duplicate = self.c.post("/v1/review/templates/T7", json=valid, headers=A)
