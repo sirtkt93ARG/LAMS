@@ -1,6 +1,6 @@
 """Prueba la lógica propia del servicio LTI (rol, tenant, token de traspaso) con sustitutos de PyLTI1p3 y
 Flask-Caching: así corre igual con o sin esas librerías instaladas."""
-import importlib, os, sys, types, unittest
+import importlib.util, os, sys, types, unittest
 sys.path.insert(0, os.getcwd())
 import jwt
 
