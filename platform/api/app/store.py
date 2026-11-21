@@ -91,6 +91,17 @@ class Store:
         else:
             raise ValueError("DATABASE_URL debe empezar con sqlite:/// o postgresql://")
 
+    def ping(self) -> bool:
+        """Comprueba la conectividad real con el almacén sin leer datos de ningún tenant."""
+        if self.dialect == "sqlite":
+            with self._lock:
+                self._conn.execute("SELECT 1").fetchone()
+            return True
+        import psycopg
+        with psycopg.connect(self.url, connect_timeout=3) as conn:
+            conn.execute("SELECT 1").fetchone()
+        return True
+
     def _sql(self, sql: str) -> str:
         if self.dialect == "sqlite":
             return sql.replace("{J}", "?").replace("{NOW}", "datetime('now')")

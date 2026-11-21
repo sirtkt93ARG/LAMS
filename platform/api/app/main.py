@@ -683,3 +683,14 @@ def metrics():
 @app.get("/healthz")
 def health():
     return {"ok": True, "items": len(BANK.items), "approved": len(BANK.pool("practica")), "templates": len(TPL.SPEC)}
+
+
+@app.get("/readyz")
+def readiness():
+    """Readiness probe: la instancia solo recibe tráfico si puede acceder a su base."""
+    try:
+        STORE.ping()
+    except Exception:  # noqa: BLE001
+        log.exception("falló la comprobación de disponibilidad de la base de datos")
+        return JSONResponse({"ok": False, "dependency": "database"}, status_code=503)
+    return {"ok": True, "database": "ok"}
