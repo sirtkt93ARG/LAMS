@@ -13,7 +13,8 @@ CREATE TABLE sessions (
   started_at  timestamptz NOT NULL DEFAULT now(),
   finished_at timestamptz,
   course_id   text,
-  course_label text
+  course_label text,
+  version integer NOT NULL DEFAULT 0
 );
 CREATE INDEX ix_sessions_tenant ON sessions (tenant_id);
 
@@ -30,6 +31,7 @@ CREATE TABLE responses (
   hints       integer NOT NULL DEFAULT 0
 );
 CREATE INDEX ix_responses_session ON responses (tenant_id, session_id);
+CREATE UNIQUE INDEX uq_responses_session_item ON responses (tenant_id, session_id, item_id);
 
 CREATE TABLE used_tokens (
   jti text PRIMARY KEY,
