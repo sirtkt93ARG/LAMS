@@ -200,6 +200,23 @@ class ReviewIn(BaseModel):
 class NetworkInviteIn(BaseModel):
     tenant_id: str
 
+class OpenAssignmentIn(BaseModel):
+    item_id: str
+    title: str
+    instructions: str = ""
+    course_id: str | None = None
+    due_at: str | None = None
+
+
+class OpenSubmissionIn(BaseModel):
+    response: str
+
+
+class OpenGradeIn(BaseModel):
+    score: float
+    feedback: str = ""
+    rubric: dict = {}
+
 
 # ---- acceso ------------------------------------------------------------------------
 @app.post("/v1/lti/exchange")
@@ -327,6 +344,42 @@ def report(sid: str, user: User = Depends(current_user)):
     return _report(_load(sid, user))
 
 
+@app.get("/v1/student/open-assignments")
+def student_open_assignments(user: User = Depends(current_user)):
+    if user.role != "student":
+        raise HTTPException(403, "solo estudiantes")
+    _consent_gate(user)
+    return {"assignments": STORE.open_assignments_for_student(user.tenant_id, user.course_id, _pid(user))}
+
+
+@app.post("/v1/student/open-assignments/{assignment_id}/submit")
+def student_open_submit(assignment_id: str, body: OpenSubmissionIn, user: User = Depends(current_user)):
+    if user.role != "student":
+        raise HTTPException(403, "solo estudiantes")
+    _consent_gate(user)
+    response = body.response.strip()
+    if not response or len(response) > 20000:
+        raise HTTPException(400, "La respuesta debe tener entre 1 y 20000 caracteres.")
+    visible = {a["id"] for a in STORE.open_assignments_for_student(user.tenant_id, user.course_id, _pid(user))}
+    if assignment_id not in visible:
+        raise HTTPException(404, "actividad no encontrada")
+    ok = STORE.submit_open_response(str(uuid.uuid4()), assignment_id, user.tenant_id, _pid(user), response)
+    if not ok:
+        raise HTTPException(409, "Ya entregaste esta actividad. No se puede reemplazar la entrega.")
+    STORE.audit(user.tenant_id, _pid(user), "respuesta_abierta_entregada", assignment_id)
+    return {"status": "pendiente"}
+
+
+@app.get("/v1/student/open-submissions/{submission_id}")
+def student_open_result(submission_id: str, user: User = Depends(current_user)):
+    if user.role != "student":
+        raise HTTPException(403, "solo estudiantes")
+    result = STORE.open_submission_for_student(user.tenant_id, submission_id, _pid(user))
+    if not result:
+        raise HTTPException(404, "entrega no encontrada")
+    return result
+
+
 @app.get("/v1/me/progress")
 def progress(user: User = Depends(current_user)):
     pid = _pid(user)
@@ -386,6 +439,54 @@ def _curator(user: User) -> None:
 def courses(user: User = Depends(current_user)):
     _teacher(user)
     return {"courses": STORE.courses(user.tenant_id)}
+
+
+@app.post("/v1/teacher/open-assignments")
+def teacher_create_open_assignment(body: OpenAssignmentIn, user: User = Depends(current_user)):
+    _teacher(user)
+    item = BANK.items.get(body.item_id)
+    if not item or item.kind != "open":
+        raise HTTPException(400, "El ejercicio seleccionado no es una pregunta abierta válida.")
+    title = body.title.strip()
+    instructions = body.instructions.strip()
+    if not title or len(title) > 160 or len(instructions) > 4000:
+        raise HTTPException(400, "Título obligatorio (máximo 160 caracteres) e instrucciones de hasta 4000 caracteres.")
+    if body.course_id and not any(c["course_id"] == body.course_id for c in STORE.courses(user.tenant_id)):
+        raise HTTPException(404, "curso no encontrado en esta escuela")
+    assignment_id = str(uuid.uuid4())
+    STORE.create_open_assignment(assignment_id, user.tenant_id, body.course_id, item.id, title,
+                                 instructions, _pid(user), body.due_at)
+    STORE.audit(user.tenant_id, _pid(user), "actividad_abierta_creada", assignment_id)
+    return {"id": assignment_id, "status": "created"}
+
+
+@app.get("/v1/teacher/open-assignments")
+def teacher_open_assignments(course: str | None = None, user: User = Depends(current_user)):
+    _teacher(user)
+    return {"assignments": STORE.open_assignments_for_teacher(user.tenant_id, course)}
+
+
+@app.get("/v1/teacher/open-assignments/{assignment_id}/submissions")
+def teacher_open_submissions(assignment_id: str, user: User = Depends(current_user)):
+    _teacher(user)
+    assignments = {a["id"] for a in STORE.open_assignments_for_teacher(user.tenant_id)}
+    if assignment_id not in assignments:
+        raise HTTPException(404, "actividad no encontrada")
+    return {"submissions": STORE.open_submissions_for_assignment(user.tenant_id, assignment_id)}
+
+
+@app.post("/v1/teacher/open-submissions/{submission_id}/grade")
+def teacher_grade_open_submission(submission_id: str, body: OpenGradeIn, user: User = Depends(current_user)):
+    _teacher(user)
+    if not 0 <= body.score <= 100 or len(body.feedback) > 10000:
+        raise HTTPException(400, "La calificación debe estar entre 0 y 100 y la devolución no superar 10000 caracteres.")
+    if len(body.rubric) > 20 or any(not isinstance(k, str) or len(k) > 80 for k in body.rubric):
+        raise HTTPException(400, "Rúbrica inválida.")
+    if not STORE.grade_open_submission(user.tenant_id, submission_id, _pid(user), body.score,
+                                       body.feedback.strip(), body.rubric):
+        raise HTTPException(409, "La entrega no existe o ya fue corregida.")
+    STORE.audit(user.tenant_id, _pid(user), "respuesta_abierta_corregida", submission_id)
+    return {"status": "corregida"}
 
 
 @app.get("/v1/teacher/cohort")
