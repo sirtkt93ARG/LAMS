@@ -146,8 +146,8 @@ class TestApiLogic(unittest.TestCase):
         M.start(M.StartIn(), user)
         with patch.object(M, "LRS_URL", None):
             result = M.delete_my_data(user)
-        self.assertTrue(result["erasure_complete"])
-        self.assertEqual(result["external_lrs"]["status"], "not_configured")
+        self.assertIsNone(result["erasure_complete"])
+        self.assertEqual(result["external_lrs"]["status"], "not_configured_currently")
 
     def test_student_view_hides_answers(self):
         out = M.start(M.StartIn(), User("a", "t", "student"))
