@@ -11,11 +11,11 @@ export function Shell({ children, showExit = true }: { children: React.ReactNode
   useEffect(() => { setAuth(getAuth()); }, []);
   const signedIn = !!auth;
   const links: [string, string][] = !auth ? [] : auth.role === "student"
-    ? [["/practice", "Práctica"], ["/progress", "Mi progreso"], ["/observatory", "Observatorio"]]
+    ? [["/practice", "Práctica"], ["/open", "Respuestas abiertas"], ["/progress", "Mi progreso"], ["/observatory", "Observatorio"]]
     : auth.role === "network" ? [["/network", "Red"], ["/observatory", "Observatorio"]]
     : auth.role === "admin"
-      ? [["/teacher", "Panel"], ["/review", "Curaduría"], ["/analysis", "Análisis"], ["/observatory", "Observatorio"]]
-      : [["/teacher", "Panel"], ["/observatory", "Observatorio"]];
+      ? [["/teacher", "Panel"], ["/teacher/open", "Corrección abierta"], ["/review", "Curaduría"], ["/analysis", "Análisis"], ["/observatory", "Observatorio"]]
+      : [["/teacher", "Panel"], ["/teacher/open", "Corrección abierta"], ["/observatory", "Observatorio"]];
   return (
     <>
       <a className="skip" href="#contenido">Saltar al contenido</a>
