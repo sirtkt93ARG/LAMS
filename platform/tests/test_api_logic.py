@@ -132,6 +132,7 @@ class TestApiLogic(unittest.TestCase):
         self.assertEqual(result.status_code, 202)
         body = json.loads(result.body)
         self.assertFalse(body["erasure_complete"])
+        self.assertTrue(body["future_xapi_exports_blocked"])
         self.assertEqual(body["external_lrs"]["status"], "manual_action_required")
         self.assertEqual(body["external_lrs"]["agent"]["account"]["name"], M._pid(user))
         self.assertEqual(body["audit_events_redacted"], 1)
@@ -169,6 +170,7 @@ class TestApiLogic(unittest.TestCase):
         with patch.object(M, "LRS_URL", None):
             result = M.delete_my_data(user)
         self.assertIsNone(result["erasure_complete"])
+        self.assertTrue(result["future_xapi_exports_blocked"])
         self.assertEqual(result["external_lrs"]["status"], "not_configured_currently")
 
     def test_student_view_hides_answers(self):
