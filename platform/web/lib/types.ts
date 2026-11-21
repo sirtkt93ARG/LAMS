@@ -5,7 +5,7 @@ export type OpenAssignmentDraft = { item_id: string; title: string; instructions
 export type OpenAssignment = {
   id: string; item_id: string; title: string; instructions: string; due_at: string | null;
   created_at: string; submission_id?: string | null; status?: "pendiente" | "corregida" | null;
-  score?: number | null; feedback?: string | null; item?: OpenItem | null;
+  score?: number | null; feedback?: string | null; rubric?: Record<string, number> | null; item?: OpenItem | null;
   submissions?: number; pending?: number;
 };
 export type OpenSubmission = {
