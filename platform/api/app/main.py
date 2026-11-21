@@ -270,6 +270,8 @@ def answer(sid: str, body: AnswerIn, tasks: BackgroundTasks, user: User = Depend
     if body.item_id not in e.next_items():
         raise HTTPException(409, "ejercicio no pendiente")
     item = BANK.items[body.item_id]
+    if item.kind == "open":
+        raise HTTPException(409, "Este ejercicio requiere corrección docente y no está habilitado en prácticas automáticas. Reiniciá la actividad.")
     res = score_response(item, body.response)
     hints = int(s["hints"].get(item.id, 0))
     e.record(item.id, int(res.score or 0))
