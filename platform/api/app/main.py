@@ -491,8 +491,12 @@ def teacher_grade_open_submission(submission_id: str, body: OpenGradeIn, user: U
     _teacher(user)
     if not 0 <= body.score <= 100 or len(body.feedback) > 10000:
         raise HTTPException(400, "La calificación debe estar entre 0 y 100 y la devolución no superar 10000 caracteres.")
-    if len(body.rubric) > 20 or any(not isinstance(k, str) or len(k) > 80 for k in body.rubric):
-        raise HTTPException(400, "Rúbrica inválida.")
+    if len(body.rubric) > 20 or any(
+        not isinstance(k, str) or len(k) > 80 or isinstance(v, bool) or
+        not isinstance(v, (int, float)) or not 0 <= v <= 4
+        for k, v in body.rubric.items()
+    ):
+        raise HTTPException(400, "Cada criterio de la rúbrica debe tener una puntuación numérica entre 0 y 4.")
     if not STORE.grade_open_submission(user.tenant_id, submission_id, _pid(user), body.score,
                                        body.feedback.strip(), body.rubric):
         raise HTTPException(409, "La entrega no existe o ya fue corregida.")
