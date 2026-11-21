@@ -28,6 +28,26 @@ test("login page is keyboard navigable and has no automated accessibility violat
   await expectNoA11yViolations(page);
 });
 
+test("student navigation wraps cleanly on narrow screens", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await login(page, "student");
+  const header = page.locator(".topbar");
+  const nav = header.getByRole("navigation", { name: "Secciones" });
+  await expect(nav.getByRole("link", { name: "Práctica" })).toBeVisible();
+
+  const layout = await header.evaluate((element) => {
+    const brand = element.querySelector(".brand")!.getBoundingClientRect();
+    const navigation = element.querySelector(".topnav")!.getBoundingClientRect();
+    return {
+      navigationBelowBrand: navigation.top >= brand.bottom,
+      noHorizontalOverflow: element.scrollWidth <= element.clientWidth,
+    };
+  });
+  expect(layout.navigationBelowBrand).toBe(true);
+  expect(layout.noHorizontalOverflow).toBe(true);
+  await expectNoA11yViolations(page);
+});
+
 test("student can start a practice and submit an answer", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
