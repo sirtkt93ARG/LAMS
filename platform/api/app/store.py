@@ -570,7 +570,8 @@ class Store:
     def open_submissions_for_assignment(self, tenant: str, assignment_id: str) -> list[dict]:
         rows = self._run(tenant, "SELECT id, pid, response, status, score, feedback, rubric, submitted_at, reviewed_by, reviewed_at FROM open_submissions WHERE tenant_id = ? AND assignment_id = ? ORDER BY submitted_at",
                          (tenant, assignment_id), fetch=True)
-        return [{**r, "student_label": "Estudiante " + hashlib.sha256(r["pid"].encode()).hexdigest()[:6].upper(),
+        return [{**{k: v for k, v in r.items() if k != "pid"},
+                 "student_label": "Estudiante " + hashlib.sha256(r["pid"].encode()).hexdigest()[:6].upper(),
                  "rubric": _loads(r["rubric"]) if r["rubric"] else None} for r in rows]
 
     def grade_open_submission(self, tenant: str, submission_id: str, reviewer: str, score: float, feedback: str, rubric: dict) -> bool:
