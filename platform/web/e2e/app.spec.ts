@@ -54,13 +54,23 @@ test("student can start a practice and submit an answer", async ({ page }) => {
   await login(page, "student");
   await expect(page).toHaveURL(/\/practice$/);
   await expect(page.getByRole("heading", { name: "Práctica de matemática" })).toBeVisible();
+  const startResponsePromise = page.waitForResponse((response) =>
+    response.url().includes("/v1/sessions") && response.request().method() === "POST"
+  );
   await page.getByRole("button", { name: "Empezar práctica de 24 preguntas" }).click();
+  const startResponse = await startResponsePromise;
+  const started = await startResponse.json();
+  expect(started.items?.length, JSON.stringify({ done: started.done, kind: started.items?.[0]?.kind, items: started.items?.length })).toBeGreaterThan(0);
+  const firstItem = started.items[0];
 
-  const radios = page.locator(".choices input[type=\"radio\"]");
-  if (await radios.count()) {
+  if (firstItem.kind === "choice") {
+    const radios = page.locator(".choices input[type=\"radio\"]");
+    await expect(radios).toHaveCount(firstItem.options.length);
     await radios.first().check();
-  } else {
+  } else if (firstItem.kind === "numeric" || firstItem.kind === "expression") {
     await page.locator('input[name="response"]').fill("1");
+  } else {
+    throw new Error(`El banco entregó un tipo de ítem no compatible con práctica automática: ${firstItem.kind}`);
   }
   await page.getByRole("button", { name: "Responder" }).click();
   await expect(page.getByRole("heading", { name: /Respuesta correcta|Esta vez no fue correcta/ })).toBeVisible();
