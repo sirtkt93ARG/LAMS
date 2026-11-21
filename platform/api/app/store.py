@@ -340,14 +340,44 @@ class Store:
         return {r["tag"]: r["n"] for r in rows}
 
     # ---- derechos de los datos --------------------------------------------------------
-    def delete_learner(self, tenant: str, pid: str) -> dict:
-        n_s = self._run(tenant, "SELECT COUNT(*) AS n FROM sessions WHERE tenant_id = ? AND pid = ?", (tenant, pid), fetch=True)[0]["n"]
-        n_r = self._run(tenant, "SELECT COUNT(*) AS n FROM responses WHERE tenant_id = ? AND session_id IN "
-                                "(SELECT id FROM sessions WHERE tenant_id = ? AND pid = ?)", (tenant, tenant, pid), fetch=True)[0]["n"]
-        self._run(tenant, "DELETE FROM responses WHERE tenant_id = ? AND session_id IN (SELECT id FROM sessions WHERE tenant_id = ? AND pid = ?)",
-                  (tenant, tenant, pid))
-        self._run(tenant, "DELETE FROM sessions WHERE tenant_id = ? AND pid = ?", (tenant, pid))
-        return {"sessions": n_s, "responses": n_r}
+    def delete_learner(self, tenant: str, pid: str, actor: str | None = None) -> dict:
+        """Elimina datos locales del alumno y anonimiza sus eventos de auditoría identificables."""
+        q_sessions = self._sql("SELECT COUNT(*) FROM sessions WHERE tenant_id = ? AND pid = ?")
+        q_responses = self._sql(
+            "SELECT COUNT(*) FROM responses WHERE tenant_id = ? AND session_id IN "
+            "(SELECT id FROM sessions WHERE tenant_id = ? AND pid = ?)"
+        )
+        q_redact = self._sql(
+            "UPDATE audit_log SET actor = 'redacted', detail = NULL WHERE tenant_id = ? AND actor = ?"
+        )
+        q_delete_responses = self._sql(
+            "DELETE FROM responses WHERE tenant_id = ? AND session_id IN "
+            "(SELECT id FROM sessions WHERE tenant_id = ? AND pid = ?)"
+        )
+        q_delete_sessions = self._sql("DELETE FROM sessions WHERE tenant_id = ? AND pid = ?")
+        if self.dialect == "sqlite":
+            with self._lock:
+                n_s = self._conn.execute(q_sessions, (tenant, pid)).fetchone()[0]
+                n_r = self._conn.execute(q_responses, (tenant, tenant, pid)).fetchone()[0]
+                n_a = 0
+                if actor:
+                    n_a = self._conn.execute(q_redact, (tenant, actor)).rowcount
+                self._conn.execute(q_delete_responses, (tenant, tenant, pid))
+                self._conn.execute(q_delete_sessions, (tenant, pid))
+                self._conn.commit()
+                return {"sessions": n_s, "responses": n_r, "audit_events_redacted": n_a}
+        import psycopg
+        with psycopg.connect(self.url) as conn:
+            with conn.transaction():
+                conn.execute("SELECT set_config('app.tenant_id', %s, true)", (tenant,))
+                n_s = conn.execute(q_sessions, (tenant, pid)).fetchone()[0]
+                n_r = conn.execute(q_responses, (tenant, tenant, pid)).fetchone()[0]
+                n_a = 0
+                if actor:
+                    n_a = conn.execute(q_redact, (tenant, actor)).rowcount
+                conn.execute(q_delete_responses, (tenant, tenant, pid))
+                conn.execute(q_delete_sessions, (tenant, pid))
+                return {"sessions": n_s, "responses": n_r, "audit_events_redacted": n_a}
 
     def purge_older_than(self, days: int) -> int:
         """Borra sesiones y respuestas más viejas que `days` días, de todas las escuelas (rol propietario)."""
