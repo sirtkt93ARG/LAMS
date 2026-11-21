@@ -8,7 +8,7 @@ import { api, messageFor } from "@/lib/api";
 import { getAuth } from "@/lib/auth";
 import type { CompareRow, Focus, GapRow, ObsMeta, ObsSeriesOut } from "@/lib/types";
 
-const PALETTE = ["#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#7a5195", "#444444"];
+const PALETTE = ["#005A8D", "#A33D00", "#006B50", "#7A2E6D", "#7A4B00", "#006D9C", "#5A3A78", "#333333"];
 const GROUPS: Record<string, string> = { "America Latina": "América Latina", Referencia: "Países de referencia", "Promedio OCDE": "Promedio de la OCDE" };
 const num = (x: number | null | undefined, d = 0) => (x === null || x === undefined ? "—" : x.toLocaleString("es-AR", { minimumFractionDigits: d, maximumFractionDigits: d }));
 const sign = (x: number) => (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x).toLocaleString("es-AR");
