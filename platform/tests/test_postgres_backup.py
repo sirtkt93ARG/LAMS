@@ -43,6 +43,7 @@ class TestPostgresBackupSafety(unittest.TestCase):
             dump.write_bytes(b"synthetic custom-format archive")
             manifest = {
                 "format": "pg_dump_custom",
+                "database": "matheval",
                 "sha256": digest(dump),
                 "size_bytes": dump.stat().st_size,
             }
