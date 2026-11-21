@@ -14,12 +14,14 @@ from .platform import SCOPE_SCORE, MockPlatform
 
 ISS = os.getenv("MOCK_ISS", "http://localhost:8300")
 TOOL_BASE = os.getenv("TOOL_BASE", "http://localhost:8200").rstrip("/")
+TOOL_INTERNAL_BASE = os.getenv("TOOL_INTERNAL_BASE", TOOL_BASE).rstrip("/")
+LINEITEM_BASE = os.getenv("MOCK_LINEITEM_BASE", ISS).rstrip("/")
 CLIENT_ID, DEPLOYMENT_ID = "mock-client", "mock-deployment-1"
 
 app = Flask(__name__)
 P = MockPlatform(ISS, CLIENT_ID, DEPLOYMENT_ID)
 COURSE = {"id": "curso-4a", "label": "4.º A", "title": "Matemática 4.º A"}
-LINEITEM = f"{ISS}/lineitems/1"
+LINEITEM = f"{LINEITEM_BASE}/lineitems/1"
 app.config.update(GRADES=[], TOKENS={}, TOOL_JWKS_FETCH=None)
 
 
@@ -27,7 +29,7 @@ def _tool_jwks() -> dict:
     fetch = app.config["TOOL_JWKS_FETCH"]
     if fetch:
         return fetch()
-    with urllib.request.urlopen(f"{TOOL_BASE}/lti/jwks/", timeout=10) as r:        # noqa: S310
+    with urllib.request.urlopen(f"{TOOL_INTERNAL_BASE}/lti/jwks/", timeout=10) as r:        # noqa: S310
         return json.loads(r.read())
 
 PAGE = """<!doctype html><html lang="es-AR"><meta charset="utf-8"><title>Aula virtual simulada</title>
