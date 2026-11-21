@@ -36,6 +36,11 @@ jobs:
         run: python -m compileall -q src api lti_service tools scripts
       - name: Validate development launcher syntax
         run: bash -n scripts/dev.sh
+      - name: Rebuild and validate generated content
+        run: |
+          python scripts/generate_bank.py
+          python scripts/validate_bank.py
+          python scripts/validate_observatory.py
       - name: Run automated tests
         run: python -m pytest -q
 
