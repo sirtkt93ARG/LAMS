@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import re
-import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -22,15 +21,15 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 def _allowed_url(url: str, issuer: str, allowed_hosts: list[str] | None, dev: bool) -> str:
     parsed = urllib.parse.urlsplit(url)
-    if parsed.scheme != "https":
-        if not (dev and parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1", "::1"}):
-            raise ValueError("NRPS requiere HTTPS fuera de localhost en desarrollo")
     if not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
         raise ValueError("URL NRPS inválida")
     configured = {str(h).strip().lower().rstrip(".") for h in (allowed_hosts or []) if str(h).strip()}
     if not configured:
         issuer_host = urllib.parse.urlsplit(issuer).hostname
         configured = {issuer_host.lower().rstrip(".")} if issuer_host else set()
+    if parsed.scheme != "https":
+        if not (dev and parsed.scheme == "http" and parsed.hostname.lower().rstrip(".") in configured):
+            raise ValueError("NRPS requiere HTTPS fuera de desarrollo y hosts permitidos")
     if parsed.hostname.lower().rstrip(".") not in configured:
         raise ValueError("el host NRPS no está autorizado para este registro LTI")
     return url
