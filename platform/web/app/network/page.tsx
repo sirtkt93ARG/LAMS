@@ -67,7 +67,7 @@ export default function NetworkPage() {
           <h2 id="invite-school-heading">Invitar una escuela</h2>
           <label className="field" htmlFor="school-tenant-id"><span>Identificador de la escuela</span>
             <input id="school-tenant-id" name="tenant_id" type="text" autoComplete="off" required maxLength={128}
-              pattern=".*\\S.*" value={school} aria-invalid={schoolInvalid ? "true" : "false"}
+              pattern=".*\S.*" value={school} aria-invalid={schoolInvalid ? "true" : "false"}
               aria-describedby={schoolInvalid ? "school-tenant-help school-tenant-error" : "school-tenant-help"}
               onBlur={(e) => setSchoolInvalid(!e.currentTarget.validity.valid)}
               onInvalid={() => setSchoolInvalid(true)}
