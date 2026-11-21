@@ -10,6 +10,8 @@ from jwt.algorithms import RSAAlgorithm
 CLAIM = "https://purl.imsglobal.org/spec/lti/claim/"
 CLAIM_AGS = "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint"
 SCOPE_SCORE = "https://purl.imsglobal.org/spec/lti-ags/scope/score"
+CLAIM_NRPS = "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice"
+SCOPE_NRPS = "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly"
 ROLE_STUDENT = "http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"
 ROLE_TEACHER = "http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"
 
@@ -25,7 +27,7 @@ class MockPlatform:
         return {"keys": [jwk]}
 
     def build_id_token(self, *, sub: str, role: str, nonce: str, target_link_uri: str, ttl: int = 300,
-                       course: dict | None = None, lineitem: str | None = None) -> str:
+                       course: dict | None = None, lineitem: str | None = None, nrps: dict | None = None) -> str:
         now = int(time.time())
         claims = {
             "iss": self.issuer, "aud": self.client_id, "sub": sub, "iat": now, "exp": now + ttl, "nonce": nonce,
@@ -40,4 +42,6 @@ class MockPlatform:
             claims[CLAIM + "context"] = course
         if lineitem:
             claims[CLAIM_AGS] = {"scope": [SCOPE_SCORE], "lineitem": lineitem}
+        if nrps:
+            claims[CLAIM_NRPS] = nrps
         return jwt.encode(claims, self._key, algorithm="RS256", headers={"kid": self.kid})
