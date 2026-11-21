@@ -98,7 +98,7 @@ def _nrps_names(user: User) -> dict[str, str]:
             method="POST",
             headers={"Content-Type": "application/json", "X-Internal-Secret": os.getenv("LTI_HANDOFF_SECRET", "")},
         )
-        with urllib.request.urlopen(req, timeout=5) as response:  # noqa: S310 (servicio interno configurado)
+        with urllib.request.urlopen(req, timeout=10) as response:  # noqa: S310 (servicio interno configurado)
             members = json.loads(response.read()).get("members", [])
         return {
             _student_key(member["user_id"], user.tenant_id): member["name"]
@@ -545,7 +545,7 @@ def teacher_open_submissions(assignment_id: str, user: User = Depends(current_us
     if assignment_id not in assignments:
         raise HTTPException(404, "actividad no encontrada")
     submissions = STORE.open_submissions_for_assignment(user.tenant_id, assignment_id)
-    names = _nrps_names(user)
+    names = _nrps_names(user) if submissions else {}
     for submission in submissions:
         student_key = submission.pop("student_key", None)
         student_name = names.get(student_key)
