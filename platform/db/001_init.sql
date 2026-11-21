@@ -85,7 +85,7 @@ DO $$ DECLARE t text; BEGIN
       USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), ''))
       WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), ''))$p$, t);
   END LOOP;
-END $;
+END $$;
 
 -- Una escuela solo puede ver invitaciones dirigidas a ella; una red solo sus propias membresías.
 ALTER TABLE tenant_networks ENABLE ROW LEVEL SECURITY;
