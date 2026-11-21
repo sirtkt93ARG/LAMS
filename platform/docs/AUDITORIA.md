@@ -36,7 +36,7 @@ Estado: situación en la rama `main` a 21-11-2026. Los valores numéricos de evi
 
 | Tema | Detalle | Recomendación |
 |---|---|---|
-| Estado en memoria por proceso | El límite de frecuencia, las métricas y las revisiones aprobadas viven en la memoria de cada proceso | Ejecutar un solo proceso o mover ese estado a Redis o a la base |
+| Estado en memoria por proceso | Las decisiones de curaduría persisten en la base y cada worker las vuelve a aplicar antes de crear sesiones; el limitador de frecuencia y los contadores de métricas siguen siendo locales al proceso | Compartir el rate limiting entre workers (Redis o PostgreSQL) y centralizar métricas para escalar horizontalmente |
 | Borrado incompleto | `DELETE /v1/me/data` no borra lo enviado al almacén de xAPI (Ralph); la auditoría y las revisiones guardan el identificador del docente sin seudonimizar | Agregar el borrado en el LRS y seudonimizar docentes |
 | Verificación de interfaz | Seis pruebas Playwright/axe cubren login, práctica, panel docente, curaduría, red, teclado y viewport móvil en Chromium | Ampliar a Firefox/WebKit, lectores de pantalla y pruebas manuales con usuarios |
 | Contenido | El proceso «argumentar» no tiene cobertura suficiente. Existe el tipo de ítem `open`, pero aún no hay flujo completo de corrección manual; por eso se excluye de los pools adaptativos automáticos. Varias habilidades tienen un solo nivel | Más plantillas, rúbricas y flujo de revisión docente para respuestas abiertas |
