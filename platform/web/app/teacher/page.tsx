@@ -107,7 +107,7 @@ export default function TeacherPage() {
               series={[{ name: "Nivel promedio", color: "#1F4FD8", bold: true, points: periods.flatMap((p, i) => (p.mean_level === null ? [] : [[i, p.mean_level] as [number, number]])) }]}
               note="Los niveles son provisorios: sirven para ver la tendencia, no para comparar estudiantes." />
             <MultiLineChart title="Estudiantes que alcanzan el nivel mínimo propuesto" xLabel="Mes" yLabel="% de estudiantes" yDomain={[0, 100]} categories={periods.map((p) => p.period)}
-              series={[{ name: "Alcanzan N4 o más", color: "#009E73", bold: true, points: periods.flatMap((p, i) => (p.share_baseline === null ? [] : [[i, p.share_baseline] as [number, number]])) }]} />
+              series={[{ name: "Alcanzan N4 o más", color: "#006B50", bold: true, points: periods.flatMap((p, i) => (p.share_baseline === null ? [] : [[i, p.share_baseline] as [number, number]])) }]} />
           </>
         )}
 
