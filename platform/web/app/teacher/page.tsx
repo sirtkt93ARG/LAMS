@@ -20,6 +20,7 @@ export default function TeacherPage() {
   const [consent, setConsent] = useState<Consent | null>(null);
   const [periods, setPeriods] = useState<Period[]>([]);
   const [invites, setInvites] = useState<string[]>([]);
+  const [memberships, setMemberships] = useState<string[]>([]);
   const [inviteBusy, setInviteBusy] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,11 +28,12 @@ export default function TeacherPage() {
     setError(null);
     const cc = c || undefined;
     try {
-      const [coh, er, sk, co, cs, tr, ni] = await Promise.all([
-        api.cohort(cc), api.errors(cc), api.skills(cc), api.consent(), api.courses(), api.trends(cc), api.networkInvites(),
+      const [coh, er, sk, co, cs, tr, ni, nm] = await Promise.all([
+        api.cohort(cc), api.errors(cc), api.skills(cc), api.consent(), api.courses(), api.trends(cc),
+        api.networkInvites(), api.networkMemberships(),
       ]);
       setData(coh); setErrors(er.errors); setSkills(sk.skills); setConsent(co); setCourses(cs.courses);
-      setPeriods(tr.periods); setInvites(ni.invites);
+      setPeriods(tr.periods); setInvites(ni.invites); setMemberships(nm.memberships);
     } catch (e) { setError(messageFor(e)); }
   }, []);
 
@@ -46,6 +48,12 @@ export default function TeacherPage() {
   const answerInvite = async (networkId: string, decision: "accept" | "decline") => {
     setInviteBusy(networkId); setError(null);
     try { await api.networkInviteAnswer(networkId, decision); await load(course); }
+    catch (e) { setError(messageFor(e)); }
+    finally { setInviteBusy(null); }
+  };
+  const revokeSharing = async (networkId: string) => {
+    setInviteBusy(networkId); setError(null);
+    try { await api.networkMembershipRevoke(networkId); await load(course); }
     catch (e) { setError(messageFor(e)); }
     finally { setInviteBusy(null); }
   };
@@ -67,6 +75,22 @@ export default function TeacherPage() {
                 <div className="actions">
                   <button className="btn" type="button" disabled={inviteBusy === networkId} onClick={() => answerInvite(networkId, "accept")}>Aceptar</button>
                   <button className="btn ghost" type="button" disabled={inviteBusy === networkId} onClick={() => answerInvite(networkId, "decline")}>Rechazar</button>
+                </div>
+              </li>
+            ))}</ul>
+          </div>
+        )}
+
+        {memberships.length > 0 && (
+          <div className="notice" aria-labelledby="sharing-heading">
+            <h2 id="sharing-heading">Redes con las que compartís resultados</h2>
+            <p>Estas redes pueden consultar únicamente resultados agregados de esta escuela. Podés retirar el permiso cuando quieras.</p>
+            <ul>{memberships.map((networkId) => (
+              <li key={networkId}>
+                <strong>{networkId}</strong>
+                <div className="actions">
+                  <button className="btn ghost" type="button" disabled={inviteBusy === networkId}
+                    onClick={() => revokeSharing(networkId)}>Dejar de compartir</button>
                 </div>
               </li>
             ))}</ul>
