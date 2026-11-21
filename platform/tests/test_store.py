@@ -162,6 +162,22 @@ class TestStore(unittest.TestCase):
         )
         self.assertEqual(len(self.store.reviews("template:T1")), 1)
 
+    def test_concurrent_review_submission_has_one_winner_across_connections(self):
+        other = Store(f"sqlite:///{self.tmp.name}/t.db")
+        barrier = threading.Barrier(2)
+        scope = "template:T3"
+        try:
+            def submit(store):
+                barrier.wait(timeout=5)
+                return store.add_review(scope, "curador-1", "aprobar", "", {})
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(submit, (self.store, other)))
+            self.assertCountEqual(results, [True, False])
+            self.assertEqual(len(self.store.reviews(scope)), 1)
+        finally:
+            other._conn.close()
+
     def test_template_status_needs_required_approvals(self):
         old = R.REQUIRED
         R.REQUIRED = 2
