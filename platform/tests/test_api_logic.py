@@ -289,12 +289,18 @@ class TestApiLogic(unittest.TestCase):
             sid = M.start(M.StartIn(), st)["session_id"]
             item = M.BANK.items[M.pending(sid, st)["items"][0]["id"]]
             M.answer(sid, M.AnswerIn(item_id=item.id, response=str(item.correct)), BackgroundTasks(), st)
-            self.assertEqual(M.delete_my_data(st), {"sessions": 1, "responses": 1})
+            result = M.delete_my_data(st)
+            self.assertEqual(result["sessions"], 1)
+            self.assertEqual(result["responses"], 1)
+            self.assertEqual(result["audit_events_redacted"], 0)
+            self.assertTrue(result["local_data_deleted"])
+            self.assertEqual(result["external_lrs"]["status"], "not_configured_currently")
+            self.assertIsNone(result["erasure_complete"])
             with self.assertRaises(HTTPException):
                 M.pending(sid, st)
             actions = [e["action"] for e in M.audit(teacher)["events"]]
             self.assertIn("consentimiento_confirmado", actions)
-            self.assertIn("supresion_de_datos", actions)
+            self.assertIn("supresion_local_de_datos", actions)
         finally:
             M.REQUIRE_CONSENT = old
 
