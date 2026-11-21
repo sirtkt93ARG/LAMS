@@ -154,8 +154,8 @@ class Store:
 
     def add_network_tenant(self, network_id: str, tenant: str) -> None:
         """Crea una invitación pendiente; la escuela decide si comparte sus agregados."""
-        self._run(None, "INSERT INTO tenant_networks (network_id, tenant_id, accepted) VALUES (?, ?, FALSE) "
-                        "ON CONFLICT (network_id, tenant_id) DO NOTHING", (network_id, tenant), tenant=network_id)
+        self._run(network_id, "INSERT INTO tenant_networks (network_id, tenant_id, accepted) VALUES (?, ?, FALSE) "
+                        "ON CONFLICT (network_id, tenant_id) DO NOTHING", (network_id, tenant))
 
     def network_tenants(self, network_id: str, accepted_only: bool = True) -> list[str]:
         q = "SELECT tenant_id FROM tenant_networks WHERE network_id = ?" + (" AND accepted = TRUE" if accepted_only else "")
