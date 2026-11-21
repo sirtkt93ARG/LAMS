@@ -40,4 +40,4 @@ DO $$ DECLARE t text; BEGIN
 END $$;
 
 GRANT SELECT, INSERT ON open_assignments TO matheval_app;
-GRANT SELECT, INSERT, UPDATE ON open_submissions TO matheval_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON open_submissions TO matheval_app;
