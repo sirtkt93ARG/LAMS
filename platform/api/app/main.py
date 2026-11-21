@@ -120,7 +120,7 @@ def _load(sid: str, user: User) -> dict:
     if not row or (user.role == "student" and row["pid"] != _pid(user)):
         raise HTTPException(404, "sesión no encontrada")
     st = row["state"]
-    return {"mode": row["mode"], "total": st["total"], "tags": st["tags"], "hints": st.get("hints", {}), "eng": _engine(st["snap"])}
+    return {"mode": row["mode"], "version": row["version"], "total": st["total"], "tags": st["tags"], "hints": st.get("hints", {}), "eng": _engine(st["snap"])}
 
 
 def _state_of(s: dict) -> dict:
