@@ -4,12 +4,14 @@ Flujo LTI 1.3: esta página inicia el login (POST a la herramienta) -> la herram
 import html
 import json
 import os
+import pathlib
 import secrets
 import time
 import urllib.request
 import jwt
 from flask import Flask, jsonify, request
 from jwt.algorithms import RSAAlgorithm
+from lti_service.ags import public_jwk
 from .platform import SCOPE_SCORE, MockPlatform
 
 ISS = os.getenv("MOCK_ISS", "http://localhost:8300")
@@ -26,6 +28,11 @@ app.config.update(GRADES=[], TOKENS={}, TOOL_JWKS_FETCH=None)
 
 
 def _tool_jwks() -> dict:
+    # En Compose compartimos solo la clave pública. Evita que /token tenga que
+    # llamar de vuelta al servicio LTI mientras este atiende /lti/ags/score.
+    public_key_file = os.getenv("TOOL_PUBLIC_KEY_FILE")
+    if public_key_file:
+        return {"keys": [public_jwk(pathlib.Path(public_key_file).read_bytes())]}
     fetch = app.config["TOOL_JWKS_FETCH"]
     if fetch:
         return fetch()
