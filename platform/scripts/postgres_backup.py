@@ -47,6 +47,8 @@ def connection_environment(database_url: str) -> tuple[str, dict[str, str], str]
         if key in query:
             env[variable] = query[key][-1]
     password = unquote(parsed.password) if parsed.password is not None else ""
+    if any(ch in password for ch in "\\r\\n"):
+        raise ValueError("La contraseña de DATABASE_URL contiene caracteres no admitidos")
     if password:
         host = parsed.hostname or "*"
         port = str(parsed.port or "*")
@@ -114,7 +116,7 @@ def backup(args: argparse.Namespace) -> int:
     os.chmod(temporary, 0o700)
     try:
         dump = temporary / "database.dump"
-        run(["pg_dump", "--format=custom", "--no-owner", "--no-acl", "--file", str(dump), "--dbname", database], env)
+        run(["pg_dump", "--format=custom", "--no-owner", "--file", str(dump), "--dbname", database], env)
         os.chmod(dump, 0o600)
         # La lista del catálogo comprueba que pg_restore puede leer el archivo antes de publicarlo.
         listing = run(["pg_restore", "--list", str(dump)], env)
@@ -172,9 +174,18 @@ def restore(args: argparse.Namespace) -> int:
         objects = run([
             "psql", "--no-psqlrc", "--tuples-only", "--no-align", "--dbname", database,
             "--command",
-            "SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
-            "WHERE n.nspname NOT IN ('pg_catalog','information_schema') "
-            "AND n.nspname NOT LIKE 'pg_toast%' AND c.relkind IN ('r','p','v','m','S','f');"
+            "SELECT "
+            "(SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
+            " WHERE n.nspname NOT IN ('pg_catalog','information_schema') "
+            " AND n.nspname NOT LIKE 'pg_toast%' AND c.relkind IN ('r','p','v','m','S','f')) + "
+            "(SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace "
+            " WHERE n.nspname NOT IN ('pg_catalog','information_schema')) + "
+            "(SELECT count(*) FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace "
+            " WHERE n.nspname NOT IN ('pg_catalog','information_schema') "
+            " AND t.typtype IN ('c','d','e','r')) + "
+            "(SELECT count(*) FROM pg_extension WHERE extname <> 'plpgsql') + "
+            "(SELECT count(*) FROM pg_namespace WHERE nspname NOT IN "
+            " ('pg_catalog','information_schema','public') AND nspname NOT LIKE 'pg_toast%');"
         ], env)
         if not objects.isdigit() or int(objects) != 0:
             raise RuntimeError(
@@ -183,7 +194,7 @@ def restore(args: argparse.Namespace) -> int:
             )
         print(f"Restaurando {manifest['database']!r} en la base vacía {database!r}...")
         run([
-            "pg_restore", "--exit-on-error", "--single-transaction", "--no-owner", "--no-acl",
+            "pg_restore", "--exit-on-error", "--single-transaction", "--no-owner",
             "--dbname", database, str(dump)
         ], env)
         verified = run([
