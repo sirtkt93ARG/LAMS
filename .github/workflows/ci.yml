@@ -127,6 +127,9 @@ jobs:
         run: |
           npm install
           npm run build
+      - name: Install Chromium for browser tests
+        working-directory: platform/web
+        run: npx playwright install --with-deps chromium
       - name: Start API, real PyLTI1p3 service, mock LMS, and web
         env:
           MATHEVAL_DEV: "1"
@@ -150,7 +153,10 @@ jobs:
           LTI_PID=$!
           python -m flask --app tools.mock_lms.app run --host 127.0.0.1 --port 8300 > /tmp/lams-lms.log 2>&1 &
           LMS_PID=$!
-          (cd web && npm start -- --hostname 127.0.0.1 --port 3000) > /tmp/lams-web.log 2>&1 &
+          mkdir -p web/.next/standalone/.next
+          cp -R web/.next/static web/.next/standalone/.next/static
+          if [ -d web/public ]; then cp -R web/public web/.next/standalone/public; fi
+          (cd web/.next/standalone && PORT=3000 HOSTNAME=127.0.0.1 node server.js) > /tmp/lams-web.log 2>&1 &
           WEB_PID=$!
 
           cleanup() {
@@ -180,3 +186,4 @@ jobs:
           wait_for http://localhost:8300/
           wait_for http://localhost:3000/
           python scripts/smoke_http.py
+          (cd web && npm run test:e2e)

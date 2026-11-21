@@ -31,6 +31,7 @@ export default function ReviewListPage() {
           <>
             <p className="muted">Aprobaciones necesarias por plantilla: {data.required_approvals}.</p>
             <table className="table">
+              <caption className="sr-only">Estado de revisión y ejercicios aprobados por plantilla</caption>
               <thead><tr><th scope="col">Plantilla</th><th scope="col">Nivel</th><th scope="col">Ejercicios aprobados</th><th scope="col">Estado</th><th scope="col"><span className="sr-only">Acción</span></th></tr></thead>
               <tbody>
                 {data.templates.map((t) => (

@@ -36,6 +36,9 @@ node_modules/
 out/
 dist/
 coverage/
+web/test-results/
+web/playwright-report/
+web/playwright/.cache/
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*

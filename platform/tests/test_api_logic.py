@@ -1,6 +1,7 @@
 """Prueba la lógica de los endpoints llamando a las funciones directamente. Si FastAPI no está instalado
 (p. ej. sin red), se usa un sustituto mínimo; con FastAPI real también corre."""
 import os, sys, time, types, unittest
+from unittest.mock import patch
 import tempfile
 _TMP = tempfile.mkdtemp()
 os.environ.update({"MATHEVAL_DEV": "1", "BANK_PATH": "data/bank_demo.jsonl", "DATABASE_URL": f"sqlite:///{_TMP}/api.db", "SESSION_SECRET": "s" * 40,
@@ -70,6 +71,13 @@ class TestApiLogic(unittest.TestCase):
         rep2 = M.report(sid2, User("alumno-2", "escuela-1", "student"))
         self.assertLessEqual(rep2["level"], 2)
         self.assertTrue(rep2["error_tags"])
+
+    def test_adaptive_pools_exclude_items_that_need_manual_correction(self):
+        numeric = types.SimpleNamespace(kind="numeric")
+        open_item = types.SimpleNamespace(kind="open")
+        with patch.object(M.BANK, "pool", return_value=[numeric, open_item]), patch.object(M, "DEV", False):
+            self.assertEqual(M._pool("practica"), [numeric])
+            self.assertEqual(M._pool("medicion"), [numeric])
 
     def test_student_view_hides_answers(self):
         out = M.start(M.StartIn(), User("a", "t", "student"))

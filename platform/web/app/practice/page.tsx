@@ -76,6 +76,8 @@ function Practice() {
         </section>
       )}
 
+      {state && <h1>{directed ? "Práctica por tema" : "Práctica de matemática"}</h1>}
+
       {state && state.items[0] && !feedback && (
         <>
           <Progress answered={state.answered} total={state.total} />
