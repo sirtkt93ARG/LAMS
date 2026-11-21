@@ -31,6 +31,7 @@ from matheval.observatory import analytics as OA
 from matheval.observatory.data import AVG_NAME, DOMAINS, load_csv, load_gaps
 from matheval.scoring import score_response
 from matheval.skills import SKILLS
+from matheval.rubrics import competencies_for_item, rubric_snapshot, valid_competency_for_item
 from matheval.xapi import answered_statement, post_statements, pseudonymize
 from .auth import DEV, User, current_user, mint_session_token, set_token_consumer, verify_handoff
 from .limits import RateLimiter
@@ -207,6 +208,7 @@ class OpenAssignmentIn(BaseModel):
     instructions: str = ""
     course_id: str | None = None
     due_at: str | None = None
+    competency_id: str | None = None
 
 
 class OpenSubmissionIn(BaseModel):
@@ -459,7 +461,9 @@ def courses(user: User = Depends(current_user)):
 @app.get("/v1/teacher/open-items")
 def teacher_open_items(user: User = Depends(current_user)):
     _teacher(user)
-    return {"items": [{"id": item.id, "stem": item.stem, "stimulus": item.stimulus}
+    return {"items": [{"id": item.id, "stem": item.stem, "stimulus": item.stimulus,
+                       "competencies": [{**entry, "rubric": rubric_snapshot(entry["id"])}
+                                       for entry in competencies_for_item(item.id)]}
                       for item in BANK.items.values() if item.kind == "open"]}
 
 
@@ -487,9 +491,14 @@ def teacher_create_open_assignment(body: OpenAssignmentIn, user: User = Depends(
         if parsed_due <= datetime.now(timezone.utc):
             raise HTTPException(400, "La fecha límite debe estar en el futuro.")
         due_at = parsed_due.isoformat()
+    competencies = competencies_for_item(item.id)
+    competency_id = body.competency_id
+    if competency_id and not valid_competency_for_item(item.id, competency_id):
+        raise HTTPException(400, "La competencia seleccionada no está vinculada a esta plantilla del banco.")
+    snapshot = rubric_snapshot(competency_id) if competency_id else None
     assignment_id = str(uuid.uuid4())
     STORE.create_open_assignment(assignment_id, user.tenant_id, body.course_id, item.id, title,
-                                 instructions, _pid(user), due_at)
+                                 instructions, _pid(user), due_at, competency_id, snapshot)
     STORE.audit(user.tenant_id, _pid(user), "actividad_abierta_creada", assignment_id)
     return {"id": assignment_id, "status": "created"}
 
@@ -514,7 +523,15 @@ def teacher_grade_open_submission(submission_id: str, body: OpenGradeIn, user: U
     _teacher(user)
     if not 0 <= body.score <= 100 or len(body.feedback) > 10000:
         raise HTTPException(400, "La calificación debe estar entre 0 y 100 y la devolución no superar 10000 caracteres.")
-    if len(body.rubric) > 20 or any(
+    snapshot = STORE.rubric_snapshot_for_submission(user.tenant_id, submission_id)
+    if snapshot:
+        expected = {criterion["id"] for criterion in snapshot["criteria"]}
+        if set(body.rubric) != expected:
+            raise HTTPException(400, "La corrección debe puntuar todos los criterios de la rúbrica asignada.")
+        if any(isinstance(v, bool) or not isinstance(v, int) or not 0 <= v <= 4
+               for v in body.rubric.values()):
+            raise HTTPException(400, "Cada criterio debe recibir una puntuación entera entre 0 y 4.")
+    elif len(body.rubric) > 20 or any(
         not isinstance(k, str) or len(k) > 80 or isinstance(v, bool) or
         not isinstance(v, (int, float)) or not 0 <= v <= 4
         for k, v in body.rubric.items()
