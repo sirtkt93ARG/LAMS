@@ -207,7 +207,7 @@ class Store:
                           "VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (tenant, sid, item_id, response, score, tag, duration_s, hints))
 
     def sessions_of(self, tenant: str, pid: str, limit: int = 30) -> list[dict]:
-        rows = self._run(tenant, "SELECT id, mode, result, started_at, finished_at FROM sessions WHERE tenant_id = ? AND pid_hash = ? "
+        rows = self._run(tenant, "SELECT id, mode, result, started_at, finished_at FROM sessions WHERE tenant_id = ? AND pid = ? "
                                  "ORDER BY started_at DESC LIMIT " + str(int(limit)), (tenant, pid), fetch=True)
         return [{**r, "result": _loads(r["result"]) if r["result"] else None} for r in rows]
 
