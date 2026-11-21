@@ -348,7 +348,7 @@ class Store:
         El bloqueo se mantiene durante el POST: una supresión concurrente espera a que
         termine un envío ya iniciado, o gana la carrera e impide que el envío comience.
         """
-        lock_key = f"{tenant}:{pid}"
+        lock_key = f"{len(tenant)}:{tenant}{pid}"
         if self.dialect == "sqlite":
             with self._lock:
                 self._conn.execute("BEGIN IMMEDIATE")
@@ -399,7 +399,7 @@ class Store:
         q_insert_erasure_audit = self._sql(
             "INSERT INTO audit_log (tenant_id, actor, action, detail) VALUES (?, 'system', ?, ?)"
         )
-        lock_key = f"{tenant}:{pid}"
+        lock_key = f"{len(tenant)}:{tenant}{pid}"
         if self.dialect == "sqlite":
             with self._lock:
                 self._conn.execute("BEGIN IMMEDIATE")
