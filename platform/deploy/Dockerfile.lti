@@ -10,5 +10,5 @@ COPY --chown=app:app scripts/gen_lti_keys.py ./scripts/gen_lti_keys.py
 ENV HOME=/tmp
 USER app
 EXPOSE 8200
-# FlaskCacheDataStorage uses SimpleCache (process-local); keep one worker until shared Redis storage exists.
-CMD ["gunicorn", "--bind", "0.0.0.0:8200", "--workers", "1", "--access-logfile", "-", "lti_service.app:app"]
+# SimpleCache is process-local, so keep one process; gthread allows nested LMS JWKS requests during AGS callbacks.
+CMD ["gunicorn", "--bind", "0.0.0.0:8200", "--workers", "1", "--worker-class", "gthread", "--threads", "4", "--access-logfile", "-", "lti_service.app:app"]
