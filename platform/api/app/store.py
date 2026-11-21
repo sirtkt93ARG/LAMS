@@ -481,6 +481,7 @@ class Store:
                     n_a = 0
                     if actor:
                         n_a = self._conn.execute(q_redact, (tenant, actor)).rowcount
+                    self._conn.execute("DELETE FROM open_submissions WHERE tenant_id = ? AND pid = ?", (tenant, pid))
                     self._conn.execute(q_delete_responses, (tenant, tenant, pid))
                     self._conn.execute(q_delete_sessions, (tenant, pid))
                     self._conn.execute(
@@ -507,6 +508,7 @@ class Store:
                 n_a = 0
                 if actor:
                     n_a = conn.execute(q_redact, (tenant, actor)).rowcount
+                conn.execute("DELETE FROM open_submissions WHERE tenant_id = %s AND pid = %s", (tenant, pid))
                 conn.execute(q_delete_responses, (tenant, tenant, pid))
                 conn.execute(q_delete_sessions, (tenant, pid))
                 conn.execute(
