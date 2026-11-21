@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 async function login(page: Page, role: "student" | "teacher" | "admin" | "network") {
   await page.goto("/");
   await page.getByLabel("Usuario").fill(`browser-${role}`);
-  await page.getByLabel("Escuela").fill("escuela-browser");
+  await page.getByRole("textbox", { name: "Escuela" }).fill("escuela-browser");
   await page.getByLabel("Rol").selectOption(role);
   await page.getByRole("button", { name: "Entrar como usuario de prueba" }).click();
 }
