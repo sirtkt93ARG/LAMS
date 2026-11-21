@@ -17,6 +17,10 @@ key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 os.chmod(cfg / "private.key", 0o600)
 os.chmod(cfg / "public.key", 0o644)
 issuer = os.getenv("MOCK_ISS", "http://localhost:8300").rstrip("/")
+default_nrps_host = urlparse(issuer).hostname
+nrps_allowed_hosts = [h.strip() for h in os.getenv("MOCK_NRPS_ALLOWED_HOSTS", "").split(",") if h.strip()]
+if not nrps_allowed_hosts and default_nrps_host:
+    nrps_allowed_hosts = [default_nrps_host]
 conf = {issuer: [{
     "default": True, "client_id": "mock-client",
     "auth_login_url": os.getenv("MOCK_AUTH_LOGIN_URL", f"{issuer}/auth"),
@@ -24,7 +28,7 @@ conf = {issuer: [{
     "key_set_url": os.getenv("MOCK_KEY_SET_URL", f"{issuer}/jwks"),
     "private_key_file": "private.key", "public_key_file": "public.key",
     "deployment_ids": ["mock-deployment-1"],
-    "nrps_allowed_hosts": [urlparse(issuer).hostname] if urlparse(issuer).hostname else []}]}
+    "nrps_allowed_hosts": nrps_allowed_hosts}]}
 (cfg / output_name).write_text(json.dumps(conf, indent=2), encoding="utf-8")
 os.chmod(cfg / output_name, 0o600)
 print("Claves y configuración creadas en", cfg)
