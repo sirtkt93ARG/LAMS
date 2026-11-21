@@ -25,6 +25,7 @@ test("login page is keyboard navigable and has no automated accessibility violat
   await page.goto("/");
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Saltar al contenido" })).toBeFocused();
+  await expect(page.getByRole("link", { name: "matheval" })).toBeVisible();
   await expectNoA11yViolations(page);
 });
 
