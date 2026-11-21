@@ -1,6 +1,6 @@
 export type Role = "student" | "teacher" | "admin" | "network";
 
-export type RubricCriterion = { id: string; label: string; descriptors: Record<string, string> };
+export type RubricCriterion = { id: string; label: string; descriptors?: Record<string, string> };
 export type RubricSnapshot = {
   version: number; competency_id: string; competency: string; focus: string;
   criteria: RubricCriterion[]; scale: { min: number; max: number; meaning: string }; notice: string;
