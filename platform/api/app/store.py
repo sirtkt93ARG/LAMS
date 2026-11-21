@@ -557,8 +557,22 @@ class Store:
         return [{**r, "rubric": _loads(r["rubric"]) if r["rubric"] else None} for r in rows]
 
     def submit_open_response(self, submission_id: str, assignment_id: str, tenant: str, pid: str, response: str) -> bool:
-        rows = self._run(tenant, "INSERT INTO open_submissions (id, assignment_id, tenant_id, pid, response) SELECT ?, a.id, a.tenant_id, ?, ? FROM open_assignments a WHERE a.id = ? AND a.tenant_id = ? ON CONFLICT (tenant_id, assignment_id, pid) DO NOTHING RETURNING id",
+        # El vencimiento se comprueba en el propio INSERT para cerrar la carrera
+        # entre una validación previa y el instante real de persistencia.
+        due_filter = ("AND (a.due_at IS NULL OR a.due_at > now())" if self.dialect == "pg"
+                      else "AND (a.due_at IS NULL OR julianday(a.due_at) > julianday('now'))")
+        rows = self._run(tenant, "INSERT INTO open_submissions (id, assignment_id, tenant_id, pid, response) "
+                         "SELECT ?, a.id, a.tenant_id, ?, ? FROM open_assignments a "
+                         "WHERE a.id = ? AND a.tenant_id = ? " + due_filter +
+                         " ON CONFLICT (tenant_id, assignment_id, pid) DO NOTHING RETURNING id",
                          (submission_id, pid, response, assignment_id, tenant), fetch=True)
+        return bool(rows)
+
+    def open_assignment_expired(self, tenant: str, assignment_id: str) -> bool:
+        due_check = ("due_at IS NOT NULL AND due_at <= now()" if self.dialect == "pg"
+                     else "due_at IS NOT NULL AND julianday(due_at) <= julianday('now')")
+        rows = self._run(tenant, f"SELECT id FROM open_assignments WHERE id = ? AND tenant_id = ? AND {due_check}",
+                         (assignment_id, tenant), fetch=True)
         return bool(rows)
 
     def open_assignments_for_teacher(self, tenant: str, course_id: str | None = None) -> list[dict]:
