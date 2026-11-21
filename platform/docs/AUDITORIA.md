@@ -11,8 +11,8 @@ Las cifras de exposición, diversidad y simulación que aparecen más abajo son 
 ## 1. Veredicto
 
 La plataforma ya cuenta con pruebas automatizadas de núcleo, API y HTTP; integración PostgreSQL 16; smoke LTI 1.3 con PyLTI1p3
-contra el LMS simulado; y seis pruebas de navegador con axe. Los principales frentes pendientes son **operación real** (Docker, backups,
-Keycloak y Moodle de producción), **validación educativa** (calibración con un piloto y análisis con microdatos PISA) y **accesibilidad
+contra el LMS simulado; y seis pruebas de navegador con axe. Los principales frentes pendientes son **operación productiva** (backups, restauración, monitoreo, Keycloak institucional
+y Moodle real), **validación educativa** (calibración con un piloto y análisis con microdatos PISA) y **accesibilidad
 manual** (lectores de pantalla, Firefox/WebKit y dispositivos reales).
 
 ## 2. Hallazgos con evidencia
