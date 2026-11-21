@@ -1,5 +1,12 @@
 FROM python:3.12-slim
 WORKDIR /app
-RUN pip install --no-cache-dir flask flask-caching "PyLTI1p3>=2.0" "PyJWT[crypto]" gunicorn
-COPY lti_service ./lti_service
-CMD ["gunicorn", "-b", "0.0.0.0:8200", "lti_service.app:app"]
+RUN pip install --no-cache-dir flask flask-caching "PyLTI1p3>=2.0" "PyJWT[crypto]" gunicorn \
+    && addgroup --system app \
+    && adduser --system --ingroup app app \
+    && mkdir -p /app/lti_service/configs /app/scripts \
+    && chown -R app:app /app
+COPY --chown=app:app lti_service ./lti_service
+COPY --chown=app:app scripts/gen_lti_keys.py ./scripts/gen_lti_keys.py
+USER app
+EXPOSE 8200
+CMD ["gunicorn", "--bind", "0.0.0.0:8200", "--workers", "2", "--access-logfile", "-", "lti_service.app:app"]
