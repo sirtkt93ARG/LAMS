@@ -12,7 +12,7 @@ El archivo no se cifra por sí mismo. Guardalo en un volumen cifrado y cifrá ta
 
 ## Crear una copia
 
-Requisitos: cliente PostgreSQL (`pg_dump`, `pg_restore`, `psql`) de la misma versión mayor que el servidor o una posterior compatible; Python 3.10+; acceso de lectura a la base.
+Requisitos: cliente PostgreSQL (`pg_dump`, `pg_restore`, `psql`) de la misma versión mayor que el servidor; Python 3.10+; acceso de lectura a la base. El script comprueba esa coincidencia antes de crear la copia y exige la misma versión mayor al restaurar. No uses clientes más nuevos por defecto: pueden emitir instrucciones que el servidor de destino no reconoce.
 
 Desde `platform/`:
 
@@ -32,7 +32,7 @@ Copiá el directorio completo a almacenamiento externo cifrado. Conservá el man
 
 ## Restaurar en un destino aislado
 
-La restauración es deliberadamente conservadora: exige el nombre exacto de la base como confirmación, verifica manifiesto y SHA-256, comprueba que exista `matheval_app` y **rechaza destinos que ya contengan objetos de usuario**. No ejecuta `--clean`, no borra tablas existentes ni sobrescribe bases activas.
+La restauración es deliberadamente conservadora: exige el nombre exacto de la base como confirmación, verifica manifiesto y SHA-256, comprueba que la versión mayor del `pg_restore` y del servidor destino coincida con la registrada en el backup, comprueba que exista `matheval_app` y **rechaza destinos que ya contengan objetos de usuario**. Las actualizaciones entre versiones mayores requieren un procedimiento de migración separado. No ejecuta `--clean`, no borra tablas existentes ni sobrescribe bases activas.
 
 1. Creá una base PostgreSQL vacía en un entorno aislado, preferentemente de staging.
 2. Provisioná previamente el rol `matheval_app` con `LOGIN NOBYPASSRLS`, contraseña administrada por secretos y los atributos necesarios. No reutilices credenciales de ejemplo.
@@ -73,4 +73,4 @@ Como mínimo operativo:
 - La copia es lógica de una sola base; no es un backup físico del clúster ni incluye roles globales.
 - SHA-256 detecta corrupción accidental o modificación, pero no sustituye una firma ni protege frente a un atacante que pueda modificar dump y manifiesto.
 - Los permisos 0600/0700 protegen el filesystem local; no cifran el contenido.
-- La prueba automatizada de este script cubre validación del manifiesto y guardas de seguridad. La compatibilidad real de `pg_dump`/`pg_restore` y una restauración end-to-end deben probarse contra PostgreSQL de staging antes de producción.
+- Las pruebas unitarias cubren validación del manifiesto y guardas de seguridad. CI también ejecuta un ciclo real de `pg_dump`/`pg_restore` contra un PostgreSQL 16 efímero: crea un backup de la base migrada, restaura en una base nueva y comprueba datos, RLS y grants. Esto valida la herramienta en una instancia limpia, pero no reemplaza el ensayo de staging con la configuración, extensiones, roles, volumen y versión exactos del entorno institucional antes de producción.

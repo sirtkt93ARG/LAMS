@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -78,6 +79,20 @@ def run(command: list[str], env: dict[str, str]) -> str:
     return result.stdout.strip()
 
 
+def server_major_version(version: str) -> int:
+    match = re.match(r"\s*(\d+)(?:\.\d+)?", version)
+    if not match:
+        raise ValueError(f"No se pudo interpretar la versión del servidor PostgreSQL: {version!r}")
+    return int(match.group(1))
+
+
+def client_major_version(version: str) -> int:
+    match = re.search(r"\)\s*(\d+)(?:\.\d+)?", version)
+    if not match:
+        raise ValueError(f"No se pudo interpretar la versión del cliente PostgreSQL: {version!r}")
+    return int(match.group(1))
+
+
 def backup_directory_name(database: str, stamp: str) -> str:
     # Evita que nombres de base con barras o segmentos relativos escapen del directorio.
     return f"{quote(database, safe='')}-{stamp}"
@@ -129,15 +144,20 @@ def backup(args: argparse.Namespace) -> int:
         temporary = Path(tempfile.mkdtemp(prefix=".backup-", dir=root))
         os.chmod(temporary, 0o700)
         dump = temporary / "database.dump"
+        version = run(["psql", "--no-psqlrc", "--tuples-only", "--no-align", "--command",
+                       "SHOW server_version;", "--dbname", database], env)
+        dump_version = run(["pg_dump", "--version"], env)
+        if client_major_version(dump_version) != server_major_version(version):
+            raise RuntimeError(
+                "La versión mayor de pg_dump debe coincidir con la del servidor PostgreSQL "
+                f"(servidor {version!r}, cliente {dump_version!r})"
+            )
         run(["pg_dump", "--format=custom", "--file", str(dump), "--dbname", database], env)
         os.chmod(dump, 0o600)
         # La lista del catálogo comprueba que pg_restore puede leer el archivo antes de publicarlo.
         listing = run(["pg_restore", "--list", str(dump)], env)
         if not listing:
             raise RuntimeError("pg_restore no encontró objetos en la copia")
-        version = run(["psql", "--no-psqlrc", "--tuples-only", "--no-align", "--command",
-                       "SHOW server_version;", "--dbname", database], env)
-        dump_version = run(["pg_dump", "--version"], env)
         manifest = {
             "format": "pg_dump_custom",
             "created_at": created.isoformat(),
@@ -174,6 +194,28 @@ def restore(args: argparse.Namespace) -> int:
                 "pasá --confirm-database con ese nombre exacto"
             )
         dump, manifest = load_and_verify_backup(Path(args.backup).expanduser())
+        source_server_version = manifest.get("server_version")
+        source_dump_version = manifest.get("pg_dump_version")
+        if not isinstance(source_server_version, str) or not isinstance(source_dump_version, str):
+            raise ValueError("El manifiesto no contiene las versiones de servidor y pg_dump requeridas")
+        restore_version = run(["pg_restore", "--version"], env)
+        target_server_version = run([
+            "psql", "--no-psqlrc", "--tuples-only", "--no-align", "--dbname", database,
+            "--command", "SHOW server_version;"
+        ], env)
+        source_major = server_major_version(source_server_version)
+        if client_major_version(source_dump_version) != source_major:
+            raise RuntimeError("El manifiesto registra un backup creado con una versión mayor de pg_dump incompatible")
+        if client_major_version(restore_version) != source_major:
+            raise RuntimeError(
+                "La versión mayor de pg_restore debe coincidir con la del backup "
+                f"(backup {source_server_version!r}, cliente {restore_version!r})"
+            )
+        if server_major_version(target_server_version) != source_major:
+            raise RuntimeError(
+                "La versión mayor del servidor destino debe coincidir con la del backup "
+                f"(backup {source_server_version!r}, destino {target_server_version!r})"
+            )
         listing = run(["pg_restore", "--list", str(dump)], env)
         if not listing:
             raise RuntimeError("El catálogo del backup está vacío")

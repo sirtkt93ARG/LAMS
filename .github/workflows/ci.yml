@@ -88,6 +88,11 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: platform/pyproject.toml
+      - name: Expose PostgreSQL 16 client utilities from the service container
+        run: |
+          container="$(docker ps --filter ancestor=postgres:16 --format '{{.ID}}' | head -n1)"
+          test -n "$container"
+          echo "MATHEVAL_POSTGRES_CONTAINER=$container" >> "$GITHUB_ENV"
       - name: Install API and test dependencies
         working-directory: platform
         run: |
@@ -99,6 +104,11 @@ jobs:
           MATHEVAL_TEST_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/matheval_test
           MATHEVAL_TEST_POSTGRES_URL: postgresql://matheval_app:cambiar-en-produccion@localhost:5432/matheval_test
         run: python -m pytest -q tests/test_postgres_integration.py
+      - name: Verify PostgreSQL logical backup and restore end to end
+        working-directory: platform
+        env:
+          MATHEVAL_TEST_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/matheval_test
+        run: python -m pytest -q tests/test_postgres_backup_integration.py
 
   compose-smoke:
     runs-on: ubuntu-latest
