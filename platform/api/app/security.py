@@ -1,0 +1,45 @@
+"""Validación de configuración sensible antes de arrancar servicios fuera de desarrollo."""
+from __future__ import annotations
+
+MIN_SECRET = 32
+_DEFAULTS = {"cambiar", "cambiar-en-produccion", "changeme", "secret", "password"}
+
+
+def _weak(value: str | None) -> bool:
+    return not value or len(value) < MIN_SECRET or value.strip().lower() in _DEFAULTS
+
+
+def _local_http(value: str) -> bool:
+    return value.startswith(("http://localhost", "http://127.0.0.1", "http://[::1]"))
+
+
+def check_config(env: dict, dev: bool) -> tuple[list[str], list[str]]:
+    """Devuelve errores que bloquean producción y avisos de configuración."""
+    errors: list[str] = []
+    warnings: list[str] = []
+    if dev:
+        warnings.append("MATHEVAL_DEV=1: autenticación por cabecera y contenido sin revisión; solo para desarrollo local")
+        return errors, warnings
+
+    if _weak(env.get("PSEUDONYM_SECRET")):
+        errors.append(f"PSEUDONYM_SECRET debe tener al menos {MIN_SECRET} caracteres aleatorios")
+
+    lti_enabled = bool(env.get("LTI_HANDOFF_SECRET") or env.get("LTI_SECRET_KEY"))
+    if lti_enabled:
+        for key in ("LTI_HANDOFF_SECRET", "SESSION_SECRET", "LTI_SECRET_KEY"):
+            if _weak(env.get(key)):
+                errors.append(f"{key} falta o es demasiado débil (mínimo {MIN_SECRET} caracteres)")
+    if not env.get("OIDC_ISSUER") and not lti_enabled:
+        errors.append("No hay autenticación configurada: definí OIDC_ISSUER o la configuración completa de LTI")
+
+    issuer = env.get("OIDC_ISSUER", "")
+    if issuer and issuer.startswith("http://") and not _local_http(issuer):
+        errors.append("OIDC_ISSUER debe usar HTTPS fuera de localhost")
+    origin = env.get("WEB_ORIGIN", "http://localhost:3000")
+    if origin.startswith("http://") and not _local_http(origin):
+        errors.append("WEB_ORIGIN debe usar HTTPS fuera de localhost")
+    if env.get("REQUIRE_CONSENT") == "0":
+        warnings.append("REQUIRE_CONSENT=0: la práctica no exige constancia de consentimiento institucional")
+    if env.get("DATABASE_URL", "").startswith("sqlite:///"):
+        warnings.append("SQLite configurado fuera de desarrollo; se recomienda PostgreSQL para despliegues multiusuario")
+    return errors, warnings
