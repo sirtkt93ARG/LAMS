@@ -18,6 +18,7 @@ ISS = os.getenv("MOCK_ISS", "http://localhost:8300")
 TOOL_BASE = os.getenv("TOOL_BASE", "http://localhost:8200").rstrip("/")
 TOOL_INTERNAL_BASE = os.getenv("TOOL_INTERNAL_BASE", TOOL_BASE).rstrip("/")
 LINEITEM_BASE = os.getenv("MOCK_LINEITEM_BASE", ISS).rstrip("/")
+NRPS_BASE = os.getenv("MOCK_NRPS_BASE", ISS).rstrip("/")
 CLIENT_ID, DEPLOYMENT_ID = "mock-client", "mock-deployment-1"
 
 app = Flask(__name__)
@@ -73,7 +74,7 @@ def auth():
     role = "teacher" if v.get("lti_message_hint") == "teacher" else "student"
     token = P.build_id_token(sub=v.get("login_hint", "usuario-sin-id"), role=role, nonce=v.get("nonce", ""),
                              target_link_uri=redirect_uri, course=COURSE, lineitem=LINEITEM,
-                             nrps={"context_memberships_url": f"{ISS}/nrps/contexts/{COURSE['id']}/members",
+                             nrps={"context_memberships_url": f"{NRPS_BASE}/nrps/contexts/{COURSE['id']}/members",
                                    "service_versions": ["2.0"]})
     return ('<!doctype html><meta charset="utf-8"><body onload="document.forms[0].submit()">'
             f'<form method="post" action="{html.escape(redirect_uri)}">'
