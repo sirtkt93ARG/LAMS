@@ -327,6 +327,18 @@ class TestApiLogic(unittest.TestCase):
         M.network_invite_answer("red-regression", "accept", school)
         self.assertEqual(M.STORE.network_tenants("red-regression"), ["school-regression"])
 
+    def test_school_can_revoke_network_membership(self):
+        network = User("red-revoke-api", "red-revoke-api", "network")
+        school = User("teacher-revoke-api", "school-revoke-api", "teacher")
+        M.network_add(M.NetworkInviteIn(tenant_id=school.tenant_id), network)
+        M.network_invite_answer(network.tenant_id, "accept", school)
+        self.assertEqual(M.STORE.network_memberships(school.tenant_id), [network.tenant_id])
+        self.assertEqual(M.network_leave(network.tenant_id, school)["networks"], [])
+        self.assertEqual(M.STORE.network_tenants(network.tenant_id), [])
+        with self.assertRaises(HTTPException) as c:
+            M.network_leave(network.tenant_id, school)
+        self.assertEqual(c.exception.status_code, 404)
+
     def test_network_invitations_require_school_acceptance(self):
         network = User("red-p", "red-p", "network")
         school_teacher = User("doc-p", "escuela-pendiente", "teacher")
