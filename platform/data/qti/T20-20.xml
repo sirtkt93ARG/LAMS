@@ -1,8 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T24-17" title="Distancia real en un mapa" adaptive="false" time-dependent="false" xml:lang="es-AR">
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T20-20" title="Valor de una función lineal desde una tabla" adaptive="false" time-dependent="false" xml:lang="es-AR">
   <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="float">
     <qti-correct-response>
-      <qti-value>40</qti-value>
+      <qti-value>41</qti-value>
     </qti-correct-response>
   </qti-response-declaration>
   <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
@@ -11,7 +11,29 @@
     </qti-default-value>
   </qti-outcome-declaration>
   <qti-item-body>
-    <p>En un mapa a escala 1:2.000.000, dos ciudades están a 2 cm una de la otra. ¿A cuántos kilómetros están en la realidad?</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Semana</th>
+          <th>Valor</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>5</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>9</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>13</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>Una planta crece que crece siempre al mismo ritmo, como muestra la tabla. ¿Qué valor va a tener en la fila 10?</p>
     <p>
       <qti-text-entry-interaction response-identifier="RESPONSE" expected-length="12" class="numeric-input"/>
     </p>

@@ -2,7 +2,7 @@
 <qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T22-7" title="Teorema de Pitágoras en una escalera" adaptive="false" time-dependent="false" xml:lang="es-AR">
   <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
     <qti-correct-response>
-      <qti-value>B</qti-value>
+      <qti-value>C</qti-value>
     </qti-correct-response>
   </qti-response-declaration>
   <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
@@ -12,11 +12,11 @@
   </qti-outcome-declaration>
   <qti-item-body>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>Una escalera de 26 m está apoyada en una pared vertical. El pie de la escalera está a 10 m de la pared. ¿A qué altura de la pared llega la escalera?</qti-prompt>
-      <qti-simple-choice identifier="A">576 m</qti-simple-choice>
-      <qti-simple-choice identifier="B">24 m</qti-simple-choice>
-      <qti-simple-choice identifier="C">16 m</qti-simple-choice>
-      <qti-simple-choice identifier="D">36 m</qti-simple-choice>
+      <qti-prompt>Una rampa de 15 m de largo llega a una plataforma. Medida sobre el suelo, la rampa avanza 12 m. ¿A qué altura está la plataforma?</qti-prompt>
+      <qti-simple-choice identifier="A">3 m</qti-simple-choice>
+      <qti-simple-choice identifier="B">81 m</qti-simple-choice>
+      <qti-simple-choice identifier="C">9 m</qti-simple-choice>
+      <qti-simple-choice identifier="D">27 m</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>
   <qti-response-processing>

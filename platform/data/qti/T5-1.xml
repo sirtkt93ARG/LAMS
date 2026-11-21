@@ -14,30 +14,30 @@
     <table>
       <thead>
         <tr>
-          <th>Medio</th>
+          <th>Materia</th>
           <th>Estudiantes</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td>bicicleta</td>
-          <td>10</td>
-        </tr>
-        <tr>
-          <td>colectivo</td>
-          <td>10</td>
-        </tr>
-        <tr>
-          <td>a pie</td>
+          <td>matemática</td>
           <td>20</td>
+        </tr>
+        <tr>
+          <td>lengua</td>
+          <td>80</td>
+        </tr>
+        <tr>
+          <td>ciencias</td>
+          <td>100</td>
         </tr>
       </tbody>
     </table>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>En un curso de 40 estudiantes se registró cómo viaja cada uno al colegio. Si se elige un estudiante al azar, ¿cuál es la probabilidad de que viaje en colectivo?</qti-prompt>
-      <qti-simple-choice identifier="A">25 %</qti-simple-choice>
-      <qti-simple-choice identifier="B">75 %</qti-simple-choice>
-      <qti-simple-choice identifier="C">10 %</qti-simple-choice>
+      <qti-prompt>En un curso de 200 estudiantes se preguntó qué materia le gusta más. Si se elige un estudiante al azar, ¿cuál es la probabilidad de que haya respondido «lengua»?</qti-prompt>
+      <qti-simple-choice identifier="A">40 %</qti-simple-choice>
+      <qti-simple-choice identifier="B">60 %</qti-simple-choice>
+      <qti-simple-choice identifier="C">80 %</qti-simple-choice>
       <qti-simple-choice identifier="D">33,3 %</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>

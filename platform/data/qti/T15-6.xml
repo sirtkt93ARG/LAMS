@@ -2,7 +2,7 @@
 <qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T15-6" title="Perímetro de un terreno" adaptive="false" time-dependent="false" xml:lang="es-AR">
   <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
     <qti-correct-response>
-      <qti-value>C</qti-value>
+      <qti-value>B</qti-value>
     </qti-correct-response>
   </qti-response-declaration>
   <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
@@ -11,13 +11,13 @@
     </qti-default-value>
   </qti-outcome-declaration>
   <qti-item-body>
-    <p>Figura: rectángulo de 20 m por 7 m.</p>
+    <p>Figura: rectángulo de 28 m por 13 m.</p>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>Se quiere cercar un terreno rectangular de 20 m por 7 m con alambrado. ¿Cuántos metros de alambrado se necesitan?</qti-prompt>
-      <qti-simple-choice identifier="A">27 m</qti-simple-choice>
-      <qti-simple-choice identifier="B">140 m</qti-simple-choice>
-      <qti-simple-choice identifier="C">54 m</qti-simple-choice>
-      <qti-simple-choice identifier="D">280 m</qti-simple-choice>
+      <qti-prompt>Se quiere cercar una cancha rectangular de 28 m por 13 m con alambrado. ¿Cuántos metros de alambrado se necesitan?</qti-prompt>
+      <qti-simple-choice identifier="A">41 m</qti-simple-choice>
+      <qti-simple-choice identifier="B">82 m</qti-simple-choice>
+      <qti-simple-choice identifier="C">728 m</qti-simple-choice>
+      <qti-simple-choice identifier="D">364 m</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>
   <qti-response-processing>

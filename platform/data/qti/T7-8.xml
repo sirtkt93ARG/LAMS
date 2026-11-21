@@ -12,11 +12,11 @@
   </qti-outcome-declaration>
   <qti-item-body>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>Ana compra 12 paquetes de figuritas a $180 cada uno. ¿Cuánto paga en total?</qti-prompt>
-      <qti-simple-choice identifier="A">$2.160</qti-simple-choice>
-      <qti-simple-choice identifier="B">$1.980</qti-simple-choice>
-      <qti-simple-choice identifier="C">$21.600</qti-simple-choice>
-      <qti-simple-choice identifier="D">$192</qti-simple-choice>
+      <qti-prompt>Joaquín compra 15 jugos a $160 cada uno. ¿Cuánto paga en total?</qti-prompt>
+      <qti-simple-choice identifier="A">$2.400</qti-simple-choice>
+      <qti-simple-choice identifier="B">$2.240</qti-simple-choice>
+      <qti-simple-choice identifier="C">$175</qti-simple-choice>
+      <qti-simple-choice identifier="D">$24.000</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>
   <qti-response-processing>

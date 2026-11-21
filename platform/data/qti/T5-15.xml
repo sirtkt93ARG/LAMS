@@ -2,7 +2,7 @@
 <qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T5-15" title="Probabilidad con tabla" adaptive="false" time-dependent="false" xml:lang="es-AR">
   <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
     <qti-correct-response>
-      <qti-value>A</qti-value>
+      <qti-value>C</qti-value>
     </qti-correct-response>
   </qti-response-declaration>
   <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
@@ -14,31 +14,31 @@
     <table>
       <thead>
         <tr>
-          <th>Medio</th>
+          <th>Fruta</th>
           <th>Estudiantes</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td>bicicleta</td>
-          <td>10</td>
+          <td>manzana</td>
+          <td>80</td>
         </tr>
         <tr>
-          <td>colectivo</td>
+          <td>banana</td>
+          <td>80</td>
+        </tr>
+        <tr>
+          <td>mandarina</td>
           <td>40</td>
-        </tr>
-        <tr>
-          <td>a pie</td>
-          <td>50</td>
         </tr>
       </tbody>
     </table>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>En un curso de 100 estudiantes se registró cómo viaja cada uno al colegio. Si se elige un estudiante al azar, ¿cuál es la probabilidad de que viaje en bicicleta?</qti-prompt>
-      <qti-simple-choice identifier="A">10 %</qti-simple-choice>
-      <qti-simple-choice identifier="B">90 %</qti-simple-choice>
-      <qti-simple-choice identifier="C">33,3 %</qti-simple-choice>
-      <qti-simple-choice identifier="D">11,1 %</qti-simple-choice>
+      <qti-prompt>En un curso de 200 estudiantes se preguntó qué fruta elige en el recreo. Si se elige un estudiante al azar, ¿cuál es la probabilidad de que haya respondido «mandarina»?</qti-prompt>
+      <qti-simple-choice identifier="A">33,3 %</qti-simple-choice>
+      <qti-simple-choice identifier="B">80 %</qti-simple-choice>
+      <qti-simple-choice identifier="C">20 %</qti-simple-choice>
+      <qti-simple-choice identifier="D">40 %</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>
   <qti-response-processing>

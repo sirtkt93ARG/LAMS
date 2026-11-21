@@ -2,7 +2,7 @@
 <qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T24-16" title="Distancia real en un mapa" adaptive="false" time-dependent="false" xml:lang="es-AR">
   <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="float">
     <qti-correct-response>
-      <qti-value>40</qti-value>
+      <qti-value>35</qti-value>
     </qti-correct-response>
   </qti-response-declaration>
   <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
@@ -11,7 +11,7 @@
     </qti-default-value>
   </qti-outcome-declaration>
   <qti-item-body>
-    <p>En un mapa a escala 1:500.000, dos ciudades están a 8 cm una de la otra. ¿A cuántos kilómetros están en la realidad?</p>
+    <p>En un mapa a escala 1:500.000, dos ciudades están a 7 cm una de la otra. ¿A cuántos kilómetros están en la realidad?</p>
     <p>
       <qti-text-entry-interaction response-identifier="RESPONSE" expected-length="12" class="numeric-input"/>
     </p>

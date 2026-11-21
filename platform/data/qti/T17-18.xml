@@ -2,7 +2,7 @@
 <qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T17-18" title="Aumento y rebaja sucesivos" adaptive="false" time-dependent="false" xml:lang="es-AR">
   <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
     <qti-correct-response>
-      <qti-value>C</qti-value>
+      <qti-value>A</qti-value>
     </qti-correct-response>
   </qti-response-declaration>
   <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
@@ -12,11 +12,11 @@
   </qti-outcome-declaration>
   <qti-item-body>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>Un producto costaba $1.000. Primero aumentó 20 % y después, con una oferta, bajó 20 % sobre el precio ya aumentado. ¿Cuánto cuesta ahora?</qti-prompt>
-      <qti-simple-choice identifier="A">$800</qti-simple-choice>
-      <qti-simple-choice identifier="B">$1.000</qti-simple-choice>
-      <qti-simple-choice identifier="C">$960</qti-simple-choice>
-      <qti-simple-choice identifier="D">$1.200</qti-simple-choice>
+      <qti-prompt>Un electrodoméstico costaba $1.500. Primero aumentó 20 % y después, con una oferta, bajó 15 % sobre el precio ya aumentado. ¿Cuánto cuesta ahora?</qti-prompt>
+      <qti-simple-choice identifier="A">$1.530</qti-simple-choice>
+      <qti-simple-choice identifier="B">$1.800</qti-simple-choice>
+      <qti-simple-choice identifier="C">$1.275</qti-simple-choice>
+      <qti-simple-choice identifier="D">$1.575</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>
   <qti-response-processing>

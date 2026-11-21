@@ -12,11 +12,11 @@
   </qti-outcome-declaration>
   <qti-item-body>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>En un plano a escala 1:200, una habitación rectangular mide 2 cm por 5 cm. ¿Cuál es el área real de la habitación?</qti-prompt>
-      <qti-simple-choice identifier="A">10 m²</qti-simple-choice>
-      <qti-simple-choice identifier="B">40 m²</qti-simple-choice>
-      <qti-simple-choice identifier="C">4000 m²</qti-simple-choice>
-      <qti-simple-choice identifier="D">20 m²</qti-simple-choice>
+      <qti-prompt>En un plano a escala 1:1000, una cancha chica rectangular mide 4 cm por 2 cm. ¿Cuál es el área real?</qti-prompt>
+      <qti-simple-choice identifier="A">8 m²</qti-simple-choice>
+      <qti-simple-choice identifier="B">800 m²</qti-simple-choice>
+      <qti-simple-choice identifier="C">80000 m²</qti-simple-choice>
+      <qti-simple-choice identifier="D">80 m²</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>
   <qti-response-processing>

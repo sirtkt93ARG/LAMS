@@ -2,7 +2,7 @@
 <qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T20-3" title="Valor de una función lineal desde una tabla" adaptive="false" time-dependent="false" xml:lang="es-AR">
   <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="float">
     <qti-correct-response>
-      <qti-value>31</qti-value>
+      <qti-value>52</qti-value>
     </qti-correct-response>
   </qti-response-declaration>
   <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
@@ -21,19 +21,19 @@
       <tbody>
         <tr>
           <td>1</td>
-          <td>4</td>
+          <td>16</td>
         </tr>
         <tr>
           <td>2</td>
-          <td>7</td>
+          <td>20</td>
         </tr>
         <tr>
           <td>3</td>
-          <td>10</td>
+          <td>24</td>
         </tr>
       </tbody>
     </table>
-    <p>Un sensor registra una medida que crece siempre al mismo ritmo, como muestra la tabla. ¿Qué valor va a registrar en la medición 10?</p>
+    <p>Un sensor registra una medida que crece siempre al mismo ritmo, como muestra la tabla. ¿Qué valor va a tener en la fila 10?</p>
     <p>
       <qti-text-entry-interaction response-identifier="RESPONSE" expected-length="12" class="numeric-input"/>
     </p>

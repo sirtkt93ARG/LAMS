@@ -21,24 +21,24 @@
       <tbody>
         <tr>
           <td>bicicleta</td>
-          <td>12</td>
+          <td>27</td>
         </tr>
         <tr>
           <td>colectivo</td>
-          <td>18</td>
+          <td>21</td>
         </tr>
         <tr>
           <td>a pie</td>
-          <td>30</td>
+          <td>12</td>
         </tr>
       </tbody>
     </table>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>En un curso de 60 estudiantes se registró cómo viaja cada uno al colegio. Si se elige un estudiante al azar, ¿cuál es la probabilidad de que viaje en bicicleta?</qti-prompt>
-      <qti-simple-choice identifier="A">12 %</qti-simple-choice>
+      <qti-prompt>En un curso de 60 estudiantes se preguntó cómo viaja al colegio. Si se elige un estudiante al azar, ¿cuál es la probabilidad de que haya respondido «bicicleta»?</qti-prompt>
+      <qti-simple-choice identifier="A">27 %</qti-simple-choice>
       <qti-simple-choice identifier="B">33,3 %</qti-simple-choice>
-      <qti-simple-choice identifier="C">80 %</qti-simple-choice>
-      <qti-simple-choice identifier="D">20 %</qti-simple-choice>
+      <qti-simple-choice identifier="C">55 %</qti-simple-choice>
+      <qti-simple-choice identifier="D">45 %</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>
   <qti-response-processing>

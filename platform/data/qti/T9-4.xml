@@ -2,7 +2,7 @@
 <qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T9-4" title="Resta con datos explícitos" adaptive="false" time-dependent="false" xml:lang="es-AR">
   <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
     <qti-correct-response>
-      <qti-value>A</qti-value>
+      <qti-value>B</qti-value>
     </qti-correct-response>
   </qti-response-declaration>
   <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
@@ -12,11 +12,11 @@
   </qti-outcome-declaration>
   <qti-item-body>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>Un tanque tiene 780 litros de agua y se usan 415 litros. ¿Cuántos litros quedan?</qti-prompt>
-      <qti-simple-choice identifier="A">365 litros</qti-simple-choice>
-      <qti-simple-choice identifier="B">1.195 litros</qti-simple-choice>
-      <qti-simple-choice identifier="C">3.650 litros</qti-simple-choice>
-      <qti-simple-choice identifier="D">375 litros</qti-simple-choice>
+      <qti-prompt>Una pileta tiene 1.460 litros de agua y se usan 780 litros. ¿Cuántos litros quedan?</qti-prompt>
+      <qti-simple-choice identifier="A">2.240 litros</qti-simple-choice>
+      <qti-simple-choice identifier="B">680 litros</qti-simple-choice>
+      <qti-simple-choice identifier="C">6.800 litros</qti-simple-choice>
+      <qti-simple-choice identifier="D">690 litros</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>
   <qti-response-processing>

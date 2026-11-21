@@ -12,11 +12,11 @@
   </qti-outcome-declaration>
   <qti-item-body>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>Un tanque tiene 780 litros de agua y se usan 415 litros. ¿Cuántos litros quedan?</qti-prompt>
-      <qti-simple-choice identifier="A">3.650 litros</qti-simple-choice>
-      <qti-simple-choice identifier="B">375 litros</qti-simple-choice>
-      <qti-simple-choice identifier="C">365 litros</qti-simple-choice>
-      <qti-simple-choice identifier="D">1.195 litros</qti-simple-choice>
+      <qti-prompt>Una cisterna tiene 1.370 litros de agua y se usan 740 litros. ¿Cuántos litros quedan?</qti-prompt>
+      <qti-simple-choice identifier="A">640 litros</qti-simple-choice>
+      <qti-simple-choice identifier="B">6.300 litros</qti-simple-choice>
+      <qti-simple-choice identifier="C">630 litros</qti-simple-choice>
+      <qti-simple-choice identifier="D">2.110 litros</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>
   <qti-response-processing>

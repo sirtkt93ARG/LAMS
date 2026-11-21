@@ -2,7 +2,7 @@
 <qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T11-16" title="Expresión de un patrón" adaptive="false" time-dependent="false" xml:lang="es-AR">
   <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="string">
     <qti-correct-response>
-      <qti-value>4*n+2</qti-value>
+      <qti-value>6*n+3</qti-value>
     </qti-correct-response>
   </qti-response-declaration>
   <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
@@ -14,26 +14,26 @@
     <table>
       <thead>
         <tr>
-          <th>Diseño</th>
-          <th>Baldosas</th>
+          <th>Figura</th>
+          <th>Fósforos</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <td>1</td>
-          <td>6</td>
+          <td>9</td>
         </tr>
         <tr>
           <td>2</td>
-          <td>10</td>
+          <td>15</td>
         </tr>
         <tr>
           <td>3</td>
-          <td>14</td>
+          <td>21</td>
         </tr>
       </tbody>
     </table>
-    <p>Un diseño de baldosas se arma agregando siempre la misma cantidad en cada paso. Escribí una expresión para la cantidad de baldosas del diseño n.</p>
+    <p>Una serie de figuras se arma agregando siempre la misma cantidad de fósforos en cada paso. Escribí una expresión para la cantidad de fósforos del figura n.</p>
     <p>
       <qti-text-entry-interaction response-identifier="RESPONSE" expected-length="12" class="math-input"/>
     </p>

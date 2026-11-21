@@ -12,11 +12,11 @@
   </qti-outcome-declaration>
   <qti-item-body>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>Un tanque tiene 645 litros de agua y se usan 85 litros. ¿Cuántos litros quedan?</qti-prompt>
-      <qti-simple-choice identifier="A">730 litros</qti-simple-choice>
-      <qti-simple-choice identifier="B">5.600 litros</qti-simple-choice>
-      <qti-simple-choice identifier="C">560 litros</qti-simple-choice>
-      <qti-simple-choice identifier="D">570 litros</qti-simple-choice>
+      <qti-prompt>Una pileta tiene 980 litros de agua y se usan 70 litros. ¿Cuántos litros quedan?</qti-prompt>
+      <qti-simple-choice identifier="A">920 litros</qti-simple-choice>
+      <qti-simple-choice identifier="B">9.100 litros</qti-simple-choice>
+      <qti-simple-choice identifier="C">910 litros</qti-simple-choice>
+      <qti-simple-choice identifier="D">1.050 litros</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>
   <qti-response-processing>

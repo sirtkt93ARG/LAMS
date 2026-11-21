@@ -2,7 +2,7 @@
 <qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T12-5" title="Generalización: crecimiento del área" adaptive="false" time-dependent="false" xml:lang="es-AR">
   <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="string">
     <qti-correct-response>
-      <qti-value>10*n+25</qti-value>
+      <qti-value>18*n+126</qti-value>
     </qti-correct-response>
   </qti-response-declaration>
   <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
@@ -11,7 +11,7 @@
     </qti-default-value>
   </qti-outcome-declaration>
   <qti-item-body>
-    <p>Un cuadrado tiene un lado de n cm. Si se agranda el lado 5 cm, ¿cuántos cm² aumenta su área? Escribí una expresión en función de n.</p>
+    <p>Un rectángulo tiene lados de n cm y de (n + 5) cm. Si cada lado se agranda 9 cm, ¿cuántos cm² aumenta su área? Escribí una expresión en función de n.</p>
     <p>
       <qti-text-entry-interaction response-identifier="RESPONSE" expected-length="12" class="math-input"/>
     </p>

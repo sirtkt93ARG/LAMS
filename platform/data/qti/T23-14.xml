@@ -2,7 +2,7 @@
 <qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T23-14" title="Interés simple" adaptive="false" time-dependent="false" xml:lang="es-AR">
   <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="float">
     <qti-correct-response>
-      <qti-value>12000</qti-value>
+      <qti-value>50000</qti-value>
     </qti-correct-response>
   </qti-response-declaration>
   <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
@@ -11,7 +11,7 @@
     </qti-default-value>
   </qti-outcome-declaration>
   <qti-item-body>
-    <p>Una persona deposita $50.000 a plazo fijo con un interés simple de 8 % anual. ¿Cuánto interés gana en 3 años? Escribí solo el número.</p>
+    <p>Una persona deposita $100.000 a plazo fijo con un interés simple de 10 % anual. ¿Cuánto interés gana en 5 años? Escribí solo el número.</p>
     <p>
       <qti-text-entry-interaction response-identifier="RESPONSE" expected-length="12" class="numeric-input"/>
     </p>

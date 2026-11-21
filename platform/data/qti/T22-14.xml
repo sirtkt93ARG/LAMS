@@ -12,11 +12,11 @@
   </qti-outcome-declaration>
   <qti-item-body>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>Una escalera de 13 m está apoyada en una pared vertical. El pie de la escalera está a 5 m de la pared. ¿A qué altura de la pared llega la escalera?</qti-prompt>
-      <qti-simple-choice identifier="A">12 m</qti-simple-choice>
-      <qti-simple-choice identifier="B">144 m</qti-simple-choice>
-      <qti-simple-choice identifier="C">8 m</qti-simple-choice>
-      <qti-simple-choice identifier="D">18 m</qti-simple-choice>
+      <qti-prompt>Una rampa de 25 m de largo llega a una plataforma. Medida sobre el suelo, la rampa avanza 24 m. ¿A qué altura está la plataforma?</qti-prompt>
+      <qti-simple-choice identifier="A">7 m</qti-simple-choice>
+      <qti-simple-choice identifier="B">49 m</qti-simple-choice>
+      <qti-simple-choice identifier="C">600 m</qti-simple-choice>
+      <qti-simple-choice identifier="D">1 m</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>
   <qti-response-processing>

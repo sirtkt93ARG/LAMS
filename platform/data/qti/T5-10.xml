@@ -34,11 +34,11 @@
       </tbody>
     </table>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>En un curso de 60 estudiantes se registró cómo viaja cada uno al colegio. Si se elige un estudiante al azar, ¿cuál es la probabilidad de que viaje en bicicleta?</qti-prompt>
-      <qti-simple-choice identifier="A">20 %</qti-simple-choice>
+      <qti-prompt>En un curso de 60 estudiantes se preguntó cómo viaja al colegio. Si se elige un estudiante al azar, ¿cuál es la probabilidad de que haya respondido «a pie»?</qti-prompt>
+      <qti-simple-choice identifier="A">50 %</qti-simple-choice>
       <qti-simple-choice identifier="B">33,3 %</qti-simple-choice>
-      <qti-simple-choice identifier="C">12 %</qti-simple-choice>
-      <qti-simple-choice identifier="D">80 %</qti-simple-choice>
+      <qti-simple-choice identifier="C">30 %</qti-simple-choice>
+      <qti-simple-choice identifier="D">100,0 %</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>
   <qti-response-processing>

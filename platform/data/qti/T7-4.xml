@@ -2,7 +2,7 @@
 <qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T7-4" title="Compra simple" adaptive="false" time-dependent="false" xml:lang="es-AR">
   <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
     <qti-correct-response>
-      <qti-value>D</qti-value>
+      <qti-value>C</qti-value>
     </qti-correct-response>
   </qti-response-declaration>
   <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
@@ -12,11 +12,11 @@
   </qti-outcome-declaration>
   <qti-item-body>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>Ana compra 7 paquetes de figuritas a $150 cada uno. ¿Cuánto paga en total?</qti-prompt>
-      <qti-simple-choice identifier="A">$10.500</qti-simple-choice>
-      <qti-simple-choice identifier="B">$900</qti-simple-choice>
-      <qti-simple-choice identifier="C">$157</qti-simple-choice>
-      <qti-simple-choice identifier="D">$1.050</qti-simple-choice>
+      <qti-prompt>Sofía compra 7 entradas para la feria a $110 cada una. ¿Cuánto paga en total?</qti-prompt>
+      <qti-simple-choice identifier="A">$117</qti-simple-choice>
+      <qti-simple-choice identifier="B">$660</qti-simple-choice>
+      <qti-simple-choice identifier="C">$770</qti-simple-choice>
+      <qti-simple-choice identifier="D">$7.700</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>
   <qti-response-processing>

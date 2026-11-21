@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T22-11" title="Teorema de Pitágoras en una escalera" adaptive="false" time-dependent="false" xml:lang="es-AR">
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T1-22" title="Precio con descuento" adaptive="false" time-dependent="false" xml:lang="es-AR">
   <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
     <qti-correct-response>
       <qti-value>B</qti-value>
@@ -12,11 +12,11 @@
   </qti-outcome-declaration>
   <qti-item-body>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>Una escalera de 34 m está apoyada en una pared vertical. El pie de la escalera está a 16 m de la pared. ¿A qué altura de la pared llega la escalera?</qti-prompt>
-      <qti-simple-choice identifier="A">50 m</qti-simple-choice>
-      <qti-simple-choice identifier="B">30 m</qti-simple-choice>
-      <qti-simple-choice identifier="C">18 m</qti-simple-choice>
-      <qti-simple-choice identifier="D">900 m</qti-simple-choice>
+      <qti-prompt>Un local vende cuadernos a $600 cada uno. Por la compra de 3 cuadernos hace un descuento del 30 % sobre el total. ¿Cuánto hay que pagar?</qti-prompt>
+      <qti-simple-choice identifier="A">$540</qti-simple-choice>
+      <qti-simple-choice identifier="B">$1.260</qti-simple-choice>
+      <qti-simple-choice identifier="C">$1.770</qti-simple-choice>
+      <qti-simple-choice identifier="D">$2.340</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>
   <qti-response-processing>

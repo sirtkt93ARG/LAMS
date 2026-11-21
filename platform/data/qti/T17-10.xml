@@ -12,10 +12,10 @@
   </qti-outcome-declaration>
   <qti-item-body>
     <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
-      <qti-prompt>Un producto costaba $1.000. Primero aumentó 25 % y después, con una oferta, bajó 10 % sobre el precio ya aumentado. ¿Cuánto cuesta ahora?</qti-prompt>
+      <qti-prompt>Un electrodoméstico costaba $1.000. Primero aumentó 25 % y después, con una oferta, bajó 10 % sobre el precio ya aumentado. ¿Cuánto cuesta ahora?</qti-prompt>
       <qti-simple-choice identifier="A">$1.125</qti-simple-choice>
-      <qti-simple-choice identifier="B">$1.150</qti-simple-choice>
-      <qti-simple-choice identifier="C">$900</qti-simple-choice>
+      <qti-simple-choice identifier="B">$900</qti-simple-choice>
+      <qti-simple-choice identifier="C">$1.150</qti-simple-choice>
       <qti-simple-choice identifier="D">$1.250</qti-simple-choice>
     </qti-choice-interaction>
   </qti-item-body>

@@ -2,7 +2,7 @@
 <qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T11-1" title="Expresión de un patrón" adaptive="false" time-dependent="false" xml:lang="es-AR">
   <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="string">
     <qti-correct-response>
-      <qti-value>5*n+4</qti-value>
+      <qti-value>9*n+7</qti-value>
     </qti-correct-response>
   </qti-response-declaration>
   <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
@@ -21,19 +21,19 @@
       <tbody>
         <tr>
           <td>1</td>
-          <td>9</td>
+          <td>16</td>
         </tr>
         <tr>
           <td>2</td>
-          <td>14</td>
+          <td>25</td>
         </tr>
         <tr>
           <td>3</td>
-          <td>19</td>
+          <td>34</td>
         </tr>
       </tbody>
     </table>
-    <p>Un diseño de baldosas se arma agregando siempre la misma cantidad en cada paso. Escribí una expresión para la cantidad de baldosas del diseño n.</p>
+    <p>Una serie de diseños se arma agregando siempre la misma cantidad de baldosas en cada paso. Escribí una expresión para la cantidad de baldosas del diseño n.</p>
     <p>
       <qti-text-entry-interaction response-identifier="RESPONSE" expected-length="12" class="math-input"/>
     </p>

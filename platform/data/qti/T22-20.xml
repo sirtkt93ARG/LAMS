@@ -1,8 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T6-6" title="Punto de equilibrio entre planes" adaptive="false" time-dependent="false" xml:lang="es-AR">
-  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="float">
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="T22-20" title="Teorema de Pitágoras en una escalera" adaptive="false" time-dependent="false" xml:lang="es-AR">
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
     <qti-correct-response>
-      <qti-value>13</qti-value>
+      <qti-value>B</qti-value>
     </qti-correct-response>
   </qti-response-declaration>
   <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float">
@@ -11,18 +11,21 @@
     </qti-default-value>
   </qti-outcome-declaration>
   <qti-item-body>
-    <p>El plan A cobra una cuota fija de $1.200 por mes más $250 por viaje. El plan B no tiene cuota y cobra $350 por viaje. ¿Desde cuántos viajes por mes conviene más el plan A?</p>
-    <p>
-      <qti-text-entry-interaction response-identifier="RESPONSE" expected-length="12" class="numeric-input"/>
-    </p>
+    <qti-choice-interaction response-identifier="RESPONSE" shuffle="true" max-choices="1">
+      <qti-prompt>Una rampa de 26 m de largo llega a una plataforma. Medida sobre el suelo, la rampa avanza 24 m. ¿A qué altura está la plataforma?</qti-prompt>
+      <qti-simple-choice identifier="A">100 m</qti-simple-choice>
+      <qti-simple-choice identifier="B">10 m</qti-simple-choice>
+      <qti-simple-choice identifier="C">2 m</qti-simple-choice>
+      <qti-simple-choice identifier="D">50 m</qti-simple-choice>
+    </qti-choice-interaction>
   </qti-item-body>
   <qti-response-processing>
     <qti-response-condition>
       <qti-response-if>
-        <qti-equal tolerance-mode="absolute" tolerance="0.0">
+        <qti-match>
           <qti-variable identifier="RESPONSE"/>
           <qti-correct identifier="RESPONSE"/>
-        </qti-equal>
+        </qti-match>
         <qti-set-outcome-value identifier="SCORE">
           <qti-base-value base-type="float">1</qti-base-value>
         </qti-set-outcome-value>
