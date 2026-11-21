@@ -67,7 +67,7 @@ p + p { margin-top: 0.75rem; }
 .choice:has(input:focus-visible) { outline: 3px solid var(--pen); outline-offset: 2px; }
 
 .field { display: block; margin-top: 1.25rem; max-width: 24rem; }
-.field span { display: block; font-weight: 700; margin-bottom: 0.35rem; }
+.field > span, .field > label > span { display: block; font-weight: 700; margin-bottom: 0.35rem; }
 .field input, .field select { width: 100%; min-height: 44px; padding: 0.4rem 0.6rem; font: inherit; color: var(--ink); background: #fff; border: 2px solid var(--ink); border-radius: 4px; }
 .field input:user-invalid { border-color: var(--margin); background-color: #fff2f1; }
 .field-error { display: block; margin-top: 0.35rem; color: var(--margin); font-size: 0.9rem; font-weight: 700; }
