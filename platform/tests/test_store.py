@@ -22,6 +22,11 @@ class TestStore(unittest.TestCase):
         self.store._conn.close()
         self.tmp.cleanup()
 
+    def test_lti_handoff_jti_is_consumed_once(self):
+        self.assertTrue(self.store.consume_token("jti-unico"))
+        self.assertFalse(self.store.consume_token("jti-unico"))
+        self.assertTrue(self.store.consume_token("jti-distinto"))
+
     def test_mst_snapshot_roundtrip(self):
         pool = _pool()
         d = build_design(pool)
