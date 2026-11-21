@@ -15,7 +15,7 @@ Alrededor: API (FastAPI), interfaz web (Next.js), servicio LTI 1.3, Keycloak, es
 | `lti_service/` y `tools/mock_lms/` | El flujo LTI 1.3 real con PyLTI1p3 —inicio de sesión, lanzamiento y devolución de nota— pasa por HTTP contra el LMS simulado en CI. **La integración con una instalación real de Moodle u otro LMS sigue pendiente.** |
 | `web/` (Next.js 14) | TypeScript, pruebas de librería y build de producción pasan en CI. Seis pruebas Playwright recorren login, práctica, panel docente, curaduría, red y navegación móvil; axe-core comprueba reglas WCAG 2.1/2.2 AA y buenas prácticas. Falta la validación manual con lectores de pantalla y dispositivos/navegadores reales. |
 | PostgreSQL | CI ejecuta migraciones, RLS y operaciones del almacén contra PostgreSQL 16. Esto valida integración automatizada, no una operación productiva con backups, restauración y monitoreo. |
-| Docker y Keycloak | Hay configuración y documentación, pero no se ha validado un despliegue productivo completo ni la federación con un proveedor de identidad institucional real. |
+| Docker y Keycloak | El stack local de Docker Compose se construye y completa en CI el recorrido HTTP/LTI y la devolución AGS. Es una configuración de desarrollo, no un despliegue productivo; Moodle y Keycloak institucionales siguen pendientes. |
 
 ### Novedades de la v0.7: microdatos de PISA
 
@@ -125,7 +125,7 @@ pip install -e ".[api,lti,dev,microdata]"
 python -m pytest -q
 ```
 
-CI ejecuta además la integración PostgreSQL contra PostgreSQL 16 y el smoke test LTI con PyLTI1p3 real. Para el frontend, desde `web/`:
+CI ejecuta además la integración PostgreSQL contra PostgreSQL 16, el smoke test LTI con PyLTI1p3 real y el stack local de Docker Compose, incluida una práctica de 24 respuestas y la devolución de nota AGS. El escaneo Modern Web Guidance no detectó patrones heredados en los archivos frontend revisados (38 guías y 52 reglas; es una revisión parcial, no una auditoría completa). Para el frontend, desde `web/`:
 
 ```bash
 npm run typecheck
@@ -135,6 +135,20 @@ npm run test:e2e
 ```
 
 Las pruebas Playwright requieren que estén levantados API, LTI, LMS simulado y servidor web; el workflow de CI prepara esos servicios automáticamente.
+
+
+
+### Stack local completo con Docker Compose
+
+Desde la carpeta `platform`, ejecutá:
+
+```bash
+docker compose -f deploy/docker-compose.yml up --build
+```
+
+Incluye PostgreSQL, Keycloak en modo desarrollo, API, servicio LTI, LMS simulado y web. El smoke test de este stack pasa en CI, incluido el lanzamiento LTI, las 24 respuestas de práctica y la devolución de la calificación al libro del LMS simulado.
+
+**Importante:** este Compose es exclusivamente para desarrollo local. Usa credenciales de demostración y Keycloak `start-dev`; no debe exponerse a Internet ni tratarse como configuración de producción. Para detenerlo sin borrar los datos locales, usá `docker compose -f deploy/docker-compose.yml down`. Agregá `-v` solo si querés eliminar también los volúmenes de la base y las claves efímeras.
 
 ### PostgreSQL con aislamiento por escuela (opcional, requiere Docker Desktop)
 
