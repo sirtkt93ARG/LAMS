@@ -41,6 +41,15 @@ class TestStore(unittest.TestCase):
         finally:
             migrated._conn.close()
 
+    def test_school_can_withdraw_accepted_network_consent(self):
+        self.store.add_network_tenant("red-revoke", "school-revoke")
+        self.assertTrue(self.store.answer_invite("red-revoke", "school-revoke", True))
+        self.assertEqual(self.store.network_memberships("school-revoke"), ["red-revoke"])
+        self.assertTrue(self.store.leave_network("red-revoke", "school-revoke"))
+        self.assertEqual(self.store.network_memberships("school-revoke"), [])
+        self.assertEqual(self.store.network_tenants("red-revoke"), [])
+        self.assertFalse(self.store.leave_network("red-revoke", "school-revoke"))
+
     def test_network_membership_is_pending_until_school_accepts(self):
         self.store.add_network_tenant("red", "school-a")
         self.assertEqual(self.store.network_tenants("red"), [])
