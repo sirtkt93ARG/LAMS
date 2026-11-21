@@ -36,6 +36,7 @@ class TestPostgresStore(unittest.TestCase):
                 root / "db/007_migracion_v12.sql",
                 root / "db/008_migracion_v13.sql",
                 root / "db/009_migracion_v14.sql",
+                root / "db/010_migracion_v15.sql",
             ):
                 conn.execute(migration.read_text(encoding="utf-8"), prepare=False)
         cls.store = Store(APP_URL)
@@ -127,6 +128,18 @@ class TestPostgresStore(unittest.TestCase):
         events = self.store.audit_list(tenant)
         self.assertTrue(any(e["actor"] == "redacted" and e["detail"] is None for e in events))
         self.assertFalse(any(e["actor"] == actor for e in events))
+
+    def test_xapi_export_and_erasure_share_a_durable_tenant_lock(self):
+        suffix = uuid4().hex
+        tenant, pid = f"tenant-xapi-erase-{suffix}", f"pid-xapi-erase-{suffix}"
+        self.store.create_session(f"xapi-erase-{suffix}", tenant, pid, "practica", {"step": 0})
+        sent = []
+        self.assertTrue(self.store.run_if_xapi_export_allowed(tenant, pid, lambda: sent.append("before")))
+        self.assertEqual(sent, ["before"])
+
+        self.store.delete_learner(tenant, pid)
+        self.assertFalse(self.store.run_if_xapi_export_allowed(tenant, pid, lambda: sent.append("after")))
+        self.assertEqual(sent, ["before"])
 
     def test_app_role_cannot_modify_immutable_audit_columns(self):
         suffix = uuid4().hex
