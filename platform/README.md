@@ -131,7 +131,7 @@ docker compose -f deploy/docker-compose.db.yml up -d
 python scripts/check_postgres.py --admin-url postgresql://postgres:cambiar@localhost:5432/matheval --app-url postgresql://matheval_app:cambiar-en-produccion@localhost:5432/matheval
 ```
 
-Si venís de una versión anterior, SQLite aplica sus migraciones compatibles al arrancar. En PostgreSQL existente, ejecutá con el propietario de la base las migraciones pendientes en orden, desde `db/002_migracion_v05.sql` hasta `db/005_migracion_v10.sql` (sin repetir las que ya aplicaste). La migración `004` deja las membresías de red existentes como pendientes: cada escuela debe aceptar de nuevo antes de compartir agregados.
+Si venís de una versión anterior, SQLite aplica sus migraciones compatibles al arrancar. En PostgreSQL existente, ejecutá con el propietario de la base las migraciones pendientes en orden, desde `db/002_migracion_v05.sql` hasta `db/006_migracion_v11.sql` (sin repetir las que ya aplicaste). La migración `004` deja las membresías de red existentes como pendientes: cada escuela debe aceptar de nuevo antes de compartir agregados. La migración `006` permite que una escuela retire en cualquier momento su consentimiento para compartir resultados agregados.
 
 Cuando algo falle, anotá el comando, el mensaje de error completo y las versiones de Node y Python. Los puntos con más
 riesgo son `smoke_http.py` (primera ejecución real de PyLTI1p3), `npm run dev` con las pantallas de revisión y,
