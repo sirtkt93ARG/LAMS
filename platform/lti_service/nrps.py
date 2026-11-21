@@ -40,7 +40,7 @@ def _next_link(header: str | None) -> str | None:
     if not header:
         return None
     for part in header.split(","):
-        if re.search(r';\\s*rel=["\']?next["\']?', part, re.IGNORECASE):
+        if re.search(r';\s*rel=["\']?next["\']?', part, re.IGNORECASE):
             match = re.search(r"<([^>]+)>", part)
             if match:
                 return match.group(1)
@@ -75,6 +75,9 @@ def fetch_memberships(context_memberships_url: str, token: str, *, issuer: str,
             if not isinstance(user_id, str) or not user_id or user_id in seen:
                 continue
             if not isinstance(roles, list) or not any(str(role).endswith("#Learner") for role in roles):
+                continue
+            status = entry.get("status")
+            if status is not None and str(status).lower() != "active":
                 continue
             name = entry.get("name")
             if not isinstance(name, str) or not name.strip():
