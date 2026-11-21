@@ -17,6 +17,7 @@ except Exception:          # sin FastAPI/httpx reales (p. ej. con el sustituto d
 S = {"X-Dev-User": "alumno-h1:escuela-h:student"}
 T = {"X-Dev-User": "docente-h1:escuela-h:teacher"}
 A = {"X-Dev-User": "curador-h1:institucion:admin"}
+A = {"X-Dev-User": "curador-h1:institucion:admin"}
 
 
 @unittest.skipUnless(READY, "FastAPI o httpx no disponibles")
