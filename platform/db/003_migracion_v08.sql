@@ -4,4 +4,4 @@ CREATE TABLE IF NOT EXISTS used_tokens (
   jti text PRIMARY KEY,
   used_at timestamptz NOT NULL DEFAULT now()
 );
-GRANT INSERT, DELETE ON used_tokens TO matheval_app;
+GRANT SELECT, INSERT, DELETE ON used_tokens TO matheval_app;
