@@ -68,6 +68,19 @@ class TestProductionConfig(unittest.TestCase):
         self.assertEqual(errors, [])
 
 
+    def test_production_rejects_lookalike_localhost_redirect(self):
+        env = {
+            "PSEUDONYM_SECRET": "p" * 48,
+            "LTI_HANDOFF_SECRET": "h" * 48,
+            "SESSION_SECRET": "s" * 48,
+            "WEB_ORIGIN": "https://app.example",
+            "WEB_URL": "http://localhost.attacker.example",
+            "DATABASE_URL": "postgresql://app:secret@db.example/matheval",
+        }
+        errors, _ = check_config(env, False)
+        self.assertTrue(any("WEB_URL" in x for x in errors))
+
+
 class TestOneTimeHandoff(unittest.TestCase):
     def setUp(self):
         self.old_secret = auth.HANDOFF_SECRET
