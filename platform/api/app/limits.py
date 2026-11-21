@@ -1,21 +1,30 @@
-"""Límite de frecuencia en memoria (ventana deslizante). Protege respuestas, pistas y el canje de tokens LTI."""
+"""Limitador de frecuencia compartido entre procesos mediante la base de datos."""
 from __future__ import annotations
+import hashlib
 import threading
 import time
-from collections import defaultdict, deque
 
 
 class RateLimiter:
-    def __init__(self, clock=time.monotonic):
-        self._clock, self._hits, self._lock = clock, defaultdict(deque), threading.Lock()
+    """Ventana fija atómica en Store; los workers comparten los mismos contadores."""
+
+    def __init__(self, store, clock=time.time):
+        self._store = store
+        self._clock = clock
+        self._operations = 0
+        self._lock = threading.Lock()
 
     def allow(self, key: str, limit: int, window_s: float) -> bool:
+        if limit < 1 or window_s <= 0:
+            return False
         now = self._clock()
+        window_start = int(now // window_s * window_s)
+        key_hash = hashlib.sha256(key.encode("utf-8")).hexdigest()
+        hits = self._store.increment_rate_limit(key_hash, window_start)
+        # Limpieza oportunista: evita conservar indefinidamente claves que ya no se usan.
         with self._lock:
-            q = self._hits[key]
-            while q and now - q[0] > window_s:
-                q.popleft()
-            if len(q) >= limit:
-                return False
-            q.append(now)
-            return True
+            self._operations += 1
+            cleanup = self._operations % 256 == 0
+        if cleanup:
+            self._store.purge_rate_limits(window_start - 86400)
+        return hits <= limit
