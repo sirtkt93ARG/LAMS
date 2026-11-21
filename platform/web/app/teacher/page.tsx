@@ -19,22 +19,36 @@ export default function TeacherPage() {
   const [skills, setSkills] = useState<ClassSkill[]>([]);
   const [consent, setConsent] = useState<Consent | null>(null);
   const [periods, setPeriods] = useState<Period[]>([]);
+  const [invites, setInvites] = useState<string[]>([]);
+  const [inviteBusy, setInviteBusy] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback((c: string) => {
+  const load = useCallback(async (c: string) => {
     setError(null);
     const cc = c || undefined;
-    Promise.all([api.cohort(cc), api.errors(cc), api.skills(cc), api.consent(), api.courses(), api.trends(cc)])
-      .then(([coh, er, sk, co, cs, tr]) => { setData(coh); setErrors(er.errors); setSkills(sk.skills); setConsent(co); setCourses(cs.courses); setPeriods(tr.periods); })
-      .catch((e) => setError(messageFor(e)));
+    try {
+      const [coh, er, sk, co, cs, tr, ni] = await Promise.all([
+        api.cohort(cc), api.errors(cc), api.skills(cc), api.consent(), api.courses(), api.trends(cc), api.networkInvites(),
+      ]);
+      setData(coh); setErrors(er.errors); setSkills(sk.skills); setConsent(co); setCourses(cs.courses);
+      setPeriods(tr.periods); setInvites(ni.invites);
+    } catch (e) { setError(messageFor(e)); }
   }, []);
 
   useEffect(() => {
-    if (!getAuth()) { router.replace("/"); return; }
+    const auth = getAuth();
+    if (!auth) { router.replace("/"); return; }
+    setIsAdmin(auth.role === "admin");
     load("");
   }, [router, load]);
 
   const attest = async () => { try { setConsent(await api.attestConsent()); } catch (e) { setError(messageFor(e)); } };
+  const answerInvite = async (networkId: string, decision: "accept" | "decline") => {
+    setInviteBusy(networkId); setError(null);
+    try { await api.networkInviteAnswer(networkId, decision); await load(course); }
+    catch (e) { setError(messageFor(e)); }
+    finally { setInviteBusy(null); }
+  };
   const topics = topAdvice(errors, 5);
 
   return (
@@ -42,6 +56,22 @@ export default function TeacherPage() {
       <section className="sheet">
         <h1>Panel docente</h1>
         {error && <p className="error" role="alert">{error}</p>}
+
+        {invites.length > 0 && (
+          <div className="notice" role="region" aria-label="Invitaciones pendientes">
+            <h2>Invitaciones a redes de escuelas</h2>
+            <p>Una red solicita compartir los resultados agregados de esta escuela. Al aceptar, solo verá grupos que cumplan el umbral mínimo de privacidad.</p>
+            <ul>{invites.map((networkId) => (
+              <li key={networkId}>
+                <strong>{networkId}</strong>
+                <div className="actions">
+                  <button className="btn" type="button" disabled={inviteBusy === networkId} onClick={() => answerInvite(networkId, "accept")}>Aceptar</button>
+                  <button className="btn ghost" type="button" disabled={inviteBusy === networkId} onClick={() => answerInvite(networkId, "decline")}>Rechazar</button>
+                </div>
+              </li>
+            ))}</ul>
+          </div>
+        )}
 
         {consent && consent.required && !consent.attested && (
           <div className="notice" role="alert">
@@ -78,7 +108,7 @@ export default function TeacherPage() {
               series={[{ name: "Nivel promedio", color: "#1F4FD8", bold: true, points: periods.flatMap((p, i) => (p.mean_level === null ? [] : [[i, p.mean_level] as [number, number]])) }]}
               note="Los niveles son provisorios: sirven para ver la tendencia, no para comparar estudiantes." />
             <MultiLineChart title="Estudiantes que alcanzan el nivel mínimo propuesto" xLabel="Mes" yLabel="% de estudiantes" yDomain={[0, 100]} categories={periods.map((p) => p.period)}
-              series={[{ name: "Alcanzan N4 o más", color: "#009E73", bold: true, points: periods.flatMap((p, i) => (p.share_baseline === null ? [] : [[i, p.share_baseline] as [number, number]])) }]} />
+              series={[{ name: "Alcanzan N4 o más", color: "#006B50", bold: true, points: periods.flatMap((p, i) => (p.share_baseline === null ? [] : [[i, p.share_baseline] as [number, number]])) }]} />
           </>
         )}
 
@@ -104,7 +134,7 @@ export default function TeacherPage() {
         <div className="actions">
           <button className="btn ghost" type="button" onClick={() => load(course)}>Actualizar</button>
           <button className="btn ghost" type="button" onClick={() => downloadCsv(course || undefined).catch((e) => setError(messageFor(e)))}>Descargar resumen (CSV)</button>
-          <Link className="btn" href="/review">Revisar plantillas de ejercicios</Link>
+          {isAdmin && <Link className="btn" href="/review">Revisar plantillas de ejercicios</Link>}
           <Link className="btn ghost" href="/analysis">Análisis de ejercicios</Link>
           <Link className="btn ghost" href="/teacher/report">Informe para imprimir</Link>
         </div>

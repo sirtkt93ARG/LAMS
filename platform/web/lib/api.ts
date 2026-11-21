@@ -66,7 +66,10 @@ export const api = {
   obsGaps: (entity: string, domain: string) => req<{ has_data: boolean; rows: GapRow[] }>(`/v1/observatory/gaps${q({ entity, domain })}`),
   obsFocus: (entity: string) => req<Focus>(`/v1/observatory/focus${q({ entity })}`),
   networkSummary: () => req<NetworkSummary>("/v1/network/summary"),
-  networkAdd: (tenant: string) => req<{ tenants: string[] }>("/v1/network/tenants", { method: "POST", body: JSON.stringify({ token: tenant }) }),
+  networkAdd: (tenant: string) => req<{ tenants: string[]; pending_tenants: string[] }>("/v1/network/tenants", { method: "POST", body: JSON.stringify({ tenant_id: tenant }) }),
+  networkInvites: () => req<{ invites: string[] }>("/v1/teacher/network-invites"),
+  networkInviteAnswer: (networkId: string, decision: "accept" | "decline") =>
+    req<{ invites: string[] }>(`/v1/teacher/network-invites/${encodeURIComponent(networkId)}/${decision}`, { method: "POST" }),
   consent: () => req<Consent>("/v1/teacher/consent"),
   attestConsent: () => req<Consent>("/v1/teacher/consent", { method: "POST" }),
   items: (sid: string) => req<SessionState>(`/v1/sessions/${sid}/items`),

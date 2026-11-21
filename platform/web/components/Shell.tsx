@@ -11,7 +11,9 @@ export function Shell({ children, showExit = true }: { children: React.ReactNode
   const links: [string, string][] = !auth ? [] : auth.role === "student"
     ? [["/practice", "Práctica"], ["/progress", "Mi progreso"], ["/observatory", "Observatorio"]]
     : auth.role === "network" ? [["/network", "Red"], ["/observatory", "Observatorio"]]
-    : [["/teacher", "Panel"], ["/observatory", "Observatorio"]];
+    : auth.role === "admin"
+      ? [["/teacher", "Panel"], ["/review", "Curaduría"], ["/analysis", "Análisis"], ["/observatory", "Observatorio"]]
+      : [["/teacher", "Panel"], ["/observatory", "Observatorio"]];
   return (
     <>
       <a className="skip" href="#contenido">Saltar al contenido</a>

@@ -118,12 +118,15 @@ class TestApiLogic(unittest.TestCase):
             M.report(sid, User("otro", "escuela-q", "student"))
 
     def test_review_endpoints(self):
-        doc = User("docente-9", "escuela-r", "teacher")
+        doc = User("curador-9", "institucion", "admin")
         listing = M.review_templates(doc)
         self.assertEqual(len(listing["templates"]), 24)
         sample = M.review_sample("T1", 5, doc)
         self.assertEqual(len(sample["items"]), 5)
         self.assertIn("correct", sample["items"][0])
+        with self.assertRaises(HTTPException) as c:
+            M.review_templates(User("docente-sin-permiso", "escuela-r", "teacher"))
+        self.assertEqual(c.exception.status_code, 403)
         with self.assertRaises(HTTPException) as c:
             M.review_templates(User("a", "t", "student"))
         self.assertEqual(c.exception.status_code, 403)
@@ -141,7 +144,7 @@ class TestApiLogic(unittest.TestCase):
             M.review_submit("T9", M.ReviewIn(decision="aprobar", checklist=full), doc)
         self.assertEqual(c.exception.status_code, 409)
         out = M.review_submit("T8", M.ReviewIn(decision="rechazar", comment="La tabla es confusa para el grupo"),
-                              User("docente-10", "escuela-r", "teacher"))
+                              User("curador-10", "institucion", "admin"))
         self.assertEqual(out["status"], "rechazada")
         self.assertTrue(all(i.status.value == "rechazado" for i in M.BANK.items.values() if i.template == "T8"))
 
@@ -288,14 +291,17 @@ class TestApiLogic(unittest.TestCase):
         self.assertTrue(1 <= p0["mean_level"] <= 8 and 0 <= p0["share_baseline"] <= 100 and p0["se"] is not None)
         self.assertEqual(M._monthly([{"at": datetime(2026, 11, 3, tzinfo=timezone.utc), "level": 4}], min_n=10)[0]["suppressed"], True)
         def fill(net, tenant, n):
-            M.network_add(M.ExchangeIn(token=tenant), net)
+            M.network_add(M.NetworkInviteIn(tenant_id=tenant), net)
+            M.network_invite_answer(net.tenant_id, "accept", User("school-admin-" + tenant, tenant, "teacher"))
             for k in range(n):
                 u = User(f"x-{tenant}-{k}", tenant, "student")
                 sid = M.start(M.StartIn(), u)["session_id"]
                 M.STORE.save_session(sid, tenant, M._state_of(M._load(sid, u)), {"theta": 0.0, "se": 0.3, "level": 4, "kind": "mst"})
         net = User("red-1", "red-1", "network")
-        M.network_add(M.ExchangeIn(token="escuela-n1"), net)
-        M.network_add(M.ExchangeIn(token="escuela-n1"), net)                    # idempotente
+        M.network_add(M.NetworkInviteIn(tenant_id="escuela-n1"), net)
+        self.assertEqual(M.STORE.network_tenants("red-1"), [])                   # pendiente hasta aceptación
+        M.network_invite_answer("red-1", "accept", User("school-admin", "escuela-n1", "teacher"))
+        M.network_add(M.NetworkInviteIn(tenant_id="escuela-n1"), net)           # idempotente
         self.assertEqual(M.STORE.network_tenants("red-1"), ["escuela-n1"])
         fill(net, "escuela-n2", 12); fill(net, "escuela-n3", 4); fill(net, "escuela-n4", 3)
         out = M.network_summary(net)
@@ -311,6 +317,36 @@ class TestApiLogic(unittest.TestCase):
         with self.assertRaises(HTTPException) as c:
             M.network_summary(User("doc", "escuela-n1", "teacher"))
         self.assertEqual(c.exception.status_code, 403)
+
+    def test_network_invite_insert_and_acceptance(self):
+        network = User("red-regression", "red-regression", "network")
+        school = User("teacher-regression", "school-regression", "teacher")
+        M.network_add(M.NetworkInviteIn(tenant_id="school-regression"), network)
+        self.assertEqual(M.STORE.pending_network_tenants("red-regression"), ["school-regression"])
+        self.assertEqual(M.network_invites(school)["invites"], ["red-regression"])
+        M.network_invite_answer("red-regression", "accept", school)
+        self.assertEqual(M.STORE.network_tenants("red-regression"), ["school-regression"])
+
+    def test_network_invitations_require_school_acceptance(self):
+        network = User("red-p", "red-p", "network")
+        school_teacher = User("doc-p", "escuela-pendiente", "teacher")
+        M.network_add(M.NetworkInviteIn(tenant_id="escuela-pendiente"), network)
+        self.assertEqual(M.STORE.network_tenants("red-p"), [])
+        self.assertEqual(M.STORE.pending_network_tenants("red-p"), ["escuela-pendiente"])
+        self.assertEqual(M.network_invites(school_teacher)["invites"], ["red-p"])
+        with self.assertRaises(HTTPException) as c:
+            M.network_invite_answer("red-p", "accept", User("doc-otro", "otra-escuela", "teacher"))
+        self.assertEqual(c.exception.status_code, 404)
+        self.assertEqual(M.network_invite_answer("red-p", "accept", school_teacher)["invites"], [])
+        self.assertEqual(M.STORE.network_tenants("red-p"), ["escuela-pendiente"])
+
+        M.network_add(M.NetworkInviteIn(tenant_id="escuela-rechaza"), network)
+        self.assertEqual(M.network_invites(User("doc-r", "escuela-rechaza", "teacher"))["invites"], ["red-p"])
+        M.network_invite_answer("red-p", "decline", User("doc-r", "escuela-rechaza", "teacher"))
+        self.assertEqual(M.STORE.pending_network_tenants("red-p"), [])
+        with self.assertRaises(HTTPException) as c:
+            M.network_invite_answer("red-p", "other", school_teacher)
+        self.assertEqual(c.exception.status_code, 400)
 
     def test_observatory_endpoints(self):
         u = User("any", "t", "student")

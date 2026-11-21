@@ -1,4 +1,4 @@
-import os, sys, tempfile, unittest
+import os, sys, sqlite3, tempfile, unittest
 sys.path.insert(0, os.getcwd())
 from matheval.adaptive import MSTSession, PoolItem, build_design
 from matheval.models import IRTParams, Status
@@ -26,6 +26,32 @@ class TestStore(unittest.TestCase):
         self.assertTrue(self.store.consume_token("jti-unico"))
         self.assertFalse(self.store.consume_token("jti-unico"))
         self.assertTrue(self.store.consume_token("jti-distinto"))
+
+    def test_old_network_table_migrates_existing_memberships_to_pending(self):
+        path = f"{self.tmp.name}/legacy.db"
+        conn = sqlite3.connect(path)
+        conn.execute("CREATE TABLE tenant_networks (network_id TEXT NOT NULL, tenant_id TEXT NOT NULL, PRIMARY KEY (network_id, tenant_id))")
+        conn.execute("INSERT INTO tenant_networks (network_id, tenant_id) VALUES ('red-old', 'school-old')")
+        conn.commit()
+        conn.close()
+        migrated = Store(f"sqlite:///{path}")
+        try:
+            self.assertEqual(migrated.network_tenants("red-old"), [])
+            self.assertEqual(migrated.pending_network_tenants("red-old"), ["school-old"])
+        finally:
+            migrated._conn.close()
+
+    def test_network_membership_is_pending_until_school_accepts(self):
+        self.store.add_network_tenant("red", "school-a")
+        self.assertEqual(self.store.network_tenants("red"), [])
+        self.assertEqual(self.store.pending_network_tenants("red"), ["school-a"])
+        self.assertEqual(self.store.pending_invites("school-a"), ["red"])
+        self.assertTrue(self.store.answer_invite("red", "school-a", True))
+        self.assertEqual(self.store.network_tenants("red"), ["school-a"])
+        self.assertFalse(self.store.answer_invite("red", "school-a", False))
+        self.store.add_network_tenant("red", "school-b")
+        self.assertTrue(self.store.answer_invite("red", "school-b", False))
+        self.assertEqual(self.store.pending_network_tenants("red"), [])
 
     def test_mst_snapshot_roundtrip(self):
         pool = _pool()

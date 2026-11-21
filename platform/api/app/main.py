@@ -187,6 +187,10 @@ class ReviewIn(BaseModel):
     checklist: dict = {}
 
 
+class NetworkInviteIn(BaseModel):
+    tenant_id: str
+
+
 # ---- acceso ------------------------------------------------------------------------
 @app.post("/v1/lti/exchange")
 def lti_exchange(body: ExchangeIn):
@@ -323,6 +327,11 @@ def _teacher(user: User) -> None:
         raise HTTPException(403, "solo docentes")
 
 
+def _curator(user: User) -> None:
+    if user.role != "admin":
+        raise HTTPException(403, "solo administradores de contenido")
+
+
 @app.get("/v1/teacher/courses")
 def courses(user: User = Depends(current_user)):
     _teacher(user)
@@ -439,7 +448,7 @@ def audit(user: User = Depends(current_user)):
 
 @app.get("/v1/review/templates")
 def review_templates(user: User = Depends(current_user)):
-    _teacher(user)
+    _curator(user)
     out = []
     for tid, spec in TPL.SPEC.items():
         revs = STORE.reviews(scope_of(tid))
@@ -453,7 +462,7 @@ def review_templates(user: User = Depends(current_user)):
 
 @app.get("/v1/review/templates/{tid}/sample")
 def review_sample(tid: str, n: int = 5, user: User = Depends(current_user)):
-    _teacher(user)
+    _curator(user)
     if tid not in TPL.SPEC:
         raise HTTPException(404, "plantilla no encontrada")
     items = sorted((i for i in BANK.items.values() if i.template == tid), key=lambda i: int(i.id.split("-")[1]))[: max(1, min(n, 10))]
@@ -466,7 +475,7 @@ def review_sample(tid: str, n: int = 5, user: User = Depends(current_user)):
 
 @app.post("/v1/review/templates/{tid}")
 def review_submit(tid: str, body: ReviewIn, user: User = Depends(current_user)):
-    _teacher(user)
+    _curator(user)
     if tid not in TPL.SPEC:
         raise HTTPException(404, "plantilla no encontrada")
     if body.decision not in ("aprobar", "rechazar"):
@@ -492,12 +501,36 @@ def _network(user: User) -> None:
 
 
 @app.post("/v1/network/tenants")
-def network_add(body: ExchangeIn, user: User = Depends(current_user)):
-    """Incorpora una escuela a la red. (Reutiliza el modelo con un solo campo de texto: el id de la escuela va en `token`.)"""
+def network_add(body: NetworkInviteIn, user: User = Depends(current_user)):
+    """Invita a una escuela; sus resultados no se comparten hasta que la escuela acepta."""
     _network(user)
-    STORE.add_network_tenant(user.tenant_id, body.token)
-    STORE.audit(user.tenant_id, user.sub, "escuela_agregada_a_la_red", body.token)
-    return {"tenants": STORE.network_tenants(user.tenant_id)}
+    tenant = body.tenant_id.strip()
+    if not tenant or len(tenant) > 128:
+        raise HTTPException(400, "identificador de escuela inválido")
+    if tenant == user.tenant_id:
+        raise HTTPException(400, "una red no puede invitarse a sí misma")
+    STORE.add_network_tenant(user.tenant_id, tenant)
+    STORE.audit(user.tenant_id, user.sub, "invitacion_escuela_enviada", tenant)
+    return {"tenants": STORE.network_tenants(user.tenant_id),
+            "pending_tenants": STORE.pending_network_tenants(user.tenant_id)}
+
+
+@app.get("/v1/teacher/network-invites")
+def network_invites(user: User = Depends(current_user)):
+    """Redes que solicitaron compartir los resultados agregados de esta escuela."""
+    _teacher(user)
+    return {"invites": STORE.pending_invites(user.tenant_id)}
+
+
+@app.post("/v1/teacher/network-invites/{network_id}/{decision}")
+def network_invite_answer(network_id: str, decision: str, user: User = Depends(current_user)):
+    _teacher(user)
+    if decision not in ("accept", "decline"):
+        raise HTTPException(400, "la decisión debe ser accept o decline")
+    if not STORE.answer_invite(network_id, user.tenant_id, decision == "accept"):
+        raise HTTPException(404, "invitación pendiente no encontrada")
+    STORE.audit(user.tenant_id, user.sub, f"invitacion_red_{decision}", network_id)
+    return {"invites": STORE.pending_invites(user.tenant_id)}
 
 
 @app.get("/v1/network/summary")
@@ -520,9 +553,11 @@ def network_summary(user: User = Depends(current_user)):
     if len(other) >= MIN_CELL:
         others_row = {"school": "Otras escuelas", **agg(other)}
         shown += other
+    pending = STORE.pending_network_tenants(user.tenant_id)
     return {"network_id": user.tenant_id, "min_cell": MIN_CELL, "schools": schools, "others": others_row,
             "total": agg(shown) if shown else None, "baseline_level": BASELINE_LEVEL,
-            "note": "Se muestran solo grupos de al menos 10 estudiantes. Los niveles son provisorios."}
+            "pending_invitations": len(pending), "pending_tenants": pending,
+            "note": "Se muestran solo grupos de al menos 10 estudiantes y escuelas que aceptaron compartir sus agregados. Los niveles son provisorios."}
 
 
 # ---- observatorio de resultados históricos --------------------------------------------

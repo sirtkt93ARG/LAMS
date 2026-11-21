@@ -50,7 +50,7 @@ export function MultiLineChart({ title, series, xLabel, yLabel, categories, yDom
         {xs.map((x) => <text key={x} x={X(x)} y={H - B + 16} textAnchor="middle" className="chart-tick">{categories ? categories[x] : x}</text>)}
         {series.filter((s) => s.ci && s.ci.length > 1).map((s) => (
           <polygon key={s.name + "-ci"} fill={s.color} fillOpacity={0.15} stroke="none"
-            points={[...s.ci!.map(([x, , hi]) => `${X(x)},${Y(hi)}`), ...[...s.ci!].reverse().map(([x, lo]) => `${X(x)},${Y(lo)}`)].join(" ")} />
+            points={[...s.ci!.map(([x, , hi]) => `${X(x)},${Y(hi)}`), ...s.ci!.toReversed().map(([x, lo]) => `${X(x)},${Y(lo)}`)].join(" ")} />
         ))}
         {series.map((s) => (
           <g key={s.name} stroke={s.color} fill={s.color}>

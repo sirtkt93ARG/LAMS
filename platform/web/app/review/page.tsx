@@ -15,7 +15,9 @@ export default function ReviewListPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!getAuth()) { router.replace("/"); return; }
+    const auth = getAuth();
+    if (!auth) { router.replace("/"); return; }
+    if (auth.role !== "admin") { router.replace("/teacher"); return; }
     api.reviewList().then(setData).catch((e) => setError(messageFor(e)));
   }, [router]);
 

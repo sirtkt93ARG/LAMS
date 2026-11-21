@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS item_reviews (
 CREATE TABLE IF NOT EXISTS tenant_settings (
   tenant_id TEXT PRIMARY KEY, consent_attested_at TEXT, consent_attested_by TEXT, retention_days INTEGER NOT NULL DEFAULT 365);
 CREATE TABLE IF NOT EXISTS tenant_networks (
-  network_id TEXT NOT NULL, tenant_id TEXT NOT NULL, PRIMARY KEY (network_id, tenant_id));
+  network_id TEXT NOT NULL, tenant_id TEXT NOT NULL, accepted INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (network_id, tenant_id));
 CREATE TABLE IF NOT EXISTS used_tokens (
   jti TEXT PRIMARY KEY, used_at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE TABLE IF NOT EXISTS audit_log (
@@ -34,7 +35,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
   action TEXT NOT NULL, detail TEXT);
 """
 _SQLITE_NEW_COLUMNS = [("sessions", "course_id", "TEXT"), ("sessions", "course_label", "TEXT"),
-                       ("responses", "hints", "INTEGER NOT NULL DEFAULT 0")]
+                       ("responses", "hints", "INTEGER NOT NULL DEFAULT 0"),
+                       ("tenant_networks", "accepted", "INTEGER NOT NULL DEFAULT 0")]
 
 
 def _loads(x):
@@ -151,12 +153,52 @@ class Store:
         return [{"at": _ts(r["finished_at"]), **_loads(r["result"])} for r in rows]
 
     def add_network_tenant(self, network_id: str, tenant: str) -> None:
-        if tenant not in self.network_tenants(network_id):
-            self._run(None, "INSERT INTO tenant_networks (network_id, tenant_id) VALUES (?, ?)", (network_id, tenant))
+        """Crea una invitación pendiente; la escuela decide si comparte sus agregados."""
+        self._run(network_id, "INSERT INTO tenant_networks (network_id, tenant_id, accepted) VALUES (?, ?, FALSE) "
+                        "ON CONFLICT (network_id, tenant_id) DO NOTHING", (network_id, tenant))
 
-    def network_tenants(self, network_id: str) -> list[str]:
-        rows = self._run(None, "SELECT tenant_id FROM tenant_networks WHERE network_id = ? ORDER BY tenant_id", (network_id,), fetch=True)
+    def network_tenants(self, network_id: str, accepted_only: bool = True) -> list[str]:
+        q = "SELECT tenant_id FROM tenant_networks WHERE network_id = ?" + (" AND accepted = TRUE" if accepted_only else "")
+        rows = self._run(network_id, q + " ORDER BY tenant_id", (network_id,), fetch=True)
         return [r["tenant_id"] for r in rows]
+
+    def pending_network_tenants(self, network_id: str) -> list[str]:
+        rows = self._run(network_id, "SELECT tenant_id FROM tenant_networks WHERE network_id = ? AND accepted = FALSE ORDER BY tenant_id",
+                         (network_id,), fetch=True)
+        return [r["tenant_id"] for r in rows]
+
+    def pending_invites(self, tenant: str) -> list[str]:
+        rows = self._run(tenant, "SELECT network_id FROM tenant_networks WHERE tenant_id = ? AND accepted = FALSE ORDER BY network_id",
+                         (tenant,), fetch=True)
+        return [r["network_id"] for r in rows]
+
+    def answer_invite(self, network_id: str, tenant: str, accept: bool) -> bool:
+        """Acepta o rechaza una invitación pendiente de forma atómica."""
+        if self.dialect == "sqlite":
+            with self._lock:
+                if accept:
+                    cur = self._conn.execute(
+                        "UPDATE tenant_networks SET accepted = 1 WHERE network_id = ? AND tenant_id = ? AND accepted = 0",
+                        (network_id, tenant))
+                else:
+                    cur = self._conn.execute(
+                        "DELETE FROM tenant_networks WHERE network_id = ? AND tenant_id = ? AND accepted = 0",
+                        (network_id, tenant))
+                self._conn.commit()
+                return cur.rowcount == 1
+        import psycopg
+        with psycopg.connect(self.url) as conn:
+            with conn.transaction():
+                conn.execute("SELECT set_config('app.tenant_id', %s, true)", (tenant,))
+                if accept:
+                    cur = conn.execute(
+                        "UPDATE tenant_networks SET accepted = TRUE WHERE network_id = %s AND tenant_id = %s AND accepted = FALSE RETURNING tenant_id",
+                        (network_id, tenant))
+                else:
+                    cur = conn.execute(
+                        "DELETE FROM tenant_networks WHERE network_id = %s AND tenant_id = %s AND accepted = FALSE RETURNING tenant_id",
+                        (network_id, tenant))
+                return cur.fetchone() is not None
 
     def consume_token(self, jti: str) -> bool:
         """Consume an LTI handoff JTI atomically; a token can be exchanged only once."""

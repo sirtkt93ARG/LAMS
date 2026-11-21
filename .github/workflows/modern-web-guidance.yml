@@ -1,0 +1,34 @@
+name: Modern Web Guidance audit
+
+on:
+  pull_request:
+    paths:
+      - "platform/web/**"
+      - "platform/web/AGENTS.md"
+      - ".github/workflows/modern-web-guidance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guidance-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Scan frontend for legacy web patterns
+        id: scan
+        continue-on-error: true
+        run: |
+          npx -y modern-web-guidance@latest legacy-scan platform/web --json > modern-web-guidance-scan.json
+      - name: Upload guidance scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: modern-web-guidance-scan
+          path: modern-web-guidance-scan.json
+          if-no-files-found: warn
+          retention-days: 14
