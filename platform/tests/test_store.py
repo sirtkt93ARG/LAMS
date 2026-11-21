@@ -189,7 +189,14 @@ class TestStoreV05(unittest.TestCase):
 
     def test_delete_and_purge(self):
         self._mk("a", "e1", "p1"); self._mk("b", "e1", "p2"); self._mk("c", "e2", "p1")
-        self.assertEqual(self.st.delete_learner("e1", "p1"), {"sessions": 1, "responses": 2})
+        self.st.audit("e1", "actor-p1", "exportacion_csv", "dato-privado")
+        self.assertEqual(
+            self.st.delete_learner("e1", "p1", actor="actor-p1"),
+            {"sessions": 1, "responses": 2, "audit_events_redacted": 1},
+        )
+        events = self.st.audit_list("e1")
+        self.assertTrue(any(e["actor"] == "redacted" and e["detail"] is None for e in events))
+        self.assertFalse(any(e["actor"] == "actor-p1" for e in events))
         self.assertIsNone(self.st.load_session("a", "e1"))
         self.assertIsNotNone(self.st.load_session("b", "e1"))
         self.assertIsNotNone(self.st.load_session("c", "e2"))                  # otra escuela intacta
