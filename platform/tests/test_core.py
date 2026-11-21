@@ -119,6 +119,14 @@ class TestBankGovernance(unittest.TestCase):
         with self.assertRaises(BankError):
             ItemBank().add(it)
 
+    def test_open_items_are_excluded_from_automatically_scored_modes(self):
+        for mode, status in (("practica", Status.REVISADO), ("medicion", Status.CALIBRADO), ("piloto", Status.PILOTO)):
+            item = T.generate("T1", 5)
+            item.kind = "open"
+            item.options = []
+            item.status = status
+            self.assertEqual(ItemBank([item]).pool(mode), [], mode)
+
     def test_noncommercial_license_excluded(self):
         it = T.generate("T7", 3)
         it.license = "CC-BY-NC-SA"
