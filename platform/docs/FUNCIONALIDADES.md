@@ -46,7 +46,7 @@ Los servicios institucionales/productivos y la revisión manual siguen pendiente
 | Cursos (contexto LTI) y panel docente por curso | Un docente quiere ver su curso, no toda la escuela | Probado en la API |
 | Panel docente: errores frecuentes, dominio por tema, exportación CSV | Convierte datos en decisiones de aula | API probada; panel base cubierto por Playwright/axe en Chromium |
 | Confirmación de consentimiento por la escuela (condición para practicar), supresión de datos, retención y auditoría | Menores de edad: la institución es responsable y la plataforma debe permitir borrar | Probado |
-| Reintentos idempotentes, límites de frecuencia, métricas y ID de solicitud | Conexiones inestables y abuso; PISA 2025 se entregó también sin conexión | Probado en la API |
+| Reintentos idempotentes, control optimista de concurrencia, límites de frecuencia, métricas e ID de solicitud | Conexiones inestables, respuestas simultáneas y abuso | Pruebas API, SQLite y PostgreSQL 16; una respuesta concurrente gana y la otra se reconoce como duplicada o recibe conflicto sin sobrescribir el estado |
 | Accesibilidad: tamaño de texto, alto contraste, lectura en voz alta, tablas alternativas a los gráficos | Inclusión y legibilidad | Login, práctica, docente, curaduría y red pasan axe en Chromium; faltan lectores de pantalla y revisión manual |
 | Progreso del estudiante: temas, historial y recomendaciones | Motivación basada en dominio, sin rankings | API probada; pantalla pendiente |
 
