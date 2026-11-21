@@ -10,6 +10,7 @@ $PY scripts/gen_lti_keys.py
 [ -f web/.env.local ] || cp web/.env.example web/.env.local
 export PYTHONPATH="$PWD/src" SESSION_SECRET=dev-session-secret-cambiar-0123456789abcdef \
   LTI_HANDOFF_SECRET=dev-handoff-secret-cambiar-0123456789abcdef LTI_SECRET_KEY=dev-flask-secret \
+  PSEUDONYM_SECRET=dev-pseudonym-secret-cambiar-0123456789abcdef \
   LTI_CONFIG="$PWD/lti_service/configs/lti.mock.json" WEB_URL=http://localhost:3000 TOOL_BASE=http://localhost:8200 LTI_SERVICE_URL=http://localhost:8200
 if [ "${1:-}" = "prod" ]; then unset MATHEVAL_DEV || true; $PY scripts/seed_reviews.py; export NEXT_PUBLIC_DEV=0
 else export MATHEVAL_DEV=1 NEXT_PUBLIC_DEV=1; fi
