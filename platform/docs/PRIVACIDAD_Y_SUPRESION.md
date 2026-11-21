@@ -4,7 +4,7 @@
 
 `DELETE /v1/me/data` elimina de la base local las sesiones y respuestas asociadas al seudónimo del usuario dentro de su escuela. En la misma operación anonimiza los eventos de auditoría cuyo actor coincide con el usuario, conservando el evento sin el identificador ni el detalle que pudiera volver a vincularlo.
 
-La respuesta incluye los conteos de sesiones, respuestas y eventos de auditoría anonimizados. La auditoría conserva un evento mínimo de tipo `supresion_local_de_datos`, registrado por `system`, sin guardar el seudónimo del estudiante.
+La respuesta incluye los conteos de sesiones, respuestas y eventos de auditoría anonimizados, además de `future_xapi_exports_blocked = true` para informar que el seudónimo queda excluido de futuras exportaciones xAPI. La auditoría conserva un evento mínimo de tipo `supresion_local_de_datos`, registrado por `system`, sin guardar el seudónimo del estudiante.
 
 ## Si no hay un LRS externo
 
