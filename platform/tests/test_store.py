@@ -27,6 +27,18 @@ class TestStore(unittest.TestCase):
         self.assertFalse(self.store.consume_token("jti-unico"))
         self.assertTrue(self.store.consume_token("jti-distinto"))
 
+    def test_network_membership_is_pending_until_school_accepts(self):
+        self.store.add_network_tenant("red", "school-a")
+        self.assertEqual(self.store.network_tenants("red"), [])
+        self.assertEqual(self.store.pending_network_tenants("red"), ["school-a"])
+        self.assertEqual(self.store.pending_invites("school-a"), ["red"])
+        self.assertTrue(self.store.answer_invite("red", "school-a", True))
+        self.assertEqual(self.store.network_tenants("red"), ["school-a"])
+        self.assertFalse(self.store.answer_invite("red", "school-a", False))
+        self.store.add_network_tenant("red", "school-b")
+        self.assertTrue(self.store.answer_invite("red", "school-b", False))
+        self.assertEqual(self.store.pending_network_tenants("red"), [])
+
     def test_mst_snapshot_roundtrip(self):
         pool = _pool()
         d = build_design(pool)
