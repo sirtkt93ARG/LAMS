@@ -29,9 +29,11 @@ def check_config(env: dict, dev: bool) -> tuple[list[str], list[str]]:
     if _weak(env.get("PSEUDONYM_SECRET")):
         errors.append(f"PSEUDONYM_SECRET debe tener al menos {MIN_SECRET} caracteres aleatorios")
 
-    lti_enabled = bool(env.get("LTI_HANDOFF_SECRET") or env.get("LTI_SECRET_KEY"))
+    # La API valida el secreto compartido de handoff y la firma de sus sesiones.
+    # LTI_SECRET_KEY pertenece al servicio Flask y se valida allí, no en la API.
+    lti_enabled = bool(env.get("LTI_HANDOFF_SECRET"))
     if lti_enabled:
-        for key in ("LTI_HANDOFF_SECRET", "SESSION_SECRET", "LTI_SECRET_KEY"):
+        for key in ("LTI_HANDOFF_SECRET", "SESSION_SECRET"):
             if _weak(env.get(key)):
                 errors.append(f"{key} falta o es demasiado débil (mínimo {MIN_SECRET} caracteres)")
         lti_web = env.get("WEB_URL", "")
