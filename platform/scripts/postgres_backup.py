@@ -47,7 +47,7 @@ def connection_environment(database_url: str) -> tuple[str, dict[str, str], str]
         if key in query:
             env[variable] = query[key][-1]
     password = unquote(parsed.password) if parsed.password is not None else ""
-    if any(ch in password for ch in "\\r\\n"):
+    if any(ch in password for ch in "\r\n"):
         raise ValueError("La contraseña de DATABASE_URL contiene caracteres no admitidos")
     if password:
         host = parsed.hostname or "*"
