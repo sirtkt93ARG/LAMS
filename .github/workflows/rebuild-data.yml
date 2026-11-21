@@ -33,6 +33,7 @@ jobs:
         working-directory: platform
         run: |
           python scripts/generate_bank.py
+          python scripts/validate_bank.py
           python scripts/build_observatory_data.py
           python scripts/validate_observatory.py
       - name: Commit generated data
