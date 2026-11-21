@@ -199,10 +199,10 @@ def start(body: StartIn, user: User = Depends(current_user)):
     _consent_gate(user)
     pid = _pid(user)
     if body.mode in ("practica", "medicion"):
-        pool = [PoolItem(i.id, i.axis.value, _params(i, body.mode)) for i in _pool(body.mode)]
+        pool = [PoolItem(i.id, i.axis.value, _params(i, body.mode), i.provenance.get("fp")) for i in _pool(body.mode)]
         if len(pool) < 56:
             raise HTTPException(409, "el banco no tiene ejercicios aprobados suficientes para este modo")
-        design = build_design(pool)
+        design = build_design(pool, rng=random.Random())
         eng = MSTSession(design, {p.id: p.params for p in pool})
         total = len(design.stage1) + len(design.stage2["mid"]) + len(design.stage3["mid"])
     elif body.mode == "dirigida":
