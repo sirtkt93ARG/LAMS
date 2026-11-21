@@ -65,15 +65,16 @@ export default function NetworkPage() {
         {data && <p className="muted">{data.note}</p>}
         <form aria-labelledby="invite-school-heading" onSubmit={add}>
           <h2 id="invite-school-heading">Invitar una escuela</h2>
-          <label className="field" htmlFor="school-tenant-id"><span>Identificador de la escuela</span>
+          <div className="field">
+            <label htmlFor="school-tenant-id"><span>Identificador de la escuela</span></label>
             <input id="school-tenant-id" name="tenant_id" type="text" autoComplete="off" required maxLength={128}
               pattern=".*\S.*" value={school} aria-invalid={schoolInvalid ? "true" : "false"}
               aria-describedby={schoolInvalid ? "school-tenant-help school-tenant-error" : "school-tenant-help"}
               onBlur={(e) => setSchoolInvalid(!e.currentTarget.validity.valid)}
               onInvalid={() => setSchoolInvalid(true)}
               onChange={(e) => { setSchool(e.target.value); if (e.currentTarget.validity.valid) setSchoolInvalid(false); }} />
-            {schoolInvalid && <span className="field-error" id="school-tenant-error">Error: ingresá un identificador de escuela que no esté vacío ni contenga solo espacios.</span>}
-          </label>
+            {schoolInvalid && <p className="field-error" id="school-tenant-error">Error: ingresá un identificador de escuela que no esté vacío ni contenga solo espacios.</p>}
+          </div>
           <p className="muted" id="school-tenant-help">La escuela recibirá una invitación y decidirá si comparte sus resultados agregados. Máximo 128 caracteres.</p>
           <div className="actions"><button className="btn ghost" type="submit" disabled={busy}>{busy ? "Enviando…" : "Enviar invitación"}</button></div>
         </form>
