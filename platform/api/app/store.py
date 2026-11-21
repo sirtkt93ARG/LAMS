@@ -155,20 +155,20 @@ class Store:
     def add_network_tenant(self, network_id: str, tenant: str) -> None:
         """Crea una invitación pendiente; la escuela decide si comparte sus agregados."""
         self._run(None, "INSERT INTO tenant_networks (network_id, tenant_id, accepted) VALUES (?, ?, FALSE) "
-                        "ON CONFLICT (network_id, tenant_id) DO NOTHING", (network_id, tenant))
+                        "ON CONFLICT (network_id, tenant_id) DO NOTHING", (network_id, tenant), tenant=network_id)
 
     def network_tenants(self, network_id: str, accepted_only: bool = True) -> list[str]:
         q = "SELECT tenant_id FROM tenant_networks WHERE network_id = ?" + (" AND accepted = TRUE" if accepted_only else "")
-        rows = self._run(None, q + " ORDER BY tenant_id", (network_id,), fetch=True)
+        rows = self._run(network_id, q + " ORDER BY tenant_id", (network_id,), fetch=True)
         return [r["tenant_id"] for r in rows]
 
     def pending_network_tenants(self, network_id: str) -> list[str]:
-        rows = self._run(None, "SELECT tenant_id FROM tenant_networks WHERE network_id = ? AND accepted = FALSE ORDER BY tenant_id",
+        rows = self._run(network_id, "SELECT tenant_id FROM tenant_networks WHERE network_id = ? AND accepted = FALSE ORDER BY tenant_id",
                          (network_id,), fetch=True)
         return [r["tenant_id"] for r in rows]
 
     def pending_invites(self, tenant: str) -> list[str]:
-        rows = self._run(None, "SELECT network_id FROM tenant_networks WHERE tenant_id = ? AND accepted = FALSE ORDER BY network_id",
+        rows = self._run(tenant, "SELECT network_id FROM tenant_networks WHERE tenant_id = ? AND accepted = FALSE ORDER BY network_id",
                          (tenant,), fetch=True)
         return [r["network_id"] for r in rows]
 
@@ -189,6 +189,7 @@ class Store:
         import psycopg
         with psycopg.connect(self.url) as conn:
             with conn.transaction():
+                conn.execute("SELECT set_config('app.tenant_id', %s, true)", (tenant,))
                 if accept:
                     cur = conn.execute(
                         "UPDATE tenant_networks SET accepted = TRUE WHERE network_id = %s AND tenant_id = %s AND accepted = FALSE RETURNING tenant_id",
