@@ -50,7 +50,7 @@ python scripts/simulate.py           # comparación de diseños con datos simula
 
 ## Qué contiene el núcleo
 
-- `templates.py`: doce plantillas (T1 a T12, niveles objetivo N1 a N8). Cada ítem se recalcula de forma independiente
+- `templates.py`: 24 plantillas (T1 a T24, niveles objetivo N1 a N8). Cada ítem se recalcula de forma independiente
   y falla si la clave no coincide. Los distractores modelan errores típicos y llevan una etiqueta diagnóstica.
 - `safe_expr.py`: lectura segura de expresiones del estudiante (sin `eval`; lista blanca y AST con límites).
 - `qti3.py`: XML QTI 3.0. Sin red no se pudo validar contra el XSD oficial: validar con 1EdTech antes de importar.
@@ -78,7 +78,7 @@ Es evidencia sobre el diseño del motor, no sobre estudiantes reales.
 
 Hoja de cuaderno cuadriculado: cuadrícula celeste de fondo, hoja blanca con margen rojo y respuestas marcadas con
 resaltador. Tipografía Atkinson Hyperlegible, sin tiempo límite, foco visible, contraste alto y teclado completo.
-El nombre del producto es un marcador (`[Nombre del producto]`) hasta resolver la búsqueda de marca.
+La interfaz y los metadatos ya usan el nombre Matheval. Antes del lanzamiento comercial todavía debe verificarse su disponibilidad registral mediante una búsqueda de marca.
 
 ## Límites que hay que tener presentes
 
