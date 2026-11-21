@@ -48,6 +48,7 @@ class TestProductionConfig(unittest.TestCase):
             "LTI_SECRET_KEY": "k" * 48,
             "WEB_ORIGIN": "https://app.example",
             "DATABASE_URL": "postgresql://app:secret@db.example/matheval",
+            "WEB_URL": "https://app.example",
         }
         errors, _ = check_config(env, False)
         self.assertEqual(errors, [])
