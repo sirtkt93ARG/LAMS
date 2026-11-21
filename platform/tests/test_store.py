@@ -1,4 +1,4 @@
-import os, sys, sqlite3, tempfile, unittest, threading
+import os, sys, sqlite3, tempfile, unittest, threading, hashlib
 from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.getcwd())
 from matheval.adaptive import MSTSession, PoolItem, build_design
