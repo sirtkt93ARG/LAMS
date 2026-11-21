@@ -73,4 +73,4 @@ Como mínimo operativo:
 - La copia es lógica de una sola base; no es un backup físico del clúster ni incluye roles globales.
 - SHA-256 detecta corrupción accidental o modificación, pero no sustituye una firma ni protege frente a un atacante que pueda modificar dump y manifiesto.
 - Los permisos 0600/0700 protegen el filesystem local; no cifran el contenido.
-- La prueba automatizada de este script cubre validación del manifiesto y guardas de seguridad. La compatibilidad real de `pg_dump`/`pg_restore` y una restauración end-to-end deben probarse contra PostgreSQL de staging antes de producción.
+- Las pruebas unitarias cubren validación del manifiesto y guardas de seguridad. CI también ejecuta un ciclo real de `pg_dump`/`pg_restore` contra un PostgreSQL 16 efímero: crea un backup de la base migrada, restaura en una base nueva y comprueba datos, RLS y grants. Esto valida la herramienta en una instancia limpia, pero no reemplaza el ensayo de staging con la configuración, extensiones, roles, volumen y versión exactos del entorno institucional antes de producción.
