@@ -29,7 +29,7 @@ Estado: situación en la rama `main` a 21-11-2026. Los valores numéricos de evi
 | 6 | **Respuestas duplicadas con solicitudes simultáneas** sobre la misma sesión | Dos solicitudes que leen el mismo estado dejaron el mismo ejercicio registrado dos veces | Corregido: idempotencia respaldada por restricciones y pruebas |
 | 7 | **Una red podía agregar a cualquier escuela** conociendo su identificador y ver sus resultados agregados | La invitación no necesitaba aceptación | Corregido: invitación, aceptación y revocación de consentimiento; RLS y pruebas PostgreSQL |
 | 8 | **Colores con poco contraste**: los celestes y ámbar de los gráficos quedaban por debajo de 3:1 y las etiquetas de línea coloreadas por debajo de 4,5:1 | Celeste #56B4E9 ≈ 2,3:1 y ámbar #E69F00 ≈ 2,3:1 sobre blanco | Corregido: paleta de mayor contraste; axe no detectó violaciones en los recorridos cubiertos |
-| 9 | **Pruebas frágiles**: dependían del orden de importación (`importlib.util`) | La suite fallaba al descubrir las pruebas en otro orden | Parche A |
+| 9 | **Pruebas frágiles**: dependían del orden de importación (`importlib.util`) | La suite fallaba al descubrir las pruebas en otro orden | Corregido: suite actual ejecutada en CI |
 
 ## 3. Hallazgos abiertos (sin arreglo)
 
@@ -39,7 +39,7 @@ Estado: situación en la rama `main` a 21-11-2026. Los valores numéricos de evi
 | Borrado incompleto | `DELETE /v1/me/data` no borra lo enviado al almacén de xAPI (Ralph); la auditoría y las revisiones guardan el identificador del docente sin seudonimizar | Agregar el borrado en el LRS y seudonimizar docentes |
 | Sin bloqueo optimista | Con dos solicitudes simultáneas, la última escritura pisa el estado | Columna de versión en la sesión |
 | Verificación de interfaz | Seis pruebas Playwright/axe cubren login, práctica, panel docente, curaduría, red, teclado y viewport móvil en Chromium | Ampliar a Firefox/WebKit, lectores de pantalla y pruebas manuales con usuarios |
-| Contenido | El proceso «argumentar» del marco no tiene ningún ejercicio; no hay respuestas abiertas; varias habilidades tienen un solo nivel, así que la práctica por tema no puede adaptarse | Más plantillas (ver propuestas) |
+| Contenido | El proceso «argumentar» no tiene cobertura suficiente. Existe el tipo de ítem `open`, pero aún no hay flujo completo de corrección manual; por eso se excluye de los pools adaptativos automáticos. Varias habilidades tienen un solo nivel | Más plantillas, rúbricas y flujo de revisión docente para respuestas abiertas |
 | Sesgo en porcentajes | El porcentaje de estudiantes por debajo de N4 sale 2 a 3 puntos más bajo en cohortes de bajo desempeño (se estimó 70,5 % con 72,6 % real; 92,2 % con 94,8 %). Promediar probabilidades posteriores no lo corrige | Prior por curso (Bayes empírico) o intervalos de incertidumbre |
 | Escala | Iniciar una práctica recorre todo el banco y el dominio por tema recalcula desde las respuestas | Cachear el diseño y guardar el dominio de forma incremental antes de pasar de unos miles de respuestas |
 | Cobertura | La cobertura histórica de 90,6 % corresponde a la suite v0.7 y no se recalculó. CI actual añade HTTP, PostgreSQL 16 y seis pruebas de navegador con axe | Recalcular cobertura global y ampliar E2E a reportes, progreso y observatorio |
