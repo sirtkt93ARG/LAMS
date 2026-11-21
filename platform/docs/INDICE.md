@@ -8,6 +8,7 @@ Empezá por `README.md` (qué es, cómo montarlo y estado real de cada pieza). D
 | Saber qué funcionalidades hay y cuáles se evaluaron o descartaron | `docs/FUNCIONALIDADES.md` |
 | Ver los riesgos, hallazgos de la auditoría, simulaciones e ideas para ampliar | `docs/AUDITORIA.md` |
 | Consultar el registro histórico de parches y decisiones de auditoría | `docs/arreglos_auditoria/LEEME.md` (no todos los elementos de esa carpeta representan tareas pendientes) |
+| Entender la supresión local y los límites de borrado en un LRS xAPI | `docs/PRIVACIDAD_Y_SUPRESION.md` |
 | Entender la arquitectura, el análisis legal, el marco de matemática y el plan | `docs/DOCUMENTO_DE_ARQUITECTURA.md` (enlace al documento completo de 25 secciones) |
 | Cargar microdatos de PISA y obtener errores estándar y brechas | `docs/MICRODATOS_PISA.md` |
 | Conocer las fuentes y los límites de los datos del observatorio | `data/observatory/FUENTES.md` |
