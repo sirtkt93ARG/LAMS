@@ -40,6 +40,13 @@ class TestStore(unittest.TestCase):
         finally:
             other._conn.close()
 
+    def test_learner_erasure_deletes_open_submissions(self):
+        self.store.create_open_assignment("oa-erase", "school-erase", None, "open-1", "Actividad", "", "teacher", None)
+        self.store.submit_open_response("sub-erase", "oa-erase", "school-erase", "pid-erase", "respuesta privada")
+        self.store.delete_learner("school-erase", "pid-erase")
+        self.assertIsNone(self.store.open_submission_for_student("school-erase", "sub-erase", "pid-erase"))
+        self.assertEqual(self.store.open_assignments_for_teacher("school-erase")[0]["submissions"], 0)
+
     def test_open_assignment_submission_and_single_teacher_grade(self):
         self.store.create_open_assignment("oa-1", "school-a", None, "open-1", "Argumentá", "Mostrá el procedimiento", "teacher", None)
         self.assertEqual(len(self.store.open_assignments_for_student("school-a", None, "pid-a")), 1)
