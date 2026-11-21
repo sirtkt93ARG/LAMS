@@ -46,6 +46,61 @@ class TestPostgresBackupRestore(unittest.TestCase):
                     output_root.mkdir(mode=0o700)
                     env = os.environ.copy()
                     env["DATABASE_URL"] = ADMIN_URL
+                    container_id = env.get("MATHEVAL_POSTGRES_CONTAINER")
+                    if container_id:
+                        wrapper_dir = Path(temporary) / "postgres-client-bin"
+                        wrapper_dir.mkdir(mode=0o700)
+                        wrapper_source = """#!/usr/bin/env python3
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+container = os.environ["MATHEVAL_POSTGRES_CONTAINER"]
+tool = Path(sys.argv[0]).name
+environment = []
+for key in (
+    "PGHOST", "PGPORT", "PGUSER", "PGDATABASE", "PGSSLMODE",
+    "PGSSLROOTCERT", "PGSSLCERT", "PGSSLKEY", "PGCONNECT_TIMEOUT", "PGAPPNAME",
+):
+    if os.environ.get(key):
+        environment.extend(["--env", f"{key}={os.environ[key]}"])
+
+remote_passfile = None
+host_passfile = os.environ.get("PGPASSFILE")
+if host_passfile:
+    remote_passfile = f"/tmp/matheval-pgpass-{os.getpid()}"
+    subprocess.run(
+        ["docker", "cp", host_passfile, f"{container}:{remote_passfile}"],
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    subprocess.run(
+        ["docker", "exec", container, "chmod", "600", remote_passfile],
+        check=True,
+    )
+    environment.extend(["--env", f"PGPASSFILE={remote_passfile}"])
+
+try:
+    result = subprocess.run(
+        ["docker", "exec", *environment, container, tool, *sys.argv[1:]],
+        check=False,
+    )
+    raise SystemExit(result.returncode)
+finally:
+    if remote_passfile:
+        subprocess.run(
+            ["docker", "exec", container, "rm", "-f", remote_passfile],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+"""
+                        for tool in ("pg_dump", "pg_restore", "psql"):
+                            wrapper = wrapper_dir / tool
+                            wrapper.write_text(wrapper_source, encoding="utf-8")
+                            wrapper.chmod(0o700)
+                        env["PATH"] = str(wrapper_dir) + os.pathsep + env["PATH"]
                     backup_result = subprocess.run(
                         [sys.executable, str(SCRIPT), "backup", "--output-dir", str(output_root)],
                         cwd=ROOT,
