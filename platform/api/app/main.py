@@ -349,7 +349,11 @@ def student_open_assignments(user: User = Depends(current_user)):
     if user.role != "student":
         raise HTTPException(403, "solo estudiantes")
     _consent_gate(user)
-    return {"assignments": STORE.open_assignments_for_student(user.tenant_id, user.course_id, _pid(user))}
+    assignments = STORE.open_assignments_for_student(user.tenant_id, user.course_id, _pid(user))
+    for assignment in assignments:
+        item = BANK.items.get(assignment["item_id"])
+        assignment["item"] = _public(item) if item and item.kind == "open" else None
+    return {"assignments": assignments}
 
 
 @app.post("/v1/student/open-assignments/{assignment_id}/submit")
