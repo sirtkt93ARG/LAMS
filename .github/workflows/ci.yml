@@ -1,0 +1,59 @@
+name: Continuous integration
+
+on:
+  pull_request:
+    paths:
+      - "platform/**"
+      - ".github/workflows/ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "platform/**"
+      - ".github/workflows/ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: platform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: platform/pyproject.toml
+      - name: Install project and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[api,lti,dev,microdata]"
+      - name: Compile Python modules
+        run: python -m compileall -q src api lti_service tools scripts
+      - name: Run automated tests
+        run: python -m pytest -q
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: platform/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install frontend dependencies
+        run: npm install
+      - name: Type check
+        run: npm run typecheck
+      - name: Test frontend libraries
+        run: npm run test:lib
+      - name: Build frontend
+        env:
+          NEXT_PUBLIC_DEV: "1"
+        run: npm run build
