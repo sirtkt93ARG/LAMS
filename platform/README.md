@@ -14,7 +14,7 @@ Alrededor: API (FastAPI), interfaz web (Next.js), servicio LTI 1.3, Keycloak, es
 | `api/` (FastAPI) | Lógica cubierta por la suite Python/HTTP y por integración PostgreSQL 16 en CI; también se prueban migraciones y RLS |
 | `lti_service/` y `tools/mock_lms/` | Ingreso LTI 1.3 y devolución AGS probados con PyLTI1p3 real contra el LMS simulado mediante `scripts/smoke_http.py` en CI; Moodle real y Keycloak de producción siguen pendientes |
 | `web/` (Next.js 14) | Seis pruebas Playwright + axe en Chromium cubren login, práctica, docente, curaduría, red, teclado y vista móvil; faltan recorridos manuales con lectores de pantalla y validación Firefox/WebKit |
-| PostgreSQL 16: migraciones, RLS y aislamiento probados en CI. Docker Compose, Keycloak de producción y LRS Ralph aún no se han desplegado ni validado como servicios reales |
+| PostgreSQL / operación | PostgreSQL 16: migraciones, RLS y aislamiento probados en CI. Docker Compose, Keycloak de producción y LRS Ralph aún no se han desplegado ni validado como servicios reales |
 
 ### Novedades de la v0.7: microdatos de PISA
 
