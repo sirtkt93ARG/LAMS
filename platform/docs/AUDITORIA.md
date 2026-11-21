@@ -2,7 +2,7 @@
 
 **Actualización de validación: 21-11-2026.** Esta página conserva hallazgos y mediciones históricas de la auditoría v0.7; no deben
 interpretarse como una nueva medición estadística. Desde entonces se integraron correcciones de seguridad y gobernanza, pruebas PostgreSQL
-16 con RLS, un recorrido LTI 1.3 real con PyLTI1p3 contra el LMS simulado y seis pruebas Playwright/axe en Chromium. La validación actual
+16 con RLS, un recorrido LTI 1.3 real con PyLTI1p3 contra el LMS simulado y ocho pruebas Playwright/axe en Chromium. La validación actual
 se ejecuta en GitHub Actions. El stack local de Docker Compose ya pasa el smoke test integral; siguen pendientes la operación productiva,
 Moodle real, Keycloak institucional, LRS xAPI y pruebas manuales con tecnologías de asistencia.
 
@@ -11,7 +11,7 @@ Las cifras de exposición, diversidad y simulación que aparecen más abajo son 
 ## 1. Veredicto
 
 La plataforma ya cuenta con pruebas automatizadas de núcleo, API y HTTP; integración PostgreSQL 16; smoke LTI 1.3 con PyLTI1p3
-contra el LMS simulado; y seis pruebas de navegador con axe. Los principales frentes pendientes son **operación productiva** (backups, restauración, monitoreo, Keycloak institucional
+contra el LMS simulado; y ocho pruebas de navegador con axe. Los principales frentes pendientes son **operación productiva** (backups, restauración, monitoreo, Keycloak institucional
 y Moodle real), **validación educativa** (calibración con un piloto y análisis con microdatos PISA) y **accesibilidad
 manual** (lectores de pantalla, Firefox/WebKit y dispositivos reales).
 
@@ -38,11 +38,11 @@ Estado: situación en la rama `main` a 21-11-2026. Los valores numéricos de evi
 |---|---|---|
 | Estado en memoria por proceso | Las decisiones de curaduría persisten en la base y cada worker las vuelve a aplicar antes de crear sesiones; el limitador de frecuencia y los contadores de métricas siguen siendo locales al proceso | Compartir el rate limiting entre workers (Redis o PostgreSQL) y centralizar métricas para escalar horizontalmente |
 | Supresión externa pendiente | `DELETE /v1/me/data` elimina sesiones/respuestas locales y anonimiza los eventos de auditoría del actor; si `LRS_URL` está configurado, devuelve 202 y el agente xAPI que requiere supresión manual | Integrar el mecanismo administrativo del LRS elegido; xAPI 1.0.3 solo define voiding, que no destruye Statements |
-| Verificación de interfaz | Seis pruebas Playwright/axe cubren login, práctica, panel docente, curaduría, red, teclado y viewport móvil en Chromium | Ampliar a Firefox/WebKit, lectores de pantalla y pruebas manuales con usuarios |
+| Verificación de interfaz | Ocho pruebas Playwright/axe cubren login, práctica, panel docente, curaduría, red, teclado y viewport móvil en Chromium | Ampliar a Firefox/WebKit, lectores de pantalla y pruebas manuales con usuarios |
 | Contenido | El proceso «argumentar» no tiene cobertura suficiente. Existe el tipo de ítem `open`, pero aún no hay flujo completo de corrección manual; por eso se excluye de los pools adaptativos automáticos. Varias habilidades tienen un solo nivel | Más plantillas, rúbricas y flujo de revisión docente para respuestas abiertas |
 | Sesgo en porcentajes | El porcentaje de estudiantes por debajo de N4 sale 2 a 3 puntos más bajo en cohortes de bajo desempeño (se estimó 70,5 % con 72,6 % real; 92,2 % con 94,8 %). Promediar probabilidades posteriores no lo corrige | Prior por curso (Bayes empírico) o intervalos de incertidumbre |
 | Escala | Iniciar una práctica recorre todo el banco y el dominio por tema recalcula desde las respuestas | Cachear el diseño y guardar el dominio de forma incremental antes de pasar de unos miles de respuestas |
-| Cobertura | La cobertura histórica de 90,6 % corresponde a la suite v0.7 y no se recalculó. CI actual añade HTTP, PostgreSQL 16 y seis pruebas de navegador con axe | Recalcular cobertura global y ampliar E2E a reportes, progreso y observatorio |
+| Cobertura | La cobertura histórica de 90,6 % corresponde a la suite v0.7 y no se recalculó. CI actual añade HTTP, PostgreSQL 16 y ocho pruebas de navegador con axe | Recalcular cobertura global y ampliar E2E a reportes, progreso y observatorio |
 
 ## 4. Lo que mostraron las simulaciones (valores aproximados)
 
@@ -90,7 +90,7 @@ políticas de repaso, tamaño de muestra por escuela, sesgo de las estimaciones 
 
 ## 6. Límites de esta auditoría
 
-- **Navegador:** seis recorridos Playwright/axe corren en Chromium sobre el servidor Next.js de producción. No sustituyen pruebas manuales, lectores de pantalla ni Firefox/WebKit.
+- **Navegador:** ocho recorridos Playwright/axe corren en Chromium sobre el servidor Next.js de producción. No sustituyen pruebas manuales, lectores de pantalla ni Firefox/WebKit.
 - **LTI:** PyLTI1p3 real y devolución AGS se ejecutan contra un LMS simulado; Moodle real y Keycloak de producción no se han probado.
 - **PostgreSQL y Compose:** esquema, migraciones y RLS se prueban con PostgreSQL 16 efímero en CI. El stack local de Docker Compose también pasa el recorrido HTTP/LTI completo, incluida la devolución AGS. Esto no valida backups, restauración, monitoreo ni operación productiva.
 - **xAPI:** el LRS Ralph no se ha ejecutado ni validado con un servidor real.
