@@ -355,6 +355,9 @@ class Store:
             "(SELECT id FROM sessions WHERE tenant_id = ? AND pid = ?)"
         )
         q_delete_sessions = self._sql("DELETE FROM sessions WHERE tenant_id = ? AND pid = ?")
+        q_insert_erasure_audit = self._sql(
+            "INSERT INTO audit_log (tenant_id, actor, action, detail) VALUES (?, 'system', ?, ?)"
+        )
         if self.dialect == "sqlite":
             with self._lock:
                 n_s = self._conn.execute(q_sessions, (tenant, pid)).fetchone()[0]
@@ -364,8 +367,13 @@ class Store:
                     n_a = self._conn.execute(q_redact, (tenant, actor)).rowcount
                 self._conn.execute(q_delete_responses, (tenant, tenant, pid))
                 self._conn.execute(q_delete_sessions, (tenant, pid))
+                summary = {"sessions": n_s, "responses": n_r, "audit_events_redacted": n_a}
+                self._conn.execute(
+                    q_insert_erasure_audit,
+                    (tenant, "supresion_local_de_datos", json.dumps(summary)),
+                )
                 self._conn.commit()
-                return {"sessions": n_s, "responses": n_r, "audit_events_redacted": n_a}
+                return summary
         import psycopg
         with psycopg.connect(self.url) as conn:
             with conn.transaction():
@@ -377,7 +385,12 @@ class Store:
                     n_a = conn.execute(q_redact, (tenant, actor)).rowcount
                 conn.execute(q_delete_responses, (tenant, tenant, pid))
                 conn.execute(q_delete_sessions, (tenant, pid))
-                return {"sessions": n_s, "responses": n_r, "audit_events_redacted": n_a}
+                summary = {"sessions": n_s, "responses": n_r, "audit_events_redacted": n_a}
+                conn.execute(
+                    q_insert_erasure_audit,
+                    (tenant, "supresion_local_de_datos", json.dumps(summary)),
+                )
+                return summary
 
     def purge_older_than(self, days: int) -> int:
         """Borra sesiones y respuestas más viejas que `days` días, de todas las escuelas (rol propietario)."""
