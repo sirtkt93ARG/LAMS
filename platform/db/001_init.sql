@@ -109,6 +109,7 @@ CREATE POLICY tenant_network_invite_delete ON tenant_networks
   );
 
 GRANT SELECT, INSERT, DELETE ON sessions, responses, tenant_settings TO matheval_app;
+GRANT UPDATE ON sessions, tenant_settings TO matheval_app;
 GRANT SELECT, INSERT, DELETE ON tenant_networks TO matheval_app;
 GRANT UPDATE (accepted) ON tenant_networks TO matheval_app;
 GRANT SELECT, INSERT ON item_reviews, audit_log TO matheval_app;
