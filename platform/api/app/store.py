@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS used_tokens (
 CREATE TABLE IF NOT EXISTS audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL DEFAULT (datetime('now')), tenant_id TEXT, actor TEXT NOT NULL,
   action TEXT NOT NULL, detail TEXT);
+CREATE TABLE IF NOT EXISTS xapi_erasure_blocks (
+  tenant_id TEXT NOT NULL, pid TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (tenant_id, pid));
 """
 _SQLITE_NEW_COLUMNS = [("sessions", "course_id", "TEXT"), ("sessions", "course_label", "TEXT"),
                        ("responses", "hints", "INTEGER NOT NULL DEFAULT 0"),
@@ -339,6 +342,44 @@ class Store:
         rows = self._run(tenant, q, (tenant, course) if course else (tenant,), fetch=True)
         return {r["tag"]: r["n"] for r in rows}
 
+    def run_if_xapi_export_allowed(self, tenant: str, pid: str, send) -> bool:
+        """Serializa el envío externo con la supresión y bloquea exportaciones posteriores.
+
+        El bloqueo se mantiene durante el POST: una supresión concurrente espera a que
+        termine un envío ya iniciado, o gana la carrera e impide que el envío comience.
+        """
+        lock_key = f"{tenant}\\x1f{pid}"
+        if self.dialect == "sqlite":
+            with self._lock:
+                self._conn.execute("BEGIN IMMEDIATE")
+                try:
+                    blocked = self._conn.execute(
+                        "SELECT 1 FROM xapi_erasure_blocks WHERE tenant_id = ? AND pid = ?",
+                        (tenant, pid),
+                    ).fetchone()
+                    if blocked:
+                        self._conn.rollback()
+                        return False
+                    send()
+                    self._conn.commit()
+                    return True
+                except Exception:
+                    self._conn.rollback()
+                    raise
+        import psycopg
+        with psycopg.connect(self.url) as conn:
+            with conn.transaction():
+                conn.execute("SELECT set_config('app.tenant_id', %s, true)", (tenant,))
+                conn.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (lock_key,))
+                blocked = conn.execute(
+                    "SELECT 1 FROM xapi_erasure_blocks WHERE tenant_id = %s AND pid = %s",
+                    (tenant, pid),
+                ).fetchone()
+                if blocked:
+                    return False
+                send()
+                return True
+
     # ---- derechos de los datos --------------------------------------------------------
     def delete_learner(self, tenant: str, pid: str, actor: str | None = None) -> dict:
         """Elimina datos locales del alumno y anonimiza sus eventos de auditoría identificables."""
@@ -358,26 +399,37 @@ class Store:
         q_insert_erasure_audit = self._sql(
             "INSERT INTO audit_log (tenant_id, actor, action, detail) VALUES (?, 'system', ?, ?)"
         )
+        lock_key = f"{tenant}\\x1f{pid}"
         if self.dialect == "sqlite":
             with self._lock:
-                n_s = self._conn.execute(q_sessions, (tenant, pid)).fetchone()[0]
-                n_r = self._conn.execute(q_responses, (tenant, tenant, pid)).fetchone()[0]
-                n_a = 0
-                if actor:
-                    n_a = self._conn.execute(q_redact, (tenant, actor)).rowcount
-                self._conn.execute(q_delete_responses, (tenant, tenant, pid))
-                self._conn.execute(q_delete_sessions, (tenant, pid))
-                summary = {"sessions": n_s, "responses": n_r, "audit_events_redacted": n_a}
-                self._conn.execute(
-                    q_insert_erasure_audit,
-                    (tenant, "supresion_local_de_datos", json.dumps(summary)),
-                )
-                self._conn.commit()
-                return summary
+                self._conn.execute("BEGIN IMMEDIATE")
+                try:
+                    n_s = self._conn.execute(q_sessions, (tenant, pid)).fetchone()[0]
+                    n_r = self._conn.execute(q_responses, (tenant, tenant, pid)).fetchone()[0]
+                    n_a = 0
+                    if actor:
+                        n_a = self._conn.execute(q_redact, (tenant, actor)).rowcount
+                    self._conn.execute(q_delete_responses, (tenant, tenant, pid))
+                    self._conn.execute(q_delete_sessions, (tenant, pid))
+                    self._conn.execute(
+                        "INSERT OR IGNORE INTO xapi_erasure_blocks (tenant_id, pid) VALUES (?, ?)",
+                        (tenant, pid),
+                    )
+                    summary = {"sessions": n_s, "responses": n_r, "audit_events_redacted": n_a}
+                    self._conn.execute(
+                        q_insert_erasure_audit,
+                        (tenant, "supresion_local_de_datos", json.dumps(summary)),
+                    )
+                    self._conn.commit()
+                    return summary
+                except Exception:
+                    self._conn.rollback()
+                    raise
         import psycopg
         with psycopg.connect(self.url) as conn:
             with conn.transaction():
                 conn.execute("SELECT set_config('app.tenant_id', %s, true)", (tenant,))
+                conn.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (lock_key,))
                 n_s = conn.execute(q_sessions, (tenant, pid)).fetchone()[0]
                 n_r = conn.execute(q_responses, (tenant, tenant, pid)).fetchone()[0]
                 n_a = 0
@@ -385,6 +437,10 @@ class Store:
                     n_a = conn.execute(q_redact, (tenant, actor)).rowcount
                 conn.execute(q_delete_responses, (tenant, tenant, pid))
                 conn.execute(q_delete_sessions, (tenant, pid))
+                conn.execute(
+                    "INSERT INTO xapi_erasure_blocks (tenant_id, pid) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                    (tenant, pid),
+                )
                 summary = {"sessions": n_s, "responses": n_r, "audit_events_redacted": n_a}
                 conn.execute(
                     q_insert_erasure_audit,
