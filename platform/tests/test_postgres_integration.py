@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 import unittest
 from uuid import uuid4
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import psycopg
 
@@ -32,6 +34,7 @@ class TestPostgresStore(unittest.TestCase):
                 root / "db/005_migracion_v10.sql",
                 root / "db/006_migracion_v11.sql",
                 root / "db/007_migracion_v12.sql",
+                root / "db/008_migracion_v13.sql",
             ):
                 conn.execute(migration.read_text(encoding="utf-8"), prepare=False)
         cls.store = Store(APP_URL)
@@ -93,6 +96,43 @@ class TestPostgresStore(unittest.TestCase):
         row = self.store.load_session(session_id, tenant)
         self.assertEqual(row["state"], {"step": 3})
         self.assertEqual(row["result"], result)
+
+    def test_atomic_answer_rejects_stale_version(self):
+        suffix = uuid4().hex
+        session_id, tenant, pid = f"answer-{suffix}", f"tenant-answer-{suffix}", f"pid-{suffix}"
+        self.store.create_session(session_id, tenant, pid, "practica", {"step": 0})
+        initial = self.store.load_session(session_id, tenant)
+        self.assertEqual(initial["version"], 0)
+
+        self.assertTrue(self.store.record_answer(
+            session_id, tenant, initial["version"], {"step": 1},
+            "item-1", "A", 1.0, None, 2.0
+        ))
+        self.assertFalse(self.store.record_answer(
+            session_id, tenant, initial["version"], {"step": 2},
+            "item-2", "B", 0.0, "error", 3.0
+        ))
+        self.assertEqual(self.store.load_session(session_id, tenant)["state"], {"step": 1})
+        self.assertEqual(len(self.store.responses_for_pid(tenant, pid)), 1)
+
+    def test_concurrent_postgres_answers_from_same_version_commit_once(self):
+        suffix = uuid4().hex
+        session_id, tenant, pid = f"answer-race-{suffix}", f"tenant-race-{suffix}", f"pid-race-{suffix}"
+        self.store.create_session(session_id, tenant, pid, "practica", {"step": 0})
+        barrier = threading.Barrier(2)
+
+        def submit(index):
+            barrier.wait()
+            return self.store.record_answer(
+                session_id, tenant, 0, {"step": index},
+                f"item-{index}", "A", 1.0, None, 2.0
+            )
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            outcomes = list(pool.map(submit, (1, 2)))
+        self.assertCountEqual(outcomes, [True, False])
+        self.assertEqual(self.store.load_session(session_id, tenant)["version"], 1)
+        self.assertEqual(len(self.store.responses_for_pid(tenant, pid)), 1)
 
     def test_consent_upsert_can_update_existing_tenant_settings(self):
         tenant = f"consent-{uuid4().hex}"
