@@ -14,7 +14,7 @@ import uuid
 from collections import Counter, defaultdict
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
 from matheval import templates as TPL
@@ -331,11 +331,31 @@ def progress(user: User = Depends(current_user)):
 
 @app.delete("/v1/me/data")
 def delete_my_data(user: User = Depends(current_user)):
-    """Derecho de supresión: borra todas las sesiones y respuestas asociadas al seudónimo del usuario en su escuela."""
+    """Elimina datos locales; si hay un LRS externo, informa que su supresión requiere acción del proveedor."""
     pid = _pid(user)
-    out = STORE.delete_learner(user.tenant_id, pid)
-    STORE.audit(user.tenant_id, pid[:12], "supresion_de_datos", json.dumps(out))
-    return out
+    out = STORE.delete_learner(user.tenant_id, pid, actor=user.sub)
+    STORE.audit(user.tenant_id, "system", "supresion_local_de_datos", json.dumps(out))
+    result = {**out, "local_data_deleted": True}
+    if LRS_URL:
+        result["external_lrs"] = {
+            "status": "manual_action_required",
+            "agent": {
+                "objectType": "Agent",
+                "account": {
+                    "homePage": f"https://{user.tenant_id}.tenants.matheval.example",
+                    "name": pid,
+                },
+            },
+            "message": (
+                "Los Statements externos no se borraron. xAPI 1.0.3 no define su borrado: "
+                "el administrador del LRS debe aplicar el procedimiento de supresión del proveedor."
+            ),
+        }
+        result["erasure_complete"] = False
+        return JSONResponse(status_code=202, content=result)
+    result["external_lrs"] = {"status": "not_configured"}
+    result["erasure_complete"] = True
+    return result
 
 
 # ---- docentes ----------------------------------------------------------------------
