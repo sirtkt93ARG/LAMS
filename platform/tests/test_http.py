@@ -17,6 +17,7 @@ except Exception:          # sin FastAPI/httpx reales (p. ej. con el sustituto d
 S = {"X-Dev-User": "alumno-h1:escuela-h:student"}
 T = {"X-Dev-User": "docente-h1:escuela-h:teacher"}
 A = {"X-Dev-User": "curador-h1:institucion:admin"}
+N = {"X-Dev-User": "red-http:red-http:network"}
 
 
 @unittest.skipUnless(READY, "FastAPI o httpx no disponibles")
@@ -87,6 +88,21 @@ class TestHttp(unittest.TestCase):
         self.assertIn("x-request-id", self.c.get("/healthz").headers)
         self.assertIn("matheval_requests_total", self.c.get("/metrics").text)
         self.assertEqual(self.c.delete("/v1/me/data", headers=S).status_code, 200)
+
+    def test_school_can_withdraw_network_consent_over_http(self):
+        invited = self.c.post("/v1/network/tenants", json={"tenant_id": "escuela-h"}, headers=N)
+        self.assertEqual(invited.status_code, 200, invited.text)
+        pending = self.c.get("/v1/teacher/network-invites", headers=T).json()
+        self.assertEqual(pending["invites"], ["red-http"])
+        accepted = self.c.post("/v1/teacher/network-invites/red-http/accept", headers=T)
+        self.assertEqual(accepted.status_code, 200, accepted.text)
+        self.assertEqual(self.c.get("/v1/teacher/network-memberships", headers=T).json()["networks"], ["red-http"])
+        denied = self.c.delete("/v1/teacher/network-memberships/red-http", headers=S)
+        self.assertEqual(denied.status_code, 403)
+        revoked = self.c.delete("/v1/teacher/network-memberships/red-http", headers=T)
+        self.assertEqual(revoked.status_code, 200, revoked.text)
+        self.assertEqual(revoked.json()["networks"], [])
+        self.assertEqual(self.c.get("/v1/network/summary", headers=N).json()["schools"], [])
 
     def test_lti_exchange_gives_working_bearer(self):
         handoff = jwt.encode({"sub": "u-http", "tenant_id": "dep-http", "role": "student",
