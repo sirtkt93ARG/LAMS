@@ -8,7 +8,7 @@ La respuesta incluye los conteos de sesiones, respuestas y eventos de auditoría
 
 ## Si no hay un LRS externo
 
-Cuando `LRS_URL` no está configurado, la respuesta indica `external_lrs.status = not_configured` y `erasure_complete = true` para los datos gestionados por esta plataforma.
+Cuando `LRS_URL` no está configurado, la respuesta indica `external_lrs.status = not_configured_currently`. `erasure_complete` queda en `null`: la configuración actual no demuestra que nunca se hayan enviado Statements a un LRS en el pasado.
 
 ## Si hay un LRS externo
 
