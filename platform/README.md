@@ -11,7 +11,7 @@ Alrededor: API (FastAPI), interfaz web (Next.js), servicio LTI 1.3, Keycloak, es
 | Pieza | Estado |
 |---|---|
 | `src/matheval` (núcleo) | Implementado y probado: 24 plantillas (N1 a N8), habilidades, dominio, práctica dirigida, calibración, análisis |
-| `api/` (FastAPI) | Lógica probada con 91 pruebas automáticas. Las pruebas por HTTP (`tests/test_http.py`) corren solo con FastAPI y httpx reales: **ejecutalas en tu equipo** |
+| `api/` (FastAPI) | Lógica probada con 108 pruebas automáticas (más integración PostgreSQL en CI). Las pruebas por HTTP (`tests/test_http.py`) corren solo con FastAPI y httpx reales: **ejecutalas en tu equipo** |
 | `lti_service/` y `tools/mock_lms/` | Ingreso LTI 1.3 y devolución de notas probados con sustitutos y por HTTP contra el LMS simulado. **Con PyLTI1p3 real, pendiente: `scripts/smoke_http.py`** |
 | `web/` (Next.js 14) | Recorrido de estudiante y docente verificado por vos en la v0.2. **Todo lo nuevo (gráficos, práctica por tema, progreso, panel ampliado, accesibilidad) está sin ver en navegador** |
 | PostgreSQL, Docker, Keycloak, Ralph | Escritos, **no ejecutados**. `scripts/check_postgres.py` verifica esquema y aislamiento por escuela |
@@ -121,7 +121,7 @@ python -m venv .venv && ./scripts/dev.sh        # o ./scripts/dev.sh prod
 
 ```bash
 pip install -e ".[api,lti]"
-PYTHONPATH=src python -m unittest discover -s tests      # 91 pruebas; las de HTTP corren solo con FastAPI y httpx reales
+PYTHONPATH=src python -m unittest discover -s tests      # 108 pruebas; las de HTTP corren con FastAPI y httpx reales, y la integración PostgreSQL se ejecuta en CI
 ```
 
 ### PostgreSQL con aislamiento por escuela (opcional, requiere Docker Desktop)
@@ -131,8 +131,7 @@ docker compose -f deploy/docker-compose.db.yml up -d
 python scripts/check_postgres.py --admin-url postgresql://postgres:cambiar@localhost:5432/matheval --app-url postgresql://matheval_app:cambiar-en-produccion@localhost:5432/matheval
 ```
 
-Si venís de la v0.3 o v0.4, la base SQLite se actualiza sola al arrancar. Con PostgreSQL ya existente, aplicá
-`db/002_migracion_v05.sql` con el rol propietario.
+Si venís de una versión anterior, SQLite aplica sus migraciones compatibles al arrancar. En PostgreSQL existente, ejecutá con el propietario de la base las migraciones pendientes en orden: `db/003_migracion_v08.sql`, `db/004_migracion_v09.sql` y `db/005_migracion_v10.sql`. La migración `004` deja las membresías de red existentes como pendientes: cada escuela debe aceptar de nuevo antes de compartir agregados.
 
 Cuando algo falle, anotá el comando, el mensaje de error completo y las versiones de Node y Python. Los puntos con más
 riesgo son `smoke_http.py` (primera ejecución real de PyLTI1p3), `npm run dev` con las pantallas de revisión y,
