@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS xapi_erasure_blocks (
 CREATE TABLE IF NOT EXISTS open_assignments (
   id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, course_id TEXT, item_id TEXT NOT NULL,
   title TEXT NOT NULL, instructions TEXT NOT NULL DEFAULT '', assigned_by TEXT NOT NULL,
-  due_at TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  due_at TEXT, competency_id TEXT, rubric_snapshot TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS ix_open_assignments_tenant_course ON open_assignments (tenant_id, course_id);
 CREATE TABLE IF NOT EXISTS open_submissions (
@@ -60,7 +60,9 @@ CREATE INDEX IF NOT EXISTS ix_open_submissions_tenant_status ON open_submissions
 _SQLITE_NEW_COLUMNS = [("sessions", "course_id", "TEXT"), ("sessions", "course_label", "TEXT"),
                        ("responses", "hints", "INTEGER NOT NULL DEFAULT 0"),
                        ("sessions", "version", "INTEGER NOT NULL DEFAULT 0"),
-                       ("tenant_networks", "accepted", "INTEGER NOT NULL DEFAULT 0")]
+                       ("tenant_networks", "accepted", "INTEGER NOT NULL DEFAULT 0"),
+                       ("open_assignments", "competency_id", "TEXT"),
+                       ("open_assignments", "rubric_snapshot", "TEXT")]
 
 
 def _loads(x):
@@ -547,14 +549,17 @@ class Store:
 
     # ---- respuestas abiertas y corrección docente -------------------------------
     def create_open_assignment(self, assignment_id: str, tenant: str, course_id: str | None, item_id: str,
-                               title: str, instructions: str, assigned_by: str, due_at: str | None) -> None:
-        self._run(tenant, "INSERT INTO open_assignments (id, tenant_id, course_id, item_id, title, instructions, assigned_by, due_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                  (assignment_id, tenant, course_id, item_id, title, instructions, assigned_by, due_at))
+                               title: str, instructions: str, assigned_by: str, due_at: str | None,
+                               competency_id: str | None = None, rubric_snapshot: dict | None = None) -> None:
+        self._run(tenant, "INSERT INTO open_assignments (id, tenant_id, course_id, item_id, title, instructions, assigned_by, due_at, competency_id, rubric_snapshot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, {J})",
+                  (assignment_id, tenant, course_id, item_id, title, instructions, assigned_by, due_at,
+                   competency_id, json.dumps(rubric_snapshot) if rubric_snapshot is not None else None))
 
     def open_assignments_for_student(self, tenant: str, course_id: str | None, pid: str) -> list[dict]:
-        rows = self._run(tenant, "SELECT a.id, a.item_id, a.title, a.instructions, a.due_at, a.created_at, s.id AS submission_id, s.status, s.score, s.feedback, s.rubric, s.submitted_at FROM open_assignments a LEFT JOIN open_submissions s ON s.assignment_id = a.id AND s.tenant_id = a.tenant_id AND s.pid = ? WHERE a.tenant_id = ? AND (a.course_id IS NULL OR a.course_id = ?) ORDER BY a.created_at DESC",
+        rows = self._run(tenant, "SELECT a.id, a.item_id, a.title, a.instructions, a.due_at, a.competency_id, a.rubric_snapshot, a.created_at, s.id AS submission_id, s.status, s.score, s.feedback, s.rubric, s.submitted_at FROM open_assignments a LEFT JOIN open_submissions s ON s.assignment_id = a.id AND s.tenant_id = a.tenant_id AND s.pid = ? WHERE a.tenant_id = ? AND (a.course_id IS NULL OR a.course_id = ?) ORDER BY a.created_at DESC",
                          (pid, tenant, course_id), fetch=True)
-        return [{**r, "rubric": _loads(r["rubric"]) if r["rubric"] else None} for r in rows]
+        return [{**r, "rubric": _loads(r["rubric"]) if r["rubric"] else None,
+                 "rubric_snapshot": _loads(r["rubric_snapshot"]) if r.get("rubric_snapshot") else None} for r in rows]
 
     def submit_open_response(self, submission_id: str, assignment_id: str, tenant: str, pid: str, response: str) -> bool:
         # El vencimiento se comprueba en el propio INSERT para cerrar la carrera
@@ -576,7 +581,7 @@ class Store:
         return bool(rows)
 
     def open_assignments_for_teacher(self, tenant: str, course_id: str | None = None) -> list[dict]:
-        sql = "SELECT a.id, a.course_id, a.item_id, a.title, a.instructions, a.due_at, a.created_at, COUNT(s.id) AS submissions, SUM(CASE WHEN s.status = 'pendiente' THEN 1 ELSE 0 END) AS pending FROM open_assignments a LEFT JOIN open_submissions s ON s.assignment_id = a.id AND s.tenant_id = a.tenant_id WHERE a.tenant_id = ?"
+        sql = "SELECT a.id, a.course_id, a.item_id, a.title, a.instructions, a.due_at, a.competency_id, a.rubric_snapshot, a.created_at, COUNT(s.id) AS submissions, SUM(CASE WHEN s.status = 'pendiente' THEN 1 ELSE 0 END) AS pending FROM open_assignments a LEFT JOIN open_submissions s ON s.assignment_id = a.id AND s.tenant_id = a.tenant_id WHERE a.tenant_id = ?"
         params: tuple = (tenant,)
         if course_id:
             sql += " AND a.course_id = ?"; params += (course_id,)
@@ -584,11 +589,12 @@ class Store:
         return self._run(tenant, sql, params, fetch=True)
 
     def open_submissions_for_assignment(self, tenant: str, assignment_id: str) -> list[dict]:
-        rows = self._run(tenant, "SELECT id, pid, response, status, score, feedback, rubric, submitted_at, reviewed_by, reviewed_at FROM open_submissions WHERE tenant_id = ? AND assignment_id = ? ORDER BY submitted_at",
+        rows = self._run(tenant, "SELECT s.id, s.pid, s.response, s.status, s.score, s.feedback, s.rubric, s.submitted_at, s.reviewed_by, s.reviewed_at, a.competency_id, a.rubric_snapshot FROM open_submissions s JOIN open_assignments a ON a.id = s.assignment_id AND a.tenant_id = s.tenant_id WHERE s.tenant_id = ? AND s.assignment_id = ? ORDER BY s.submitted_at",
                          (tenant, assignment_id), fetch=True)
         return [{**{k: v for k, v in r.items() if k != "pid"},
                  "student_label": "Estudiante " + hashlib.sha256(r["pid"].encode()).hexdigest()[:6].upper(),
-                 "rubric": _loads(r["rubric"]) if r["rubric"] else None} for r in rows]
+                 "rubric": _loads(r["rubric"]) if r["rubric"] else None,
+                 "rubric_snapshot": _loads(r["rubric_snapshot"]) if r.get("rubric_snapshot") else None} for r in rows]
 
     def grade_open_submission(self, tenant: str, submission_id: str, reviewer: str, score: float, feedback: str, rubric: dict) -> bool:
         rows = self._run(tenant, "UPDATE open_submissions SET status = 'corregida', score = ?, feedback = ?, rubric = {J}, reviewed_by = ?, reviewed_at = {NOW} WHERE id = ? AND tenant_id = ? AND status = 'pendiente' RETURNING id",
@@ -596,11 +602,12 @@ class Store:
         return bool(rows)
 
     def open_submission_for_student(self, tenant: str, submission_id: str, pid: str) -> dict | None:
-        rows = self._run(tenant, "SELECT id, status, score, feedback, rubric, submitted_at, reviewed_at FROM open_submissions WHERE id = ? AND tenant_id = ? AND pid = ?",
+        rows = self._run(tenant, "SELECT s.id, s.status, s.score, s.feedback, s.rubric, s.submitted_at, s.reviewed_at, a.competency_id, a.rubric_snapshot FROM open_submissions s JOIN open_assignments a ON a.id = s.assignment_id AND a.tenant_id = s.tenant_id WHERE s.id = ? AND s.tenant_id = ? AND s.pid = ?",
                          (submission_id, tenant, pid), fetch=True)
         if not rows: return None
         r = rows[0]
-        return {**r, "rubric": _loads(r["rubric"]) if r["rubric"] else None}
+        return {**r, "rubric": _loads(r["rubric"]) if r["rubric"] else None,
+                "rubric_snapshot": _loads(r["rubric_snapshot"]) if r.get("rubric_snapshot") else None}
 
     def audit(self, tenant: str | None, actor: str, action: str, detail: str = "") -> None:
         self._run(tenant, "INSERT INTO audit_log (tenant_id, actor, action, detail) VALUES (?, ?, ?, ?)", (tenant, actor, action, detail))
