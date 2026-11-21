@@ -33,5 +33,5 @@ CREATE POLICY tenant_network_invite_update ON tenant_networks
 CREATE POLICY tenant_network_invite_delete ON tenant_networks
   FOR DELETE USING (
     network_id = NULLIF(current_setting('app.tenant_id', true), '')
-    OR (tenant_id = NULLIF(current_setting('app.tenant_id', true), '') AND accepted = false)
+    OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')
   );
