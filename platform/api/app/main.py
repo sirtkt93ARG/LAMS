@@ -342,7 +342,7 @@ def delete_my_data(user: User = Depends(current_user)):
     """Elimina datos locales; si hay un LRS externo, informa que su supresión requiere acción del proveedor."""
     pid = _pid(user)
     out = STORE.delete_learner(user.tenant_id, pid, actor=user.sub)
-    result = {**out, "local_data_deleted": True, "future_xapi_exports_blocked": True}
+    result = {**out, "local_data_deleted": True, "future_xapi_exports_blocked": True, "suppression_marker_retained": True}
     if LRS_URL:
         result["external_lrs"] = {
             "status": "manual_action_required",
