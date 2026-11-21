@@ -48,6 +48,17 @@ class TestPostgresStore(unittest.TestCase):
         self.assertEqual(self.store.network_tenants(network), [school])
         self.assertEqual(self.store.pending_invites(school), [])
 
+    def test_school_cannot_forge_network_memberships(self):
+        suffix = uuid4().hex
+        school = f"school-{suffix}"
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+            with psycopg.connect(APP_URL) as conn:
+                conn.execute("SELECT set_config('app.tenant_id', %s, true)", (school,))
+                conn.execute(
+                    "INSERT INTO tenant_networks (network_id, tenant_id, accepted) VALUES (%s, %s, false)",
+                    (f"forged-network-{suffix}", school),
+                )
+
     def test_session_rows_are_isolated_by_tenant(self):
         suffix = uuid4().hex
         session_id, tenant = f"session-{suffix}", f"tenant-{suffix}"
