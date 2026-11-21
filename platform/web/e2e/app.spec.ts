@@ -5,7 +5,7 @@ async function login(page: Page, role: "student" | "teacher" | "admin" | "networ
   await page.goto("/");
   await page.getByLabel("Usuario").fill(`browser-${role}`);
   await page.getByRole("textbox", { name: "Escuela" }).fill("escuela-browser");
-  await page.getByLabel("Rol").selectOption(role);
+  await page.getByRole("combobox", { name: "Rol", exact: true }).selectOption(role);
   await page.getByRole("button", { name: "Entrar como usuario de prueba" }).click();
 }
 
