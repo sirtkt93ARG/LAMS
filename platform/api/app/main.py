@@ -533,6 +533,21 @@ def network_invite_answer(network_id: str, decision: str, user: User = Depends(c
     return {"invites": STORE.pending_invites(user.tenant_id)}
 
 
+@app.get("/v1/teacher/network-memberships")
+def network_memberships(user: User = Depends(current_user)):
+    _teacher(user)
+    return {"memberships": STORE.network_memberships(user.tenant_id)}
+
+
+@app.delete("/v1/teacher/network-memberships/{network_id}")
+def network_membership_revoke(network_id: str, user: User = Depends(current_user)):
+    _teacher(user)
+    if not STORE.revoke_network_membership(network_id, user.tenant_id):
+        raise HTTPException(404, "no existe un vínculo activo con esa red")
+    STORE.audit(user.tenant_id, user.sub, "consentimiento_red_revocado", network_id)
+    return {"memberships": STORE.network_memberships(user.tenant_id)}
+
+
 @app.get("/v1/network/summary")
 def network_summary(user: User = Depends(current_user)):
     """Resumen por escuela con supresión de celdas pequeñas: las escuelas con menos de 10 estudiantes se agrupan en
