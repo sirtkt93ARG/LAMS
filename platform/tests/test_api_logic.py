@@ -136,6 +136,8 @@ class TestApiLogic(unittest.TestCase):
         self.assertTrue(body["suppression_marker_retained"])
         self.assertEqual(body["external_lrs"]["status"], "manual_action_required")
         self.assertEqual(body["external_lrs"]["agent"]["account"]["name"], M._pid(user))
+        self.assertEqual(body["external_lrs"]["agent"]["account"]["homePage"],
+                         f"https://{user.tenant_id}.tenants.matheval.example")
         self.assertEqual(body["audit_events_redacted"], 1)
         events = M.STORE.audit_list(user.tenant_id)
         self.assertFalse(any(event["actor"] == user.sub for event in events))
@@ -165,7 +167,7 @@ class TestApiLogic(unittest.TestCase):
             fn(*args)
         send.assert_not_called()
 
-    def test_data_erasure_is_complete_when_no_external_lrs_is_configured(self):
+    def test_data_erasure_does_not_claim_external_completion_without_current_lrs(self):
         user = User("alumno-borrar-local", "escuela-borrar-local", "student")
         M.start(M.StartIn(), user)
         with patch.object(M, "LRS_URL", None):
