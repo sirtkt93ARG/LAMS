@@ -149,7 +149,12 @@ class TestApiLogic(unittest.TestCase):
         tasks = BackgroundTasks()
         with patch.object(M, "LRS_URL", "https://lrs.example"):
             M.answer(sid, M.AnswerIn(item_id=item.id, response=str(item.correct)), tasks, user)
-        xapi_tasks = [task for task in tasks.tasks if task[0] is M._post_xapi_if_not_erased]
+        xapi_tasks = []
+        for task in tasks.tasks:
+            fn = task.func if hasattr(task, "func") else task[0]
+            args = task.args if hasattr(task, "args") else task[1]
+            if fn is M._post_xapi_if_not_erased:
+                xapi_tasks.append((fn, args))
         self.assertEqual(len(xapi_tasks), 1)
 
         M.delete_my_data(user)
