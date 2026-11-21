@@ -6,7 +6,12 @@ _DEFAULTS = {"cambiar", "cambiar-en-produccion", "changeme", "secret", "password
 
 
 def _weak(value: str | None) -> bool:
-    return not value or len(value) < MIN_SECRET or value.strip().lower() in _DEFAULTS
+    if not value:
+        return True
+    normalized = value.strip().lower()
+    return (len(normalized) < MIN_SECRET or normalized in _DEFAULTS
+            or normalized.startswith(("dev-", "test-", "example-", "sample-"))
+            or "cambiar" in normalized or "changeme" in normalized)
 
 
 def _local_http(value: str) -> bool:
