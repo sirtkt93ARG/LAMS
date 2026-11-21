@@ -7,6 +7,19 @@ cumplimiento), esfuerzo y posibilidad de verificarlo. El CI actual incluye prueb
 PyLTI1p3 contra un LMS simulado, Playwright/axe en Chromium y un recorrido integral del stack local de Docker Compose.
 Los servicios institucionales/productivos y la revisión manual siguen pendientes.
 
+## Incorporado en la versión 0.8: respuestas abiertas y corrección docente
+
+| Funcionalidad | Por qué | Estado |
+|---|---|---|
+| Actividades de respuesta abierta creadas por docentes a partir del banco | Permite evaluar razonamiento, argumentación y procedimientos que no se reducen a una opción múltiple | Flujo implementado en API y web; asignación por escuela o curso disponible en la interfaz docente |
+| Entrega única por estudiante y actividad, con aislamiento por escuela | Evita duplicados y cruces de datos entre instituciones | Restricción única, RLS y pruebas SQLite/PostgreSQL 16 |
+| Corrección manual con puntuación, rúbrica de criterios 0–4 y devolución escrita | Hace visible el razonamiento y permite retroalimentación formativa | Implementado para el primer corte; la rúbrica es orientativa y sus criterios no están aún ligados a competencias curriculares |
+| Consulta de entregas y devolución al estudiante | Cierra el ciclo entre consigna, respuesta y retroalimentación | Implementado; el estudiante ve el estado y la corrección desde su espacio |
+| Supresión de entregas abiertas junto con los datos locales del estudiante | Mantiene coherencia con el derecho de supresión | Incluido en el flujo de borrado y probado en PostgreSQL 16 |
+| Identificación de entregas mediante seudónimo | Evita exponer nombres personales en la plataforma | El docente ve una etiqueta seudónima; la vinculación con el roster del LMS requiere integración institucional adicional |
+
+**Límites del primer corte:** cada estudiante puede entregar una sola vez; no hay todavía reentrega, historial de revisiones, cancelación de actividades ni avisos de vencimiento. La rúbrica permite puntuar criterios definidos en la interfaz, pero aún no ofrece bibliotecas de rúbricas por competencia ni descriptores por nivel. El flujo no forma parte del motor adaptativo ni de la calibración psicométrica.
+
 ## Incorporado en la versión 0.7: microdatos de PISA, errores estándar y brechas
 
 | Funcionalidad | Por qué | Estado |
