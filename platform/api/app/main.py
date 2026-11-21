@@ -3,6 +3,7 @@ auditoría se guardan con `Store` (SQLite en desarrollo, PostgreSQL con RLS en p
 seudónimo del usuario; el identificador real vive en el LMS."""
 from __future__ import annotations
 import csv
+import hashlib
 import io
 import json
 import logging
@@ -79,6 +80,35 @@ async def observe(request, call_next):
 # ---- utilidades --------------------------------------------------------------------
 def _pid(user: User) -> str:
     return pseudonymize(user.sub, SECRET + user.tenant_id.encode())
+
+
+def _student_label(sub: str, tenant: str) -> str:
+    pid = pseudonymize(sub, SECRET + tenant.encode())
+    return "Estudiante " + hashlib.sha256(pid.encode()).hexdigest()[:6].upper()
+
+
+def _nrps_names(user: User) -> dict[str, str]:
+    """Consulta nombres en vivo al LMS; no persiste roster ni datos personales."""
+    if not user.nrps or not LTI_SERVICE_URL:
+        return {}
+    try:
+        req = urllib.request.Request(
+            LTI_SERVICE_URL.rstrip("/") + "/lti/nrps/roster",
+            data=json.dumps({"nrps": user.nrps}).encode(),
+            method="POST",
+            headers={"Content-Type": "application/json", "X-Internal-Secret": os.getenv("LTI_HANDOFF_SECRET", "")},
+        )
+        with urllib.request.urlopen(req, timeout=5) as response:  # noqa: S310 (servicio interno configurado)
+            members = json.loads(response.read()).get("members", [])
+        return {
+            _student_label(member["user_id"], user.tenant_id): member["name"]
+            for member in members
+            if isinstance(member, dict) and isinstance(member.get("user_id"), str)
+            and isinstance(member.get("name"), str) and member["name"].strip()
+        }
+    except Exception:  # noqa: BLE001
+        log.warning("no se pudo consultar el roster NRPS; se mantienen los seudónimos")
+        return {}
 
 
 def _post_xapi_if_not_erased(tenant: str, pid: str, lrs_url: str, statements: list[dict],
@@ -514,7 +544,13 @@ def teacher_open_submissions(assignment_id: str, user: User = Depends(current_us
     assignments = {a["id"] for a in STORE.open_assignments_for_teacher(user.tenant_id)}
     if assignment_id not in assignments:
         raise HTTPException(404, "actividad no encontrada")
-    return {"submissions": STORE.open_submissions_for_assignment(user.tenant_id, assignment_id)}
+    submissions = STORE.open_submissions_for_assignment(user.tenant_id, assignment_id)
+    names = _nrps_names(user)
+    for submission in submissions:
+        student_name = names.get(submission["student_label"])
+        if student_name:
+            submission["student_name"] = student_name
+    return {"submissions": submissions}
 
 
 @app.post("/v1/teacher/open-submissions/{submission_id}/grade")
