@@ -26,6 +26,21 @@ class TestHttp(unittest.TestCase):
     def setUpClass(cls):
         cls.c = TestClient(M.app)
 
+    def test_readiness_checks_database_connectivity(self):
+        ready = self.c.get("/readyz")
+        self.assertEqual(ready.status_code, 200)
+        self.assertEqual(ready.json(), {"ok": True, "database": "ok"})
+        original = M.STORE.ping
+        M.STORE.ping = lambda: (_ for _ in ()).throw(RuntimeError("database unavailable"))
+        try:
+            unavailable = self.c.get("/readyz")
+            self.assertEqual(unavailable.status_code, 503)
+            self.assertEqual(unavailable.json(), {"ok": False, "dependency": "database"})
+            # Liveness stays healthy: a DB outage must not trigger restart loops.
+            self.assertEqual(self.c.get("/healthz").status_code, 200)
+        finally:
+            M.STORE.ping = original
+
     def test_health_and_auth_required(self):
         r = self.c.get("/healthz")
         self.assertEqual(r.status_code, 200)
