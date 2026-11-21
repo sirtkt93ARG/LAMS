@@ -26,7 +26,9 @@ export default function ReviewDetail() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!getAuth()) { router.replace("/"); return; }
+    const auth = getAuth();
+    if (!auth) { router.replace("/"); return; }
+    if (auth.role !== "admin") { router.replace("/teacher"); return; }
     api.reviewSample(tid).then(setSample).catch((e) => setError(messageFor(e)));
   }, [tid, router]);
 
