@@ -4,7 +4,7 @@ import importlib.util, os, sys, types, unittest
 sys.path.insert(0, os.getcwd())
 import jwt
 
-os.environ.update({"LTI_SECRET_KEY": "k", "LTI_HANDOFF_SECRET": "h" * 40, "WEB_URL": "http://web.test", "LTI_CONFIG": "no-existe/x.json"})
+os.environ.update({"MATHEVAL_DEV": "1", "LTI_SECRET_KEY": "k" * 40, "LTI_HANDOFF_SECRET": "h" * 40, "WEB_URL": "http://web.test", "LTI_CONFIG": "no-existe/x.json"})
 R = "https://purl.imsglobal.org/spec/lti/claim/roles"
 D = "https://purl.imsglobal.org/spec/lti/claim/deployment_id"
 
@@ -51,12 +51,14 @@ class TestLtiService(unittest.TestCase):
     def _token(self, resp):
         loc = resp.headers["Location"]
         self.assertTrue(loc.startswith("http://web.test/lti/enter?token="))
-        return jwt.decode(loc.split("token=")[1], "h" * 40, algorithms=["HS256"])
+        return jwt.decode(loc.split("token=")[1], "h" * 40, algorithms=["HS256"], issuer="matheval-lti", audience="matheval-api")
 
     def test_teacher_and_student_roles_and_tenant(self):
         self.Launch.data = {"sub": "u1", "iss": "http://lms", D: "dep-7", R: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"]}
         t = self._token(self.c.post("/lti/launch/"))
         self.assertEqual((t["role"], t["tenant_id"], t["sub"]), ("teacher", "dep-7", "u1"))
+        self.assertTrue(t["jti"])
+        self.assertEqual((t["iss"], t["aud"]), ("matheval-lti", "matheval-api"))
         self.Launch.data = {"sub": "u2", "iss": "http://lms", D: "dep-7", R: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"]}
         self.assertEqual(self._token(self.c.post("/lti/launch/"))["role"], "student")
 
