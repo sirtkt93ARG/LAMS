@@ -64,7 +64,9 @@ class TestLtiService(unittest.TestCase):
         self.assertEqual(t["nrps"], {"iss": "http://lms", "client_id": "client-1",
                                      "context_memberships_url": "https://lms.test/members"})
         self.Launch.data = {"sub": "u2", "iss": "http://lms", D: "dep-7", R: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"]}
-        self.assertEqual(self._token(self.c.post("/lti/launch/"))["role"], "student")
+        student_token = self._token(self.c.post("/lti/launch/"))
+        self.assertEqual(student_token["role"], "student")
+        self.assertNotIn("nrps", student_token)
 
     def test_incomplete_launch_is_400_and_token_is_short_lived(self):
         self.Launch.data = {"sub": "u1", "iss": "x"}                       # falta deployment_id
