@@ -98,7 +98,7 @@ def fetch_memberships(context_memberships_url: str, token: str, *, issuer: str,
 
 def fetch_roster(context_memberships_url: str, issuer: str, client_id: str, token_url: str,
                  private_pem: bytes, kid: str, *, allowed_hosts: list[str] | None = None,
-                 dev: bool = False, timeout: float = 10) -> list[dict]:
+                 dev: bool = False, timeout: float = 4) -> list[dict]:
     """Solicita el scope NRPS al LMS y descarga el roster validando cada URL de paginación."""
     _allowed_url(context_memberships_url, issuer, allowed_hosts, dev)
     token = get_access_token(token_url, client_id, private_pem, kid, scope=SCOPE_NRPS, timeout=timeout)
