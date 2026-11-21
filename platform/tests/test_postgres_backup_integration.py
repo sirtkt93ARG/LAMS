@@ -58,6 +58,7 @@ import sys
 
 container = os.environ["MATHEVAL_POSTGRES_CONTAINER"]
 tool = Path(sys.argv[0]).name
+arguments = sys.argv[1:]
 environment = []
 for key in (
     "PGHOST", "PGPORT", "PGUSER", "PGDATABASE", "PGSSLMODE",
@@ -66,10 +67,45 @@ for key in (
     if os.environ.get(key):
         environment.extend(["--env", f"{key}={os.environ[key]}"])
 
+remote_dir = f"/tmp/matheval-pg-client-{os.getpid()}"
 remote_passfile = None
+remote_dump = None
+host_output = None
+if tool == "pg_dump" and "--file" in arguments:
+    output_index = arguments.index("--file") + 1
+    host_output = Path(arguments[output_index])
+    remote_dump = f"{remote_dir}/{host_output.name}"
+    arguments[output_index] = remote_dump
+elif tool == "pg_restore" and arguments and not arguments[-1].startswith("-"):
+    host_input = Path(arguments[-1])
+    remote_dump = f"{remote_dir}/{host_input.name}"
+    subprocess.run(
+        ["docker", "exec", container, "mkdir", "-p", remote_dir],
+        check=True,
+    )
+    subprocess.run(
+        ["docker", "cp", str(host_input), f"{container}:{remote_dump}"],
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    arguments[-1] = remote_dump
+
+if remote_dump and host_output:
+    subprocess.run(
+        ["docker", "exec", container, "mkdir", "-p", remote_dir],
+        check=True,
+    )
+
 host_passfile = os.environ.get("PGPASSFILE")
 if host_passfile:
-    remote_passfile = f"/tmp/matheval-pgpass-{os.getpid()}"
+    if remote_passfile is None:
+        remote_passfile = f"{remote_dir}/pgpass"
+    else:
+        remote_passfile = f"{remote_dir}/pgpass"
+    subprocess.run(
+        ["docker", "exec", container, "mkdir", "-p", remote_dir],
+        check=True,
+    )
     subprocess.run(
         ["docker", "cp", host_passfile, f"{container}:{remote_passfile}"],
         check=True,
@@ -83,18 +119,23 @@ if host_passfile:
 
 try:
     result = subprocess.run(
-        ["docker", "exec", *environment, container, tool, *sys.argv[1:]],
+        ["docker", "exec", *environment, container, tool, *arguments],
         check=False,
     )
+    if result.returncode == 0 and host_output and remote_dump:
+        subprocess.run(
+            ["docker", "cp", f"{container}:{remote_dump}", str(host_output)],
+            check=True,
+            stdout=subprocess.DEVNULL,
+        )
     raise SystemExit(result.returncode)
 finally:
-    if remote_passfile:
-        subprocess.run(
-            ["docker", "exec", container, "rm", "-f", remote_passfile],
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+    subprocess.run(
+        ["docker", "exec", container, "rm", "-rf", remote_dir],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 """
                         for tool in ("pg_dump", "pg_restore", "psql"):
                             wrapper = wrapper_dir / tool
