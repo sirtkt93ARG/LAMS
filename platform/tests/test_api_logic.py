@@ -133,6 +133,7 @@ class TestApiLogic(unittest.TestCase):
         body = json.loads(result.body)
         self.assertFalse(body["erasure_complete"])
         self.assertTrue(body["future_xapi_exports_blocked"])
+        self.assertTrue(body["suppression_marker_retained"])
         self.assertEqual(body["external_lrs"]["status"], "manual_action_required")
         self.assertEqual(body["external_lrs"]["agent"]["account"]["name"], M._pid(user))
         self.assertEqual(body["audit_events_redacted"], 1)
@@ -171,6 +172,8 @@ class TestApiLogic(unittest.TestCase):
             result = M.delete_my_data(user)
         self.assertIsNone(result["erasure_complete"])
         self.assertTrue(result["future_xapi_exports_blocked"])
+        self.assertTrue(result["suppression_marker_retained"])
+        self.assertTrue(result["suppression_marker_retained"])
         self.assertEqual(result["external_lrs"]["status"], "not_configured_currently")
 
     def test_student_view_hides_answers(self):
