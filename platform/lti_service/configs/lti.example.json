@@ -1,0 +1,12 @@
+{
+  "https://moodle.escuela.example": [{
+    "default": true,
+    "client_id": "REEMPLAZAR",
+    "auth_login_url": "https://moodle.escuela.example/mod/lti/auth.php",
+    "auth_token_url": "https://moodle.escuela.example/mod/lti/token.php",
+    "key_set_url": "https://moodle.escuela.example/mod/lti/certs.php",
+    "private_key_file": "keys/private.key",
+    "public_key_file": "keys/public.key",
+    "deployment_ids": ["REEMPLAZAR"]
+  }]
+}

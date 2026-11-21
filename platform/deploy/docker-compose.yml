@@ -1,0 +1,46 @@
+# Entorno local. NO PROBADO en este entorno (sin Docker ni red). Revisar versiones de imagen y las variables
+# de Ralph y ClickHouse en su documentación antes de usar. Ejecutar desde la carpeta deploy/.
+services:
+  db:
+    image: postgres:16
+    environment: { POSTGRES_PASSWORD: cambiar, POSTGRES_DB: matheval }
+    volumes: ["../db/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro", "pgdata:/var/lib/postgresql/data"]
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: start-dev --import-realm
+    environment: { KC_BOOTSTRAP_ADMIN_USERNAME: admin, KC_BOOTSTRAP_ADMIN_PASSWORD: cambiar }
+    volumes: ["./keycloak/matheval-realm.json:/opt/keycloak/data/import/matheval-realm.json:ro"]
+    ports: ["8080:8080"]
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    volumes: ["chdata:/var/lib/clickhouse"]
+  ralph:                                    # LRS xAPI (MIT). Verificar imagen y variables en la documentación de Ralph
+    image: fundocker/ralph:latest
+    depends_on: [clickhouse]
+    ports: ["8100:8100"]
+  api:
+    build: { context: .., dockerfile: deploy/Dockerfile.api }
+    environment:
+      MATHEVAL_DEV: "1"                      # quitar en producción
+      OIDC_ISSUER: http://keycloak:8080/realms/matheval
+      WEB_ORIGIN: http://localhost:3000
+      SESSION_SECRET: cambiar-por-un-valor-largo-y-aleatorio-1234567890
+      LTI_HANDOFF_SECRET: cambiar-por-otro-valor-largo-y-aleatorio-123456
+      PSEUDONYM_SECRET: cambiar
+      DATABASE_URL: postgresql://matheval_app:cambiar-en-produccion@db:5432/matheval
+      LRS_URL: http://ralph:8100
+    depends_on: [db, keycloak]
+    ports: ["8000:8000"]
+  lti:
+    build: { context: .., dockerfile: deploy/Dockerfile.lti }
+    environment:
+      LTI_SECRET_KEY: cambiar
+      LTI_HANDOFF_SECRET: cambiar-por-otro-valor-largo-y-aleatorio-123456
+      WEB_URL: http://localhost:3000
+      LTI_CONFIG: /app/lti_service/configs/lti.json
+    ports: ["8200:8200"]
+  web:
+    build: { context: .., dockerfile: deploy/Dockerfile.web }
+    depends_on: [api]
+    ports: ["3000:3000"]
+volumes: { pgdata: {}, chdata: {} }
