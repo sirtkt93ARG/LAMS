@@ -1,6 +1,6 @@
 # Levanta todo en Windows: API, servicio LTI, LMS simulado y web, cada uno en su ventana.
-# Uso (desde la carpeta platform):   .\scripts\dev.ps1        (modo desarrollo)
-#                                     .\scripts\dev.ps1 -Prod  (sin atajos de desarrollo: entra solo por el LMS simulado)
+# Uso (desde la carpeta platform): .\scripts\dev.ps1       (desarrollo)
+#                                .\scripts\dev.ps1 -Prod   (requiere secretos y PostgreSQL externos)
 param([switch]$Prod)
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -13,21 +13,28 @@ if (-not (Test-Path "data\bank_demo.jsonl")) { & $py scripts\generate_bank.py }
 if (-not (Test-Path "web\.env.local")) { Copy-Item "web\.env.example" "web\.env.local" }
 
 $env:PYTHONPATH = "$root\src"
-$env:SESSION_SECRET = "dev-session-secret-cambiar-0123456789abcdef"
-$env:LTI_HANDOFF_SECRET = "dev-handoff-secret-cambiar-0123456789abcdef"
-$env:LTI_SECRET_KEY = "dev-flask-secret"
+if ($Prod) {
+  Remove-Item Env:MATHEVAL_DEV -ErrorAction SilentlyContinue
+  foreach ($key in @("SESSION_SECRET", "LTI_HANDOFF_SECRET", "LTI_SECRET_KEY", "PSEUDONYM_SECRET", "DATABASE_URL")) {
+    if (-not [Environment]::GetEnvironmentVariable($key)) { throw "Definí $key antes de ejecutar -Prod. Se requieren secretos fuertes y PostgreSQL." }
+  }
+  if (-not $env:WEB_ORIGIN) { $env:WEB_ORIGIN = "http://localhost:3000" }
+  $env:NEXT_PUBLIC_DEV = "0"
+  & $py scripts\seed_reviews.py
+} else {
+  $env:MATHEVAL_DEV = "1"
+  $env:NEXT_PUBLIC_DEV = "1"
+  $env:SESSION_SECRET = "dev-session-secret-cambiar-0123456789abcdef"
+  $env:LTI_HANDOFF_SECRET = "dev-handoff-secret-cambiar-0123456789abcdef"
+  $env:LTI_SECRET_KEY = "dev-flask-secret"
+  $env:PSEUDONYM_SECRET = "dev-pseudonym-secret-cambiar-0123456789abcdef"
+  if (-not $env:DATABASE_URL) { $env:DATABASE_URL = "sqlite:///data/matheval.db" }
+  if (-not $env:WEB_ORIGIN) { $env:WEB_ORIGIN = "http://localhost:3000" }
+}
 $env:LTI_CONFIG = "$root\lti_service\configs\lti.mock.json"
 $env:WEB_URL = "http://localhost:3000"
 $env:TOOL_BASE = "http://localhost:8200"
 $env:LTI_SERVICE_URL = "http://localhost:8200"
-if ($Prod) {
-  Remove-Item Env:MATHEVAL_DEV -ErrorAction SilentlyContinue
-  & $py scripts\seed_reviews.py
-  $env:NEXT_PUBLIC_DEV = "0"
-} else {
-  $env:MATHEVAL_DEV = "1"
-  $env:NEXT_PUBLIC_DEV = "1"
-}
 function Launch($title, $cmd) {
   Start-Process powershell -ArgumentList "-NoExit", "-Command", "`$Host.UI.RawUI.WindowTitle = '$title'; Set-Location '$root'; $cmd"
 }
@@ -39,4 +46,4 @@ Write-Host ""
 Write-Host "Se abrieron 4 ventanas. Cuando la web diga 'Ready':"
 Write-Host "  Web:               http://localhost:3000"
 Write-Host "  Aula simulada:     http://localhost:8300   (prueba del ingreso por LTI)"
-Write-Host "  Prueba automática: $py scripts\smoke_http.py"
+Write-Host "  Usuario de prueba: alumno-1 / escuela-1 (solo modo desarrollo)"

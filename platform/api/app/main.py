@@ -31,12 +31,18 @@ from matheval.observatory.data import AVG_NAME, DOMAINS, load_csv, load_gaps
 from matheval.scoring import score_response
 from matheval.skills import SKILLS
 from matheval.xapi import answered_statement, post_statements, pseudonymize
-from .auth import DEV, User, current_user, mint_session_token, verify_handoff
+from .auth import DEV, User, current_user, mint_session_token, set_token_consumer, verify_handoff
 from .limits import RateLimiter
 from .review import CHECKLIST, REQUIRED, apply_calibration, apply_reviews, scope_of, template_status
+from .security import check_config
 from .store import Store
 
 log = logging.getLogger("matheval")
+_config_errors, _config_warnings = check_config(os.environ, DEV)
+for _warning in _config_warnings:
+    log.warning("configuración: %s", _warning)
+if _config_errors:
+    raise RuntimeError("Configuración insegura: " + "; ".join(_config_errors))
 app = FastAPI(title="matheval API", version="0.7.0")
 app.add_middleware(CORSMiddleware, allow_origins=[os.getenv("WEB_ORIGIN", "http://localhost:3000")],
                    allow_methods=["*"], allow_headers=["*"])
@@ -44,6 +50,7 @@ BANK = ItemBank.load(os.getenv("BANK_PATH", "data/bank_demo.jsonl"))
 OBS = load_csv(os.getenv("OBSERVATORY_PATH", "data/observatory/pisa_agregados.csv"))
 GAPS = load_gaps(os.getenv("OBSERVATORY_GAPS_PATH", "data/observatory/pisa_brechas.csv"))
 STORE = Store(os.getenv("DATABASE_URL", "sqlite:///data/matheval.db"))
+set_token_consumer(STORE.consume_token)
 apply_reviews(BANK, STORE)
 apply_calibration(BANK, os.getenv("CALIBRATION_PATH", "data/calibration.json"))
 SECRET = os.getenv("PSEUDONYM_SECRET", "cambiar-en-produccion").encode()

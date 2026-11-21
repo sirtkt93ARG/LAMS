@@ -34,6 +34,7 @@ services:
   lti:
     build: { context: .., dockerfile: deploy/Dockerfile.lti }
     environment:
+      MATHEVAL_DEV: "1"                      # mismo modo local que la API; quitar en producción
       LTI_SECRET_KEY: cambiar
       LTI_HANDOFF_SECRET: cambiar-por-otro-valor-largo-y-aleatorio-123456
       WEB_URL: http://localhost:3000

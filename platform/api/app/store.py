@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS tenant_settings (
   tenant_id TEXT PRIMARY KEY, consent_attested_at TEXT, consent_attested_by TEXT, retention_days INTEGER NOT NULL DEFAULT 365);
 CREATE TABLE IF NOT EXISTS tenant_networks (
   network_id TEXT NOT NULL, tenant_id TEXT NOT NULL, PRIMARY KEY (network_id, tenant_id));
+CREATE TABLE IF NOT EXISTS used_tokens (
+  jti TEXT PRIMARY KEY, used_at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE TABLE IF NOT EXISTS audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL DEFAULT (datetime('now')), tenant_id TEXT, actor TEXT NOT NULL,
   action TEXT NOT NULL, detail TEXT);
@@ -155,6 +157,25 @@ class Store:
     def network_tenants(self, network_id: str) -> list[str]:
         rows = self._run(None, "SELECT tenant_id FROM tenant_networks WHERE network_id = ? ORDER BY tenant_id", (network_id,), fetch=True)
         return [r["tenant_id"] for r in rows]
+
+    def consume_token(self, jti: str) -> bool:
+        """Consume an LTI handoff JTI atomically; a token can be exchanged only once."""
+        if not jti:
+            return False
+        if self.dialect == "sqlite":
+            with self._lock:
+                self._conn.execute("DELETE FROM used_tokens WHERE used_at < datetime('now', '-1 hour')")
+                cur = self._conn.execute(
+                    "INSERT INTO used_tokens (jti) VALUES (?) ON CONFLICT(jti) DO NOTHING", (jti,))
+                self._conn.commit()
+                return cur.rowcount == 1
+        import psycopg
+        with psycopg.connect(self.url) as conn:
+            with conn.transaction():
+                conn.execute("DELETE FROM used_tokens WHERE used_at < now() - interval '1 hour'")
+                cur = conn.execute(
+                    "INSERT INTO used_tokens (jti) VALUES (%s) ON CONFLICT (jti) DO NOTHING RETURNING jti", (jti,))
+                return cur.fetchone() is not None
 
     def courses(self, tenant: str) -> list[dict]:
         return self._run(tenant, "SELECT course_id, MAX(course_label) AS course_label, COUNT(*) AS sessions FROM sessions "
