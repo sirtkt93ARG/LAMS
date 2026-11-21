@@ -348,6 +348,20 @@ class TestApiLogic(unittest.TestCase):
             M.network_invite_answer("red-p", "other", school_teacher)
         self.assertEqual(c.exception.status_code, 400)
 
+    def test_school_can_revoke_network_sharing_consent(self):
+        network = User("red-consent", "red-consent", "network")
+        school = User("teacher-consent", "school-consent", "teacher")
+        M.network_add(M.NetworkInviteIn(tenant_id=school.tenant_id), network)
+        M.network_invite_answer("red-consent", "accept", school)
+        self.assertEqual(M.network_memberships(school.tenant_id), ["red-consent"])
+        self.assertEqual(M.network_membership_revoke("red-consent", school)["memberships"], [])
+        with self.assertRaises(HTTPException) as c:
+            M.network_membership_revoke("red-consent", school)
+        self.assertEqual(c.exception.status_code, 404)
+        with self.assertRaises(HTTPException) as c:
+            M.network_membership_revoke("red-consent", network)
+        self.assertEqual(c.exception.status_code, 403)
+
     def test_observatory_endpoints(self):
         u = User("any", "t", "student")
         meta = M.obs_meta(u)
