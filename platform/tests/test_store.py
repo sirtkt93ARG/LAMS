@@ -53,6 +53,15 @@ class TestStore(unittest.TestCase):
         self.assertTrue(self.store.answer_invite("red", "school-b", False))
         self.assertEqual(self.store.pending_network_tenants("red"), [])
 
+    def test_school_can_revoke_accepted_network_sharing(self):
+        self.store.add_network_tenant("red", "school-a")
+        self.assertTrue(self.store.answer_invite("red", "school-a", True))
+        self.assertEqual(self.store.network_memberships("school-a"), ["red"])
+        self.assertTrue(self.store.revoke_network_membership("red", "school-a"))
+        self.assertEqual(self.store.network_memberships("school-a"), [])
+        self.assertEqual(self.store.network_tenants("red"), [])
+        self.assertFalse(self.store.revoke_network_membership("red", "school-a"))
+
     def test_mst_snapshot_roundtrip(self):
         pool = _pool()
         d = build_design(pool)
