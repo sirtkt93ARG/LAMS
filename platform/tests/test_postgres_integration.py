@@ -35,6 +35,8 @@ class TestPostgresStore(unittest.TestCase):
                 root / "db/006_migracion_v11.sql",
                 root / "db/007_migracion_v12.sql",
                 root / "db/008_migracion_v13.sql",
+                root / "db/009_migracion_v14.sql",
+                root / "db/010_migracion_v15.sql",
             ):
                 conn.execute(migration.read_text(encoding="utf-8"), prepare=False)
         cls.store = Store(APP_URL)
@@ -114,6 +116,81 @@ class TestPostgresStore(unittest.TestCase):
         ))
         self.assertEqual(self.store.load_session(session_id, tenant)["state"], {"step": 1})
         self.assertEqual(len(self.store.responses_for_pid(tenant, pid)), 1)
+
+    def test_delete_learner_redacts_audit_actor_inside_tenant_scope(self):
+        suffix = uuid4().hex
+        tenant, pid, actor = f"tenant-erase-{suffix}", f"pid-erase-{suffix}", f"actor-erase-{suffix}"
+        self.store.create_session(f"erase-{suffix}", tenant, pid, "practica", {"step": 0})
+        self.store.audit(tenant, actor, "exportacion_csv", "dato-privado")
+        out = self.store.delete_learner(tenant, pid, actor=actor)
+        self.assertEqual(out["sessions"], 1)
+        self.assertEqual(out["audit_events_redacted"], 1)
+        events = self.store.audit_list(tenant)
+        self.assertTrue(any(e["actor"] == "redacted" and e["detail"] is None for e in events))
+        self.assertFalse(any(e["actor"] == actor for e in events))
+
+    def test_xapi_export_and_erasure_share_a_durable_tenant_lock(self):
+        suffix = uuid4().hex
+        tenant, pid = f"tenant-xapi-erase-{suffix}", f"pid-xapi-erase-{suffix}"
+        self.store.create_session(f"xapi-erase-{suffix}", tenant, pid, "practica", {"step": 0})
+        sent = []
+        self.assertTrue(self.store.run_if_xapi_export_allowed(tenant, pid, lambda: sent.append("before")))
+        self.assertEqual(sent, ["before"])
+
+        self.store.delete_learner(tenant, pid)
+        self.assertFalse(self.store.run_if_xapi_export_allowed(tenant, pid, lambda: sent.append("after")))
+        self.assertEqual(sent, ["before"])
+
+    def test_xapi_erasure_block_is_isolated_between_tenants(self):
+        suffix = uuid4().hex
+        pid = f"shared-pid-{suffix}"
+        tenant_a, tenant_b = f"tenant-a-{suffix}", f"tenant-b-{suffix}"
+        self.store.delete_learner(tenant_a, pid)
+        sent = []
+        self.assertFalse(self.store.run_if_xapi_export_allowed(
+            tenant_a, pid, lambda: sent.append("blocked")
+        ))
+        self.assertTrue(self.store.run_if_xapi_export_allowed(
+            tenant_b, pid, lambda: sent.append("other-tenant")
+        ))
+        self.assertEqual(sent, ["other-tenant"])
+
+    def test_concurrent_xapi_send_finishes_before_erasure_and_blocks_later_sends(self):
+        suffix = uuid4().hex
+        tenant, pid = f"tenant-xapi-race-{suffix}", f"pid-xapi-race-{suffix}"
+        started = threading.Event()
+        release = threading.Event()
+        sent = []
+
+        def send():
+            started.set()
+            if not release.wait(timeout=10):
+                raise TimeoutError("test did not release the in-flight xAPI send")
+            sent.append("sent")
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            sending = pool.submit(self.store.run_if_xapi_export_allowed, tenant, pid, send)
+            self.assertTrue(started.wait(timeout=5))
+            deleting = pool.submit(self.store.delete_learner, tenant, pid)
+            self.assertFalse(deleting.done(), "erasure must wait for the in-flight send lock")
+            release.set()
+            self.assertTrue(sending.result(timeout=10))
+            deleting.result(timeout=10)
+
+        self.assertEqual(sent, ["sent"])
+        self.assertFalse(self.store.run_if_xapi_export_allowed(tenant, pid, lambda: sent.append("late")))
+        self.assertEqual(sent, ["sent"])
+
+    def test_app_role_cannot_modify_immutable_audit_columns(self):
+        suffix = uuid4().hex
+        tenant = f"tenant-audit-perms-{suffix}"
+        with psycopg.connect(APP_URL) as conn:
+            conn.execute("SELECT set_config('app.tenant_id', %s, true)", (tenant,))
+            with self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                conn.execute(
+                    "UPDATE audit_log SET action = %s WHERE tenant_id = %s",
+                    ("tampered", tenant),
+                )
 
     def test_concurrent_postgres_answers_from_same_version_commit_once(self):
         suffix = uuid4().hex

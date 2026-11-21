@@ -36,7 +36,7 @@ Alrededor: API (FastAPI), interfaz web (Next.js), servicio LTI 1.3, Keycloak, es
 - **Calidad:** modo piloto, calibración por familia de ítems (`scripts/calibrate_from_db.py`) y análisis por plantilla.
 - **Docentes:** cursos, errores frecuentes, dominio por tema, exportación CSV, análisis de ejercicios y confirmación de consentimiento.
 - **LMS:** la nota (nivel de 1 a 8) vuelve al libro de calificaciones por LTI Advantage; el aula simulada tiene su libro en `http://localhost:8300/gradebook`.
-- **Cumplimiento:** la escuela confirma el consentimiento antes de que se practique; derecho de supresión (`DELETE /v1/me/data`); retención (`scripts/purge_old.py`); auditoría.
+- **Cumplimiento:** consentimiento institucional, retención y auditoría. `DELETE /v1/me/data` elimina datos locales; si hay un LRS externo devuelve 202 y exige la supresión administrativa del proveedor; si hoy no hay LRS configurado, no certifica que nunca se hayan enviado datos históricamente. Ver `docs/PRIVACIDAD_Y_SUPRESION.md`.
 - **Robustez y accesibilidad:** respuestas idempotentes con reintentos, límites de frecuencia, métricas, tamaño de texto, alto contraste y lectura en voz alta.
 
 ## Cómo probar el núcleo
@@ -157,7 +157,7 @@ docker compose -f deploy/docker-compose.db.yml up -d
 python scripts/check_postgres.py --admin-url postgresql://postgres:cambiar@localhost:5432/matheval --app-url postgresql://matheval_app:cambiar-en-produccion@localhost:5432/matheval
 ```
 
-Si venís de una versión anterior, SQLite aplica sus migraciones compatibles al arrancar. En PostgreSQL existente, ejecutá con el propietario de la base las migraciones pendientes en orden, desde `db/002_migracion_v05.sql` hasta `db/008_migracion_v13.sql` (sin repetir las que ya aplicaste). La migración `004` deja las membresías de red existentes como pendientes: cada escuela debe aceptar de nuevo antes de compartir agregados. La migración `006` habilita retirar el consentimiento y salir de una red después de haber aceptado. La migración `008` incorpora control de versión y escritura atómica de respuestas; si detecta respuestas duplicadas históricas para la misma sesión e ítem, se detiene sin borrar datos y requiere conciliarlas antes de continuar.
+Si venís de una versión anterior, SQLite aplica sus migraciones compatibles al arrancar. En PostgreSQL existente, ejecutá con el propietario de la base las migraciones pendientes en orden, desde `db/002_migracion_v05.sql` hasta `db/010_migracion_v15.sql` (sin repetir las que ya aplicaste). La migración `004` deja las membresías de red existentes como pendientes: cada escuela debe aceptar de nuevo antes de compartir agregados. La migración `006` habilita retirar el consentimiento y salir de una red después de haber aceptado. La migración `008` incorpora control de versión y escritura atómica de respuestas; si detecta respuestas duplicadas históricas para la misma sesión e ítem, se detiene sin borrar datos y requiere conciliarlas antes de continuar. La migración `009` habilita la anonimización acotada de eventos de auditoría durante la supresión local. La `010` crea la marca persistente que bloquea exportaciones xAPI posteriores al borrado y debe aplicarse en todas las instancias PostgreSQL antes de desplegar esta versión.
 
 Cuando algo falle, anotá el comando, el mensaje de error completo y las versiones de Node y Python. Los puntos que todavía requieren validación fuera de CI son la integración con Moodle/Keycloak reales, el despliegue productivo y las pruebas manuales de accesibilidad.
 

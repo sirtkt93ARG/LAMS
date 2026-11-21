@@ -1,4 +1,4 @@
-import os, sys, sqlite3, tempfile, unittest, threading
+import os, sys, sqlite3, tempfile, unittest, threading, hashlib
 from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.getcwd())
 from matheval.adaptive import MSTSession, PoolItem, build_design
@@ -189,7 +189,30 @@ class TestStoreV05(unittest.TestCase):
 
     def test_delete_and_purge(self):
         self._mk("a", "e1", "p1"); self._mk("b", "e1", "p2"); self._mk("c", "e2", "p1")
-        self.assertEqual(self.st.delete_learner("e1", "p1"), {"sessions": 1, "responses": 2})
+        self.st.audit("e1", "actor-p1", "exportacion_csv", "dato-privado")
+        self.assertEqual(
+            self.st.delete_learner("e1", "p1", actor="actor-p1"),
+            {"sessions": 1, "responses": 2, "audit_events_redacted": 1},
+        )
+        events = self.st.audit_list("e1")
+        self.assertTrue(any(e["actor"] == "redacted" and e["detail"] is None for e in events))
+        self.assertFalse(any(e["actor"] == "actor-p1" for e in events))
+        # El bloqueo sobrevive al reinicio del Store y no contamina otra escuela.
+        self.st._conn.close()
+        self.st = Store(f"sqlite:///{self.tmp.name}/v5.db")
+        self.assertFalse(self.st.run_if_xapi_export_allowed("e1", "p1", lambda: self.fail("exportación tras supresión")))
+        marker = self.st._conn.execute(
+            "SELECT pid_hash FROM xapi_erasure_blocks WHERE tenant_id = ?", ("e1",)
+        ).fetchone()["pid_hash"]
+        self.assertEqual(marker, hashlib.sha256(b"p1").hexdigest())
+        self.assertNotEqual(marker, "p1")
+        sent_other_tenant = []
+        self.assertTrue(self.st.run_if_xapi_export_allowed("e2", "p1", lambda: sent_other_tenant.append("ok")))
+        self.assertEqual(sent_other_tenant, ["ok"])
+        self.assertTrue(any(
+            e["actor"] == "system" and e["action"] == "supresion_local_de_datos"
+            for e in events
+        ))
         self.assertIsNone(self.st.load_session("a", "e1"))
         self.assertIsNotNone(self.st.load_session("b", "e1"))
         self.assertIsNotNone(self.st.load_session("c", "e2"))                  # otra escuela intacta

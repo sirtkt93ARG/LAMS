@@ -115,5 +115,6 @@ GRANT UPDATE ON sessions, tenant_settings TO matheval_app;
 GRANT SELECT, INSERT, DELETE ON tenant_networks TO matheval_app;
 GRANT UPDATE (accepted) ON tenant_networks TO matheval_app;
 GRANT SELECT, INSERT ON item_reviews, audit_log TO matheval_app;
+GRANT UPDATE (actor, detail) ON audit_log TO matheval_app;
 GRANT SELECT, INSERT, DELETE ON used_tokens TO matheval_app;
 GRANT USAGE, SELECT ON SEQUENCE responses_id_seq, item_reviews_id_seq, audit_log_id_seq TO matheval_app;

@@ -1,6 +1,6 @@
 """Prueba la lógica de los endpoints llamando a las funciones directamente. Si FastAPI no está instalado
 (p. ej. sin red), se usa un sustituto mínimo; con FastAPI real también corre."""
-import os, sys, time, types, unittest, threading
+import os, sys, time, types, unittest, threading, json
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 import tempfile
@@ -29,7 +29,11 @@ except ImportError:
     class Response:
         def __init__(self, content="", media_type=None, headers=None):
             self.body, self.media_type, self.headers = content.encode() if isinstance(content, str) else content, media_type, headers or {}
-    fr = types.ModuleType("fastapi.responses"); fr.Response = Response
+    class JSONResponse(Response):
+        def __init__(self, content, status_code=200, headers=None):
+            super().__init__(json.dumps(content), media_type="application/json", headers=headers)
+            self.status_code = status_code
+    fr = types.ModuleType("fastapi.responses"); fr.Response, fr.JSONResponse = Response, JSONResponse
     sys.modules["fastapi.responses"] = fr
     fa.Depends = lambda x: x
     fa.Header = lambda default=None: default
@@ -117,6 +121,61 @@ class TestApiLogic(unittest.TestCase):
         with patch.object(M, "apply_reviews", wraps=M.apply_reviews) as refresh:
             M.start(M.StartIn(), user)
         refresh.assert_called_once_with(M.BANK, M.STORE)
+
+    def test_data_erasure_reports_external_lrs_as_manual_and_redacts_audit(self):
+        user = User("alumno-borrar-lrs", "escuela-borrar-lrs", "student")
+        M.start(M.StartIn(), user)
+        M.STORE.audit(user.tenant_id, user.sub, "exportacion_csv", "curso-confidencial")
+        with patch.object(M, "LRS_URL", "https://lrs.example"):
+            result = M.delete_my_data(user)
+
+        self.assertEqual(result.status_code, 202)
+        body = json.loads(result.body)
+        self.assertFalse(body["erasure_complete"])
+        self.assertTrue(body["future_xapi_exports_blocked"])
+        self.assertTrue(body["suppression_marker_retained"])
+        self.assertEqual(body["external_lrs"]["status"], "manual_action_required")
+        self.assertEqual(body["external_lrs"]["agent"]["account"]["name"], M._pid(user))
+        self.assertEqual(body["external_lrs"]["agent"]["account"]["homePage"],
+                         f"https://{user.tenant_id}.tenants.matheval.example")
+        self.assertEqual(body["audit_events_redacted"], 1)
+        events = M.STORE.audit_list(user.tenant_id)
+        self.assertFalse(any(event["actor"] == user.sub for event in events))
+        self.assertTrue(any(event["actor"] == "system" and event["action"] == "supresion_local_de_datos"
+                            for event in events))
+        self.assertEqual(M.STORE.sessions_of(user.tenant_id, M._pid(user)), [])
+
+    def test_queued_xapi_send_is_blocked_after_local_erasure(self):
+        user = User("alumno-xapi-bloqueado", "escuela-xapi-bloqueado", "student")
+        started = M.start(M.StartIn(), user)
+        sid = started["session_id"]
+        item = M.BANK.items[started["items"][0]["id"]]
+        tasks = BackgroundTasks()
+        with patch.object(M, "LRS_URL", "https://lrs.example"):
+            M.answer(sid, M.AnswerIn(item_id=item.id, response=str(item.correct)), tasks, user)
+        xapi_tasks = []
+        for task in tasks.tasks:
+            fn = task.func if hasattr(task, "func") else task[0]
+            args = task.args if hasattr(task, "args") else task[1]
+            if fn is M._post_xapi_if_not_erased:
+                xapi_tasks.append((fn, args))
+        self.assertEqual(len(xapi_tasks), 1)
+
+        M.delete_my_data(user)
+        with patch.object(M, "post_statements") as send:
+            fn, args = xapi_tasks[0]
+            fn(*args)
+        send.assert_not_called()
+
+    def test_data_erasure_does_not_claim_external_completion_without_current_lrs(self):
+        user = User("alumno-borrar-local", "escuela-borrar-local", "student")
+        M.start(M.StartIn(), user)
+        with patch.object(M, "LRS_URL", None):
+            result = M.delete_my_data(user)
+        self.assertIsNone(result["erasure_complete"])
+        self.assertTrue(result["future_xapi_exports_blocked"])
+        self.assertTrue(result["suppression_marker_retained"])
+        self.assertEqual(result["external_lrs"]["status"], "not_configured_currently")
 
     def test_student_view_hides_answers(self):
         out = M.start(M.StartIn(), User("a", "t", "student"))
@@ -258,12 +317,18 @@ class TestApiLogic(unittest.TestCase):
             sid = M.start(M.StartIn(), st)["session_id"]
             item = M.BANK.items[M.pending(sid, st)["items"][0]["id"]]
             M.answer(sid, M.AnswerIn(item_id=item.id, response=str(item.correct)), BackgroundTasks(), st)
-            self.assertEqual(M.delete_my_data(st), {"sessions": 1, "responses": 1})
+            result = M.delete_my_data(st)
+            self.assertEqual(result["sessions"], 1)
+            self.assertEqual(result["responses"], 1)
+            self.assertEqual(result["audit_events_redacted"], 0)
+            self.assertTrue(result["local_data_deleted"])
+            self.assertEqual(result["external_lrs"]["status"], "not_configured_currently")
+            self.assertIsNone(result["erasure_complete"])
             with self.assertRaises(HTTPException):
                 M.pending(sid, st)
             actions = [e["action"] for e in M.audit(teacher)["events"]]
             self.assertIn("consentimiento_confirmado", actions)
-            self.assertIn("supresion_de_datos", actions)
+            self.assertIn("supresion_local_de_datos", actions)
         finally:
             M.REQUIRE_CONSENT = old
 

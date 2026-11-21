@@ -14,7 +14,7 @@ import uuid
 from collections import Counter, defaultdict
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
 from matheval import templates as TPL
@@ -77,6 +77,14 @@ async def observe(request, call_next):
 # ---- utilidades --------------------------------------------------------------------
 def _pid(user: User) -> str:
     return pseudonymize(user.sub, SECRET + user.tenant_id.encode())
+
+
+def _post_xapi_if_not_erased(tenant: str, pid: str, lrs_url: str, statements: list[dict],
+                             user: str, password: str) -> bool:
+    """Envía xAPI bajo el mismo bloqueo durable que usa la supresión del alumno."""
+    return STORE.run_if_xapi_export_allowed(
+        tenant, pid, lambda: post_statements(lrs_url, statements, user, password)
+    )
 
 
 def _pool(mode: str):
@@ -303,7 +311,7 @@ def answer(sid: str, body: AnswerIn, tasks: BackgroundTasks, user: User = Depend
                                   response=res.normalized or "", score=res.score, success=bool(res.score),
                                   level_target=item.target_level, axis=item.axis.value, process=item.process.value,
                                   tag=res.tag, duration_s=body.duration_s)
-        tasks.add_task(post_statements, LRS_URL, [stmt], LRS_USER, LRS_PASS)
+        tasks.add_task(_post_xapi_if_not_erased, user.tenant_id, _pid(user), LRS_URL, [stmt], LRS_USER, LRS_PASS)
     if result and s["mode"] in ("practica", "medicion"):
         tasks.add_task(_send_grade, user, result, s["mode"])
     out = _state(s)
@@ -331,11 +339,36 @@ def progress(user: User = Depends(current_user)):
 
 @app.delete("/v1/me/data")
 def delete_my_data(user: User = Depends(current_user)):
-    """Derecho de supresión: borra todas las sesiones y respuestas asociadas al seudónimo del usuario en su escuela."""
+    """Elimina datos locales; si hay un LRS externo, informa que su supresión requiere acción del proveedor."""
     pid = _pid(user)
-    out = STORE.delete_learner(user.tenant_id, pid)
-    STORE.audit(user.tenant_id, pid[:12], "supresion_de_datos", json.dumps(out))
-    return out
+    out = STORE.delete_learner(user.tenant_id, pid, actor=user.sub)
+    result = {**out, "local_data_deleted": True, "future_xapi_exports_blocked": True, "suppression_marker_retained": True}
+    if LRS_URL:
+        result["external_lrs"] = {
+            "status": "manual_action_required",
+            "agent": {
+                "objectType": "Agent",
+                "account": {
+                    "homePage": f"https://{user.tenant_id}.tenants.matheval.example",
+                    "name": pid,
+                },
+            },
+            "message": (
+                "Los Statements externos no se borraron. xAPI 1.0.3 no define su borrado: "
+                "el administrador del LRS debe aplicar el procedimiento de supresión del proveedor."
+            ),
+        }
+        result["erasure_complete"] = False
+        return JSONResponse(status_code=202, content=result)
+    result["external_lrs"] = {
+        "status": "not_configured_currently",
+        "message": (
+            "No hay un LRS configurado en este momento. Si se utilizó uno anteriormente, "
+            "la configuración actual no permite confirmar si quedan exportaciones históricas."
+        ),
+    }
+    result["erasure_complete"] = None
+    return result
 
 
 # ---- docentes ----------------------------------------------------------------------

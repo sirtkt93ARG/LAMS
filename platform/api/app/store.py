@@ -4,6 +4,7 @@
 Privacidad: solo se guarda el identificador seudónimo (`pid`), nunca el identificador real del usuario.
 Defensa en profundidad: toda consulta por escuela filtra por tenant_id además de la política RLS."""
 from __future__ import annotations
+import hashlib
 import json
 import sqlite3
 import threading
@@ -33,6 +34,9 @@ CREATE TABLE IF NOT EXISTS used_tokens (
 CREATE TABLE IF NOT EXISTS audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL DEFAULT (datetime('now')), tenant_id TEXT, actor TEXT NOT NULL,
   action TEXT NOT NULL, detail TEXT);
+CREATE TABLE IF NOT EXISTS xapi_erasure_blocks (
+  tenant_id TEXT NOT NULL, pid_hash TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (tenant_id, pid_hash));
 """
 _SQLITE_NEW_COLUMNS = [("sessions", "course_id", "TEXT"), ("sessions", "course_label", "TEXT"),
                        ("responses", "hints", "INTEGER NOT NULL DEFAULT 0"),
@@ -55,7 +59,7 @@ class Store:
         self.url = url
         if url.startswith("sqlite:///"):
             self.dialect = "sqlite"
-            self._conn = sqlite3.connect(url[len("sqlite:///"):], check_same_thread=False)
+            self._conn = sqlite3.connect(url[len("sqlite:///"):], timeout=15.0, check_same_thread=False)
             self._conn.row_factory = sqlite3.Row
             self._lock = threading.Lock()
             with self._lock:
@@ -339,15 +343,113 @@ class Store:
         rows = self._run(tenant, q, (tenant, course) if course else (tenant,), fetch=True)
         return {r["tag"]: r["n"] for r in rows}
 
+    def run_if_xapi_export_allowed(self, tenant: str, pid: str, send) -> bool:
+        """Serializa el envío externo con la supresión y bloquea exportaciones posteriores.
+
+        El bloqueo se mantiene durante el POST: una supresión concurrente espera a que
+        termine un envío ya iniciado, o gana la carrera e impide que el envío comience.
+        """
+        pid_hash = hashlib.sha256(pid.encode("utf-8")).hexdigest()
+        lock_key = f"{len(tenant)}:{tenant}{pid_hash}"
+        if self.dialect == "sqlite":
+            with self._lock:
+                self._conn.execute("BEGIN IMMEDIATE")
+                try:
+                    blocked = self._conn.execute(
+                        "SELECT 1 FROM xapi_erasure_blocks WHERE tenant_id = ? AND pid_hash = ?",
+                        (tenant, pid_hash),
+                    ).fetchone()
+                    if blocked:
+                        self._conn.rollback()
+                        return False
+                    send()
+                    self._conn.commit()
+                    return True
+                except Exception:
+                    self._conn.rollback()
+                    raise
+        import psycopg
+        with psycopg.connect(self.url) as conn:
+            with conn.transaction():
+                conn.execute("SELECT set_config('app.tenant_id', %s, true)", (tenant,))
+                conn.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (lock_key,))
+                blocked = conn.execute(
+                    "SELECT 1 FROM xapi_erasure_blocks WHERE tenant_id = %s AND pid_hash = %s",
+                    (tenant, pid_hash),
+                ).fetchone()
+                if blocked:
+                    return False
+                send()
+                return True
+
     # ---- derechos de los datos --------------------------------------------------------
-    def delete_learner(self, tenant: str, pid: str) -> dict:
-        n_s = self._run(tenant, "SELECT COUNT(*) AS n FROM sessions WHERE tenant_id = ? AND pid = ?", (tenant, pid), fetch=True)[0]["n"]
-        n_r = self._run(tenant, "SELECT COUNT(*) AS n FROM responses WHERE tenant_id = ? AND session_id IN "
-                                "(SELECT id FROM sessions WHERE tenant_id = ? AND pid = ?)", (tenant, tenant, pid), fetch=True)[0]["n"]
-        self._run(tenant, "DELETE FROM responses WHERE tenant_id = ? AND session_id IN (SELECT id FROM sessions WHERE tenant_id = ? AND pid = ?)",
-                  (tenant, tenant, pid))
-        self._run(tenant, "DELETE FROM sessions WHERE tenant_id = ? AND pid = ?", (tenant, pid))
-        return {"sessions": n_s, "responses": n_r}
+    def delete_learner(self, tenant: str, pid: str, actor: str | None = None) -> dict:
+        """Elimina datos locales del alumno y anonimiza sus eventos de auditoría identificables."""
+        q_sessions = self._sql("SELECT COUNT(*) FROM sessions WHERE tenant_id = ? AND pid = ?")
+        q_responses = self._sql(
+            "SELECT COUNT(*) FROM responses WHERE tenant_id = ? AND session_id IN "
+            "(SELECT id FROM sessions WHERE tenant_id = ? AND pid = ?)"
+        )
+        q_redact = self._sql(
+            "UPDATE audit_log SET actor = 'redacted', detail = NULL WHERE tenant_id = ? AND actor = ?"
+        )
+        q_delete_responses = self._sql(
+            "DELETE FROM responses WHERE tenant_id = ? AND session_id IN "
+            "(SELECT id FROM sessions WHERE tenant_id = ? AND pid = ?)"
+        )
+        q_delete_sessions = self._sql("DELETE FROM sessions WHERE tenant_id = ? AND pid = ?")
+        q_insert_erasure_audit = self._sql(
+            "INSERT INTO audit_log (tenant_id, actor, action, detail) VALUES (?, 'system', ?, ?)"
+        )
+        pid_hash = hashlib.sha256(pid.encode("utf-8")).hexdigest()
+        lock_key = f"{len(tenant)}:{tenant}{pid_hash}"
+        if self.dialect == "sqlite":
+            with self._lock:
+                self._conn.execute("BEGIN IMMEDIATE")
+                try:
+                    n_s = self._conn.execute(q_sessions, (tenant, pid)).fetchone()[0]
+                    n_r = self._conn.execute(q_responses, (tenant, tenant, pid)).fetchone()[0]
+                    n_a = 0
+                    if actor:
+                        n_a = self._conn.execute(q_redact, (tenant, actor)).rowcount
+                    self._conn.execute(q_delete_responses, (tenant, tenant, pid))
+                    self._conn.execute(q_delete_sessions, (tenant, pid))
+                    self._conn.execute(
+                        "INSERT OR IGNORE INTO xapi_erasure_blocks (tenant_id, pid_hash) VALUES (?, ?)",
+                        (tenant, pid_hash),
+                    )
+                    summary = {"sessions": n_s, "responses": n_r, "audit_events_redacted": n_a}
+                    self._conn.execute(
+                        q_insert_erasure_audit,
+                        (tenant, "supresion_local_de_datos", json.dumps(summary)),
+                    )
+                    self._conn.commit()
+                    return summary
+                except Exception:
+                    self._conn.rollback()
+                    raise
+        import psycopg
+        with psycopg.connect(self.url) as conn:
+            with conn.transaction():
+                conn.execute("SELECT set_config('app.tenant_id', %s, true)", (tenant,))
+                conn.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (lock_key,))
+                n_s = conn.execute(q_sessions, (tenant, pid)).fetchone()[0]
+                n_r = conn.execute(q_responses, (tenant, tenant, pid)).fetchone()[0]
+                n_a = 0
+                if actor:
+                    n_a = conn.execute(q_redact, (tenant, actor)).rowcount
+                conn.execute(q_delete_responses, (tenant, tenant, pid))
+                conn.execute(q_delete_sessions, (tenant, pid))
+                conn.execute(
+                    "INSERT INTO xapi_erasure_blocks (tenant_id, pid_hash) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                    (tenant, pid_hash),
+                )
+                summary = {"sessions": n_s, "responses": n_r, "audit_events_redacted": n_a}
+                conn.execute(
+                    q_insert_erasure_audit,
+                    (tenant, "supresion_local_de_datos", json.dumps(summary)),
+                )
+                return summary
 
     def purge_older_than(self, days: int) -> int:
         """Borra sesiones y respuestas más viejas que `days` días, de todas las escuelas (rol propietario)."""

@@ -8,6 +8,7 @@ services:
       POSTGRES_DB: matheval
     volumes:
       - ../db/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+      - ../db/010_migracion_v15.sql:/docker-entrypoint-initdb.d/010_migracion_v15.sql:ro
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d matheval"]
