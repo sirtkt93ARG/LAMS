@@ -491,7 +491,6 @@ def teacher_create_open_assignment(body: OpenAssignmentIn, user: User = Depends(
         if parsed_due <= datetime.now(timezone.utc):
             raise HTTPException(400, "La fecha límite debe estar en el futuro.")
         due_at = parsed_due.isoformat()
-    competencies = competencies_for_item(item.id)
     competency_id = body.competency_id
     if competency_id and not valid_competency_for_item(item.id, competency_id):
         raise HTTPException(400, "La competencia seleccionada no está vinculada a esta plantilla del banco.")
