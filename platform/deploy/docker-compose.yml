@@ -36,7 +36,7 @@ services:
     command:
       - sh
       - -c
-      - python /app/scripts/gen_lti_keys.py --force && chown -R app:app /app/lti_service/configs
+      - python /app/scripts/gen_lti_keys.py --force && cp /app/lti_service/configs/public.key /app/public-key/public.key && chmod 644 /app/public-key/public.key && chown -R app:app /app/lti_service/configs /app/public-key
     environment:
       MOCK_ISS: http://localhost:8300
       MOCK_AUTH_LOGIN_URL: http://localhost:8300/auth
@@ -44,6 +44,7 @@ services:
       MOCK_KEY_SET_URL: http://mock-lms:8300/jwks
     volumes:
       - lti-config:/app/lti_service/configs
+      - tool-public-key:/app/public-key
     restart: "no"
 
   api:
@@ -106,9 +107,9 @@ services:
       MOCK_LINEITEM_BASE: http://mock-lms:8300
       TOOL_BASE: http://localhost:8200
       TOOL_INTERNAL_BASE: http://lti:8200
-      TOOL_PUBLIC_KEY_FILE: /app/lti-config/public.key
+      TOOL_PUBLIC_KEY_FILE: /app/lti-public/public.key
     volumes:
-      - lti-config:/app/lti-config:ro
+      - tool-public-key:/app/lti-public:ro
     depends_on:
       lti:
         condition: service_healthy
@@ -160,3 +161,4 @@ volumes:
   pgdata:
   chdata:
   lti-config:
+  tool-public-key:
