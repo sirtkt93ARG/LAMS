@@ -197,6 +197,13 @@ class TestStoreV05(unittest.TestCase):
         events = self.st.audit_list("e1")
         self.assertTrue(any(e["actor"] == "redacted" and e["detail"] is None for e in events))
         self.assertFalse(any(e["actor"] == "actor-p1" for e in events))
+        # El bloqueo sobrevive al reinicio del Store y no contamina otra escuela.
+        self.st._conn.close()
+        self.st = Store(f"sqlite:///{self.tmp.name}/v5.db")
+        self.assertFalse(self.st.run_if_xapi_export_allowed("e1", "p1", lambda: self.fail("exportación tras supresión")))
+        sent_other_tenant = []
+        self.assertTrue(self.st.run_if_xapi_export_allowed("e2", "p1", lambda: sent_other_tenant.append("ok")))
+        self.assertEqual(sent_other_tenant, ["ok"])
         self.assertTrue(any(
             e["actor"] == "system" and e["action"] == "supresion_local_de_datos"
             for e in events
