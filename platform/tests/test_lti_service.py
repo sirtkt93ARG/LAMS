@@ -7,6 +7,7 @@ import jwt
 os.environ.update({"MATHEVAL_DEV": "1", "LTI_SECRET_KEY": "k" * 40, "LTI_HANDOFF_SECRET": "h" * 40, "WEB_URL": "http://web.test", "LTI_CONFIG": "no-existe/x.json"})
 R = "https://purl.imsglobal.org/spec/lti/claim/roles"
 D = "https://purl.imsglobal.org/spec/lti/claim/deployment_id"
+NRPS = "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice"
 
 
 def _fakes():
@@ -54,11 +55,14 @@ class TestLtiService(unittest.TestCase):
         return jwt.decode(loc.split("token=")[1], "h" * 40, algorithms=["HS256"], issuer="matheval-lti", audience="matheval-api")
 
     def test_teacher_and_student_roles_and_tenant(self):
-        self.Launch.data = {"sub": "u1", "iss": "http://lms", D: "dep-7", R: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"]}
+        self.Launch.data = {"sub": "u1", "iss": "http://lms", D: "dep-7", R: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor"],
+                            "aud": "client-1", NRPS: {"context_memberships_url": "https://lms.test/members", "service_versions": ["2.0"]}}
         t = self._token(self.c.post("/lti/launch/"))
         self.assertEqual((t["role"], t["tenant_id"], t["sub"]), ("teacher", "dep-7", "u1"))
         self.assertTrue(t["jti"])
         self.assertEqual((t["iss"], t["aud"]), ("matheval-lti", "matheval-api"))
+        self.assertEqual(t["nrps"], {"iss": "http://lms", "client_id": "client-1",
+                                     "context_memberships_url": "https://lms.test/members"})
         self.Launch.data = {"sub": "u2", "iss": "http://lms", D: "dep-7", R: ["http://purl.imsglobal.org/vocab/lis/v2/membership#Learner"]}
         self.assertEqual(self._token(self.c.post("/lti/launch/"))["role"], "student")
 
@@ -68,6 +72,21 @@ class TestLtiService(unittest.TestCase):
         self.Launch.data = {"sub": "u1", "iss": "x", D: "d", R: []}
         t = self._token(self.c.post("/lti/launch/"))
         self.assertLessEqual(t["exp"] - __import__("time").time(), 61)
+
+    def test_nrps_proxy_requires_internal_secret_and_returns_only_minimal_roster(self):
+        payload = {"nrps": {"iss": "http://lms", "client_id": "client-1",
+                            "context_memberships_url": "https://lms.test/members"}}
+        self.assertEqual(self.c.post("/lti/nrps/roster", json=payload).status_code, 401)
+        registration = {"public_pem": b"public", "private_pem": b"private",
+                        "auth_token_url": "https://lms.test/token", "nrps_allowed_hosts": ["lms.test"]}
+        with patch.object(self.mod, "tool_registration", return_value=registration), \
+             patch.object(self.mod.ags, "public_jwk", return_value={"kid": "key-1"}), \
+             patch.object(self.mod.nrps, "fetch_roster", return_value=[{"user_id": "u1", "name": "Alumno Uno"}]) as fetch:
+            response = self.c.post("/lti/nrps/roster", json=payload,
+                                    headers={"X-Internal-Secret": "h" * 40})
+        self.assertEqual(response.status_code, 200, response.get_json())
+        self.assertEqual(response.get_json(), {"members": [{"user_id": "u1", "name": "Alumno Uno"}]})
+        fetch.assert_called_once()
 
     def test_login_redirects_and_jwks(self):
         r = self.c.post("/lti/login/", data={"target_link_uri": "http://tool/lti/launch/"})
