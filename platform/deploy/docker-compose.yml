@@ -106,6 +106,9 @@ services:
       MOCK_LINEITEM_BASE: http://mock-lms:8300
       TOOL_BASE: http://localhost:8200
       TOOL_INTERNAL_BASE: http://lti:8200
+      TOOL_PUBLIC_KEY_FILE: /app/lti-config/public.key
+    volumes:
+      - lti-config:/app/lti-config:ro
     depends_on:
       lti:
         condition: service_healthy
