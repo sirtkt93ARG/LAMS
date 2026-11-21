@@ -1,6 +1,13 @@
 import type { Role } from "./types";
 
 export type AuthState = { role: Role; token?: string; devUser?: string };
+
+export function roleFromKeycloakRoles(roles: string[]): Role {
+  return roles.includes("admin") ? "admin"
+    : roles.includes("network") ? "network"
+    : roles.includes("teacher") ? "teacher"
+    : "student";
+}
 const KEY = "matheval.auth";
 
 export function getAuth(): AuthState | null {
@@ -42,7 +49,7 @@ export async function keycloakLogin(): Promise<Role> {
   const ok = await kc.init({ onLoad: "login-required", pkceMethod: "S256", checkLoginIframe: false });
   if (!ok || !kc.token) throw new Error("No se pudo iniciar sesión.");
   const roles: string[] = (kc.tokenParsed as { realm_access?: { roles?: string[] } } | undefined)?.realm_access?.roles ?? [];
-  const role: Role = roles.includes("admin") ? "admin" : roles.includes("teacher") ? "teacher" : "student";
+  const role = roleFromKeycloakRoles(roles);
   setAuth({ role, token: kc.token });
   window.setInterval(() => {
     kc.updateToken(60).then((refreshed) => {

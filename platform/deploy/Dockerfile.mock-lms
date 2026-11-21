@@ -1,0 +1,11 @@
+FROM python:3.12-slim
+WORKDIR /app
+RUN pip install --no-cache-dir flask "PyJWT[crypto]" gunicorn \
+    && addgroup --system app \
+    && adduser --system --ingroup app app
+COPY --chown=app:app tools/mock_lms ./tools/mock_lms
+COPY --chown=app:app lti_service ./lti_service
+ENV HOME=/tmp
+USER app
+EXPOSE 8300
+CMD ["gunicorn", "--bind", "0.0.0.0:8300", "--workers", "1", "--access-logfile", "-", "tools.mock_lms.app:app"]

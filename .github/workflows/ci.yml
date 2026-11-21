@@ -100,6 +100,63 @@ jobs:
           MATHEVAL_TEST_POSTGRES_URL: postgresql://matheval_app:cambiar-en-produccion@localhost:5432/matheval_test
         run: python -m pytest -q tests/test_postgres_integration.py
 
+  compose-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: platform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Compose configuration
+        run: |
+          docker compose version
+          docker compose -f deploy/docker-compose.yml config --quiet
+      - name: Build and start the complete local stack
+        run: docker compose -f deploy/docker-compose.yml up --build -d
+      - name: Diagnose PostgreSQL application grants
+        run: |
+          docker compose -f deploy/docker-compose.yml exec -T db psql -U postgres -d matheval -v ON_ERROR_STOP=1 -c "SELECT current_database() AS database, rolname, has_table_privilege(rolname, 'public.sessions', 'SELECT') AS can_select, has_table_privilege(rolname, 'public.sessions', 'INSERT') AS can_insert, has_table_privilege(rolname, 'public.sessions', 'UPDATE') AS can_update, has_table_privilege(rolname, 'public.sessions', 'DELETE') AS can_delete FROM pg_roles WHERE rolname = 'matheval_app';" -c "\\dp public.sessions" -c "SELECT policyname, cmd, qual, with_check FROM pg_policies WHERE tablename = 'sessions';"
+      - name: Verify Keycloak issuer and full HTTP/LTI journey
+        run: |
+          set -euo pipefail
+          compose="docker compose -f deploy/docker-compose.yml"
+          cleanup() {
+            code=$?
+            if [ "$code" -ne 0 ]; then
+              $compose logs --no-color || true
+            fi
+            $compose down --volumes --remove-orphans || true
+            exit "$code"
+          }
+          trap cleanup EXIT
+          wait_for() {
+            url="$1"
+            for attempt in $(seq 1 90); do
+              if curl --silent --fail "$url" >/dev/null; then return 0; fi
+              sleep 2
+            done
+            echo "Servicio no disponible: $url"
+            return 1
+          }
+          wait_for http://localhost:8080/realms/matheval/.well-known/openid-configuration
+          python - <<'PY'
+          import json
+          import urllib.request
+          url = "http://localhost:8080/realms/matheval/.well-known/openid-configuration"
+          with urllib.request.urlopen(url, timeout=10) as response:
+              metadata = json.load(response)
+          assert metadata["issuer"] == "http://localhost:8080/realms/matheval", metadata["issuer"]
+          PY
+          wait_for http://localhost:8000/healthz
+          wait_for http://localhost:8200/lti/jwks/
+          wait_for http://localhost:8300/jwks
+          wait_for http://localhost:3000/
+          python scripts/smoke_http.py
+
   lti-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 15

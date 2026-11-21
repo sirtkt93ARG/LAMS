@@ -7,7 +7,8 @@ import jwt
 from fastapi import Header, HTTPException
 
 DEV = os.getenv("MATHEVAL_DEV") == "1"
-ISSUER = os.getenv("OIDC_ISSUER", "")                 # p. ej. http://keycloak:8080/realms/matheval
+ISSUER = os.getenv("OIDC_ISSUER", "")                 # issuer público que debe coincidir con el claim iss
+JWKS_URL = os.getenv("OIDC_JWKS_URL", f"{ISSUER}/protocol/openid-connect/certs" if ISSUER else "")
 AUDIENCE = os.getenv("OIDC_AUDIENCE", "matheval-api")
 SESSION_SECRET = os.getenv("SESSION_SECRET", "")      # firma las sesiones emitidas tras un acceso LTI
 HANDOFF_SECRET = os.getenv("LTI_HANDOFF_SECRET", "")  # compartido con lti_service (token de 60 s)
@@ -21,7 +22,7 @@ def set_token_consumer(fn) -> None:
     _token_consumer = fn
 
 
-_jwks = jwt.PyJWKClient(f"{ISSUER}/protocol/openid-connect/certs") if ISSUER else None
+_jwks = jwt.PyJWKClient(JWKS_URL) if JWKS_URL else None
 
 
 @dataclass

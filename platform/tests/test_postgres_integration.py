@@ -31,6 +31,7 @@ class TestPostgresStore(unittest.TestCase):
                 root / "db/004_migracion_v09.sql",
                 root / "db/005_migracion_v10.sql",
                 root / "db/006_migracion_v11.sql",
+                root / "db/007_migracion_v12.sql",
             ):
                 conn.execute(migration.read_text(encoding="utf-8"), prepare=False)
         cls.store = Store(APP_URL)
@@ -80,6 +81,26 @@ class TestPostgresStore(unittest.TestCase):
         self.assertIsNotNone(row)
         self.assertEqual(row["state"], {"step": 1})
         self.assertIsNone(self.store.load_session(session_id, f"other-{suffix}"))
+
+    def test_session_state_and_result_updates_are_allowed(self):
+        suffix = uuid4().hex
+        session_id, tenant = f"session-update-{suffix}", f"tenant-update-{suffix}"
+        self.store.create_session(session_id, tenant, "pseudonym-only", "practica", {"step": 1})
+        self.store.save_session(session_id, tenant, {"step": 2})
+        self.assertEqual(self.store.load_session(session_id, tenant)["state"], {"step": 2})
+        result = {"level": 3, "answered": 12}
+        self.store.save_session(session_id, tenant, {"step": 3}, result)
+        row = self.store.load_session(session_id, tenant)
+        self.assertEqual(row["state"], {"step": 3})
+        self.assertEqual(row["result"], result)
+
+    def test_consent_upsert_can_update_existing_tenant_settings(self):
+        tenant = f"consent-{uuid4().hex}"
+        self.store.attest_consent(tenant, "teacher-one")
+        self.store.attest_consent(tenant, "teacher-two")
+        settings = self.store.tenant_settings(tenant)
+        self.assertEqual(settings["consent_attested_by"], "teacher-two")
+        self.assertIsNotNone(settings["consent_attested_at"])
 
     def test_lti_handoff_jti_is_single_use(self):
         jti = f"jti-{uuid4().hex}"

@@ -1,8 +1,13 @@
 import importlib.util
-import os, re, sys, unittest
+import os, re, sys, tempfile, unittest
+from pathlib import Path
+from unittest.mock import patch
 sys.path.insert(0, os.getcwd())
 import jwt
 from jwt.algorithms import RSAAlgorithm
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from lti_service.ags import public_jwk
 from tools.mock_lms.platform import CLAIM, MockPlatform
 
 
@@ -15,6 +20,19 @@ class TestMockPlatform(unittest.TestCase):
         self.assertEqual((c["sub"], c["nonce"], c[CLAIM + "deployment_id"]), ("u1", "n123", "dep-1"))
         self.assertIn("Instructor", c[CLAIM + "roles"][0])
         self.assertEqual(jwt.get_unverified_header(tok)["kid"], p.jwks()["keys"][0]["kid"])
+
+    def test_mock_lms_reads_tool_public_key_without_http_callback(self):
+        private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        public_pem = private.public_key().public_bytes(
+            serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            key_path = Path(directory) / "tool-public.pem"
+            key_path.write_bytes(public_pem)
+            with patch.dict(os.environ, {"TOOL_PUBLIC_KEY_FILE": str(key_path)}):
+                from tools.mock_lms.app import _tool_jwks
+                actual = _tool_jwks()["keys"][0]
+        self.assertEqual(actual, public_jwk(public_pem))
 
     def test_wrong_key_is_rejected(self):
         a, b = MockPlatform("i", "c", "d"), MockPlatform("i", "c", "d")
