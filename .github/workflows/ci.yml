@@ -91,7 +91,7 @@ jobs:
       - name: Install PostgreSQL client utilities
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client-16
+          sudo apt-get install -y postgresql-client
       - name: Install API and test dependencies
         working-directory: platform
         run: |
