@@ -7,6 +7,7 @@ import logging
 import os
 import pathlib
 import time
+import uuid
 import jwt
 from flask import Flask, jsonify, redirect, request
 from flask_caching import Cache
@@ -22,6 +23,9 @@ cache = Cache(app)
 TOOL_CONF = ToolConfJsonFile(os.getenv("LTI_CONFIG", "lti_service/configs/lti.json"))
 WEB_URL = os.getenv("WEB_URL", "http://localhost:3000")
 HANDOFF_SECRET = os.environ["LTI_HANDOFF_SECRET"]
+DEV = os.getenv("MATHEVAL_DEV") == "1"
+if not DEV and (len(app.config["SECRET_KEY"]) < 32 or len(HANDOFF_SECRET) < 32):
+    raise RuntimeError("LTI_SECRET_KEY y LTI_HANDOFF_SECRET deben tener al menos 32 caracteres en producción")
 ROLES = "https://purl.imsglobal.org/spec/lti/claim/roles"
 DEPLOYMENT = "https://purl.imsglobal.org/spec/lti/claim/deployment_id"
 CONTEXT = "https://purl.imsglobal.org/spec/lti/claim/context"
@@ -57,8 +61,9 @@ def launch():
         storage = FlaskCacheDataStorage(cache)
         data = FlaskMessageLaunch(FlaskRequest(), TOOL_CONF, launch_data_storage=storage).get_launch_data()
         tenant = data[DEPLOYMENT]
-        claims = {"sub": data["sub"], "iss": data["iss"], "role": role_of(data.get(ROLES, [])),
-                  "tenant_id": tenant, "exp": int(time.time()) + 60}
+        claims = {"sub": data["sub"], "iss": "matheval-lti", "aud": "matheval-api",
+                  "jti": uuid.uuid4().hex, "role": role_of(data.get(ROLES, [])),
+                  "tenant_id": tenant, "iat": int(time.time()), "exp": int(time.time()) + 60}
         ctx = data.get(CONTEXT) or {}
         if ctx.get("id"):
             claims["course_id"], claims["course_label"] = str(ctx["id"]), str(ctx.get("label") or ctx.get("title") or ctx["id"])
