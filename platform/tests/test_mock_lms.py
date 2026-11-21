@@ -1,3 +1,4 @@
+import importlib.util
 import os, re, sys, unittest
 sys.path.insert(0, os.getcwd())
 import jwt
@@ -22,7 +23,7 @@ class TestMockPlatform(unittest.TestCase):
             jwt.decode(tok, RSAAlgorithm.from_jwk(b.jwks()["keys"][0]), algorithms=["RS256"], audience="c", issuer="i")
 
 
-@unittest.skipUnless(__import__("importlib").util.find_spec("flask"), "Flask no instalado")
+@unittest.skipUnless(importlib.util.find_spec("flask"), "Flask no instalado")
 class TestMockApp(unittest.TestCase):
     def setUp(self):
         from tools.mock_lms.app import app
