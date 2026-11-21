@@ -536,9 +536,20 @@ class Store:
                          (tenant,), fetch=True)
 
     # ---- revisiones (no dependen de la escuela) -----------------------------------------
-    def add_review(self, scope: str, reviewer: str, decision: str, comment: str, checklist: dict) -> None:
-        self._run(None, "INSERT INTO item_reviews (scope, reviewer, decision, comment, checklist) VALUES (?, ?, ?, ?, {J})",
-                  (scope, reviewer, decision, comment, json.dumps(checklist)))
+    def add_review(self, scope: str, reviewer: str, decision: str, comment: str, checklist: dict) -> bool:
+        """Inserta una revisión una sola vez, incluso ante envíos concurrentes.
+
+        La restricción UNIQUE (scope, reviewer) es la autoridad final; no se
+        depende de una consulta previa susceptible a carreras.
+        """
+        rows = self._run(
+            None,
+            "INSERT INTO item_reviews (scope, reviewer, decision, comment, checklist) "
+            "VALUES (?, ?, ?, ?, {J}) ON CONFLICT (scope, reviewer) DO NOTHING RETURNING id",
+            (scope, reviewer, decision, comment, json.dumps(checklist)),
+            fetch=True,
+        )
+        return bool(rows)
 
     def reviews(self, scope: str | None = None) -> list[dict]:
         q = "SELECT scope, reviewer, decision, comment, checklist, created_at FROM item_reviews"
