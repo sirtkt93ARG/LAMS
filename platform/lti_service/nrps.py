@@ -38,12 +38,8 @@ def _allowed_url(url: str, issuer: str, allowed_hosts: list[str] | None, dev: bo
 def _next_link(header: str | None) -> str | None:
     if not header:
         return None
-    for part in header.split(","):
-        if re.search(r';\s*rel=["\']?next["\']?', part, re.IGNORECASE):
-            match = re.search(r"<([^>]+)>", part)
-            if match:
-                return match.group(1)
-    return None
+    match = re.search(r'<([^>]+)>\\s*;\\s*rel=["\']?next["\']?', header, re.IGNORECASE)
+    return match.group(1) if match else None
 
 
 def fetch_memberships(context_memberships_url: str, token: str, *, issuer: str,
@@ -61,8 +57,13 @@ def fetch_memberships(context_memberships_url: str, token: str, *, issuer: str,
             "Accept": ACCEPT_NRPS,
         })
         with opener.open(req, timeout=timeout) as response:
-            payload = json.loads(response.read())
+            raw = response.read(5 * 1024 * 1024 + 1)
+            if len(raw) > 5 * 1024 * 1024:
+                raise ValueError("respuesta NRPS supera el tamaño permitido")
+            payload = json.loads(raw)
             link = response.headers.get("Link")
+        if not isinstance(payload, dict):
+            raise ValueError("respuesta NRPS inválida")
         entries = payload.get("members", [])
         if not isinstance(entries, list):
             raise ValueError("respuesta NRPS sin lista de miembros")
@@ -71,7 +72,7 @@ def fetch_memberships(context_memberships_url: str, token: str, *, issuer: str,
                 continue
             user_id = entry.get("user_id")
             roles = entry.get("roles", [])
-            if not isinstance(user_id, str) or not user_id or user_id in seen:
+            if not isinstance(user_id, str) or not user_id or len(user_id) > 512 or user_id in seen:
                 continue
             if not isinstance(roles, list) or not any(str(role).endswith("#Learner") for role in roles):
                 continue
