@@ -212,6 +212,22 @@ class TestPostgresStore(unittest.TestCase):
         self.assertEqual(self.store.load_session(session_id, tenant)["version"], 1)
         self.assertEqual(len(self.store.responses_for_pid(tenant, pid)), 1)
 
+    def test_concurrent_postgres_template_reviews_commit_once(self):
+        scope = f"template:T3:{uuid4().hex}"
+        barrier = threading.Barrier(2)
+
+        def submit():
+            barrier.wait(timeout=5)
+            return self.store.add_review(scope, "curator-one", "aprobar", "", {"quality": True})
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            outcomes = list(pool.map(lambda _: submit(), range(2)))
+
+        self.assertCountEqual(outcomes, [True, False])
+        reviews = self.store.reviews(scope)
+        self.assertEqual(len(reviews), 1)
+        self.assertEqual(reviews[0]["reviewer"], "curator-one")
+
     def test_consent_upsert_can_update_existing_tenant_settings(self):
         tenant = f"consent-{uuid4().hex}"
         self.store.attest_consent(tenant, "teacher-one")
