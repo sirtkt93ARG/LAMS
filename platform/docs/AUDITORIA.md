@@ -11,7 +11,7 @@ Las cifras de exposición, diversidad y simulación que aparecen más abajo son 
 ## 1. Veredicto
 
 La plataforma ya cuenta con pruebas automatizadas de núcleo, API y HTTP; integración PostgreSQL 16; smoke LTI 1.3 con PyLTI1p3
-contra el LMS simulado; y ocho pruebas de navegador con axe. Los principales frentes pendientes son **operación productiva** (backups, restauración, monitoreo, Keycloak institucional
+contra el LMS simulado; y ocho pruebas de navegador con axe. Los principales frentes pendientes son **operación productiva** (ensayo de restauración en staging, monitoreo, Keycloak institucional
 y Moodle real), **validación educativa** (calibración con un piloto y análisis con microdatos PISA) y **accesibilidad
 manual** (lectores de pantalla, Firefox/WebKit y dispositivos reales).
 
@@ -36,6 +36,7 @@ Estado: situación en la rama `main` a 21-11-2026. Los valores numéricos de evi
 
 | Tema | Detalle | Recomendación |
 |---|---|---|
+| Backups y recuperación | Existe una herramienta inicial de backup lógico custom con SHA-256, manifiesto y restauración en base vacía; aún no se probó end-to-end contra PostgreSQL de staging ni se configuraron scheduler, cifrado externo, retención, alertas o WAL/PITR | Ejecutar simulacro de restauración en staging, medir RTO, fijar RPO/retención institucional y automatizar alertas antes de producción |
 | Estado en memoria por proceso | Las decisiones de curaduría persisten en la base y cada worker las vuelve a aplicar antes de crear sesiones. El rate limiting ahora usa contadores atómicos en PostgreSQL/SQLite, compartidos entre workers; los contadores de métricas siguen siendo locales al proceso | Centralizar métricas para escalar horizontalmente; desplegar la migración v16 antes de actualizar instancias existentes |
 | Supresión externa pendiente | `DELETE /v1/me/data` elimina sesiones/respuestas locales y anonimiza los eventos de auditoría del actor; si `LRS_URL` está configurado, devuelve 202 y el agente xAPI que requiere supresión manual | Integrar el mecanismo administrativo del LRS elegido; xAPI 1.0.3 solo define voiding, que no destruye Statements |
 | Verificación de interfaz | Ocho pruebas Playwright/axe cubren login, práctica, panel docente, curaduría, red, teclado y viewport móvil en Chromium | Ampliar a Firefox/WebKit, lectores de pantalla y pruebas manuales con usuarios |
