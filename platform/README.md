@@ -11,10 +11,10 @@ Alrededor: API (FastAPI), interfaz web (Next.js), servicio LTI 1.3, Keycloak, es
 | Pieza | Estado |
 |---|---|
 | `src/matheval` (núcleo) | Implementado y probado: 24 plantillas (N1 a N8), habilidades, dominio, práctica dirigida, calibración, análisis |
-| `api/` (FastAPI) | Lógica probada con 108 pruebas automáticas (más integración PostgreSQL en CI). Las pruebas por HTTP (`tests/test_http.py`) corren solo con FastAPI y httpx reales: **ejecutalas en tu equipo** |
-| `lti_service/` y `tools/mock_lms/` | Ingreso LTI 1.3 y devolución de notas probados con sustitutos y por HTTP contra el LMS simulado. **Con PyLTI1p3 real, pendiente: `scripts/smoke_http.py`** |
-| `web/` (Next.js 14) | Recorrido de estudiante y docente verificado por vos en la v0.2. **Todo lo nuevo (gráficos, práctica por tema, progreso, panel ampliado, accesibilidad) está sin ver en navegador** |
-| PostgreSQL, Docker, Keycloak, Ralph | Escritos, **no ejecutados**. `scripts/check_postgres.py` verifica esquema y aislamiento por escuela |
+| `api/` (FastAPI) | Lógica cubierta por la suite Python/HTTP y por integración PostgreSQL 16 en CI; también se prueban migraciones y RLS |
+| `lti_service/` y `tools/mock_lms/` | Ingreso LTI 1.3 y devolución AGS probados con PyLTI1p3 real contra el LMS simulado mediante `scripts/smoke_http.py` en CI; Moodle real y Keycloak de producción siguen pendientes |
+| `web/` (Next.js 14) | Seis pruebas Playwright + axe en Chromium cubren login, práctica, docente, curaduría, red, teclado y vista móvil; faltan recorridos manuales con lectores de pantalla y validación Firefox/WebKit |
+| PostgreSQL 16: migraciones, RLS y aislamiento probados en CI. Docker Compose, Keycloak de producción y LRS Ralph aún no se han desplegado ni validado como servicios reales |
 
 ### Novedades de la v0.7: microdatos de PISA
 
@@ -121,7 +121,7 @@ python -m venv .venv && ./scripts/dev.sh        # o ./scripts/dev.sh prod
 
 ```bash
 pip install -e ".[api,lti]"
-PYTHONPATH=src python -m unittest discover -s tests      # 108 pruebas; las de HTTP corren con FastAPI y httpx reales, y la integración PostgreSQL se ejecuta en CI
+PYTHONPATH=src python -m unittest discover -s tests      # suite Python/HTTP; PostgreSQL 16 se prueba en CI
 ```
 
 ### PostgreSQL con aislamiento por escuela (opcional, requiere Docker Desktop)
@@ -134,14 +134,14 @@ python scripts/check_postgres.py --admin-url postgresql://postgres:cambiar@local
 Si venís de una versión anterior, SQLite aplica sus migraciones compatibles al arrancar. En PostgreSQL existente, ejecutá con el propietario de la base las migraciones pendientes en orden, desde `db/002_migracion_v05.sql` hasta `db/006_migracion_v11.sql` (sin repetir las que ya aplicaste). La migración `004` deja las membresías de red existentes como pendientes: cada escuela debe aceptar de nuevo antes de compartir agregados. La migración `006` habilita retirar el consentimiento y salir de una red después de haber aceptado.
 
 Cuando algo falle, anotá el comando, el mensaje de error completo y las versiones de Node y Python. Los puntos con más
-riesgo son `smoke_http.py` (primera ejecución real de PyLTI1p3), `npm run dev` con las pantallas de revisión y,
+riesgo pendiente: probar Moodle real, revisar manualmente con tecnologías de asistencia y validar despliegue Docker/Keycloak; `smoke_http.py` y los recorridos Playwright ya corren en CI. También queda,
 si lo probás, `check_postgres.py`.
 
 ## Próximos pasos
 
 1. Corregir lo que aparezca al montar el entorno (primera ronda de errores de instalación y de tipos).
-2. Probar la persistencia en PostgreSQL con RLS (`DATABASE_URL=postgresql://...`) y ajustar lo que aparezca.
-3. Corregir lo que muestre `smoke_http.py` en el ingreso por LTI; después probar con un Moodle real y ajustar el realm de Keycloak.
+2. Completar una prueba de despliegue con Docker Compose y revisar backups, restauración, migraciones y operación de PostgreSQL.
+3. Probar el ingreso y AGS con un Moodle real y un realm de Keycloak de producción; revisar también el LRS xAPI.
 4. Más plantillas (N2, N7, N8), ítems con gráficos y flujo de revisión docente del banco.
 5. Importación de ítems QTI con qti3-item-player y tablero docente por estudiante (con permisos y consentimiento).
 6. Piloto en una o dos escuelas, calibración con `calibration.py` y estudio de puntos de corte.
