@@ -601,6 +601,7 @@ class Store:
         rows = self._run(tenant, "SELECT s.id, s.pid, s.response, s.status, s.score, s.feedback, s.rubric, s.submitted_at, s.reviewed_by, s.reviewed_at, a.competency_id, a.rubric_snapshot FROM open_submissions s JOIN open_assignments a ON a.id = s.assignment_id AND a.tenant_id = s.tenant_id WHERE s.tenant_id = ? AND s.assignment_id = ? ORDER BY s.submitted_at",
                          (tenant, assignment_id), fetch=True)
         return [{**{k: v for k, v in r.items() if k != "pid"},
+                 "student_key": hashlib.sha256(r["pid"].encode()).hexdigest(),
                  "student_label": "Estudiante " + hashlib.sha256(r["pid"].encode()).hexdigest()[:6].upper(),
                  "rubric": _loads(r["rubric"]) if r["rubric"] else None,
                  "rubric_snapshot": _loads(r["rubric_snapshot"]) if r.get("rubric_snapshot") else None} for r in rows]
