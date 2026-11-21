@@ -15,7 +15,7 @@ from flask_caching import Cache
 from pylti1p3.contrib.flask import FlaskCacheDataStorage, FlaskMessageLaunch, FlaskOIDCLogin, FlaskRequest
 from pylti1p3.tool_config import ToolConfJsonFile
 
-from . import ags
+from . import ags, nrps
 
 log = logging.getLogger("lti")
 app = Flask(__name__)
@@ -37,6 +37,7 @@ ROLES = "https://purl.imsglobal.org/spec/lti/claim/roles"
 DEPLOYMENT = "https://purl.imsglobal.org/spec/lti/claim/deployment_id"
 CONTEXT = "https://purl.imsglobal.org/spec/lti/claim/context"
 AGS_ENDPOINT = "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint"
+NRPS_CLAIM = "https://purl.imsglobal.org/spec/lti-nrps/claim/namesroleservice"
 CONFIG_PATH = pathlib.Path(os.getenv("LTI_CONFIG", "lti_service/configs/lti.json"))
 
 
@@ -76,8 +77,15 @@ def launch():
             claims["course_id"], claims["course_label"] = str(ctx["id"]), str(ctx.get("label") or ctx.get("title") or ctx["id"])
         ep = data.get(AGS_ENDPOINT) or {}
         aud = data.get("aud")
+        client_id = aud[0] if isinstance(aud, list) else aud
         if ep.get("lineitem") and ags.SCOPE_SCORE in ep.get("scope", []):
-            claims["ags"] = {"iss": data["iss"], "client_id": aud[0] if isinstance(aud, list) else aud, "lineitem": ep["lineitem"]}
+            claims["ags"] = {"iss": data["iss"], "client_id": client_id, "lineitem": ep["lineitem"]}
+        nrps_claim = data.get(NRPS_CLAIM) or {}
+        memberships_url = nrps_claim.get("context_memberships_url")
+        if (role_of(data.get(ROLES, [])) == "teacher" and isinstance(memberships_url, str)
+                and "2.0" in nrps_claim.get("service_versions", [])):
+            claims["nrps"] = {"iss": data["iss"], "client_id": client_id,
+                              "context_memberships_url": memberships_url}
         token = jwt.encode(claims, HANDOFF_SECRET, algorithm="HS256")
     except Exception as e:                              # validación de PyLTI1p3 fallida o datos incompletos
         log.exception("lanzamiento LTI inválido")
@@ -93,6 +101,32 @@ def jwks():
         return jsonify({"keys": [ags.public_jwk((CONFIG_PATH.parent / conf["public_key_file"]).read_bytes())]})
     except Exception:                                   # noqa: BLE001
         return jsonify(TOOL_CONF.get_jwks())
+
+
+@app.route("/lti/nrps/roster", methods=["POST"])
+def nrps_roster():
+    """Uso interno: devuelve únicamente identificador y nombre de alumnos del contexto LTI."""
+    if request.headers.get("X-Internal-Secret") != HANDOFF_SECRET:
+        return jsonify({"error": "no autorizado"}), 401
+    body = request.get_json(force=True, silent=True) or {}
+    claim = body.get("nrps") or {}
+    issuer, client_id = claim.get("iss"), claim.get("client_id")
+    memberships_url = claim.get("context_memberships_url")
+    if not all(isinstance(value, str) and value for value in (issuer, client_id, memberships_url)):
+        return jsonify({"error": "contexto NRPS incompleto"}), 400
+    try:
+        reg = tool_registration(issuer, client_id)
+        kid = ags.public_jwk(reg["public_pem"])["kid"]
+        members = nrps.fetch_roster(
+            memberships_url, issuer, client_id, reg["auth_token_url"], reg["private_pem"], kid,
+            allowed_hosts=reg.get("nrps_allowed_hosts"), dev=DEV,
+        )
+    except ValueError as exc:
+        return jsonify({"error": "contexto NRPS no permitido", "detail": str(exc)}), 400
+    except Exception as exc:                              # noqa: BLE001
+        log.exception("no se pudo consultar el roster NRPS")
+        return jsonify({"error": "no se pudo consultar el roster NRPS", "detail": str(exc)}), 502
+    return jsonify({"members": members})
 
 
 @app.route("/lti/ags/score", methods=["POST"])
