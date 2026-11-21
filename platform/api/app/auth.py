@@ -12,6 +12,15 @@ AUDIENCE = os.getenv("OIDC_AUDIENCE", "matheval-api")
 SESSION_SECRET = os.getenv("SESSION_SECRET", "")      # firma las sesiones emitidas tras un acceso LTI
 HANDOFF_SECRET = os.getenv("LTI_HANDOFF_SECRET", "")  # compartido con lti_service (token de 60 s)
 SESSION_TTL_S = 2 * 3600
+_token_consumer = None
+
+
+def set_token_consumer(fn) -> None:
+    """Inyecta el almacén que consume los identificadores únicos de los handoffs LTI."""
+    global _token_consumer
+    _token_consumer = fn
+
+
 _jwks = jwt.PyJWKClient(f"{ISSUER}/protocol/openid-connect/certs") if ISSUER else None
 
 
@@ -29,11 +38,19 @@ def verify_handoff(token: str) -> User:
     if not HANDOFF_SECRET:
         raise HTTPException(503, "LTI no configurado")
     try:
-        c = jwt.decode(token, HANDOFF_SECRET, algorithms=["HS256"])
+        c = jwt.decode(
+            token, HANDOFF_SECRET, algorithms=["HS256"],
+            issuer="matheval-lti", audience="matheval-api",
+            options={"require": ["sub", "tenant_id", "role", "exp", "iat", "iss", "aud", "jti"]},
+        )
     except jwt.PyJWTError as e:
         raise HTTPException(401, "token de acceso inválido o vencido") from e
     if c.get("role") not in ("student", "teacher", "admin"):
         raise HTTPException(403, "rol no permitido")
+    if _token_consumer is None:
+        raise HTTPException(503, "protección de reutilización LTI no configurada")
+    if not _token_consumer(c["jti"]):
+        raise HTTPException(401, "token de acceso ya utilizado")
     return User(c["sub"], c["tenant_id"], c["role"], c.get("course_id"), c.get("course_label"), c.get("ags"))
 
 
