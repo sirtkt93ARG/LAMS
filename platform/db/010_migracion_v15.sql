@@ -2,9 +2,9 @@
 -- La fila es un tombstone persistente, aislado por escuela y seudónimo.
 CREATE TABLE IF NOT EXISTS xapi_erasure_blocks (
   tenant_id text NOT NULL,
-  pid text NOT NULL,
+  pid_hash text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (tenant_id, pid)
+  PRIMARY KEY (tenant_id, pid_hash)
 );
 
 ALTER TABLE xapi_erasure_blocks ENABLE ROW LEVEL SECURITY;
