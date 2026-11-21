@@ -37,6 +37,7 @@ class TestPostgresStore(unittest.TestCase):
                 root / "db/008_migracion_v13.sql",
                 root / "db/009_migracion_v14.sql",
                 root / "db/010_migracion_v15.sql",
+                root / "db/011_migracion_v16.sql",
             ):
                 conn.execute(migration.read_text(encoding="utf-8"), prepare=False)
         cls.store = Store(APP_URL)
@@ -218,6 +219,24 @@ class TestPostgresStore(unittest.TestCase):
         settings = self.store.tenant_settings(tenant)
         self.assertEqual(settings["consent_attested_by"], "teacher-two")
         self.assertIsNotNone(settings["consent_attested_at"])
+
+
+    def test_shared_rate_limit_is_atomic_across_postgres_connections(self):
+        from api.app.limits import RateLimiter
+        suffix = uuid4().hex
+        key = f"pg-rate-{suffix}"
+        limiters = [RateLimiter(self.store, lambda: 120.0) for _ in range(2)]
+        barrier = threading.Barrier(12)
+
+        def hit(index):
+            barrier.wait()
+            return limiters[index % 2].allow(key, 5, 60)
+
+        with ThreadPoolExecutor(max_workers=12) as pool:
+            outcomes = list(pool.map(hit, range(12)))
+        self.assertEqual(sum(outcomes), 5)
+        self.assertFalse(RateLimiter(self.store, lambda: 120.0).allow(key, 5, 60))
+        self.assertTrue(RateLimiter(self.store, lambda: 180.0).allow(key, 5, 60))
 
     def test_lti_handoff_jti_is_single_use(self):
         jti = f"jti-{uuid4().hex}"

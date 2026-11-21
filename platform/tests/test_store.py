@@ -6,6 +6,7 @@ from matheval.models import IRTParams, Status
 from matheval.bank import ItemBank
 from matheval import templates as T
 from api.app.store import Store
+from api.app.limits import RateLimiter
 from api.app import review as R
 
 
@@ -22,6 +23,22 @@ class TestStore(unittest.TestCase):
     def tearDown(self):
         self.store._conn.close()
         self.tmp.cleanup()
+
+
+    def test_rate_limit_is_shared_across_store_instances_and_resets_by_window(self):
+        other = Store(f"sqlite:///{self.tmp.name}/t.db")
+        now = [120.0]
+        try:
+            first, second = RateLimiter(self.store, lambda: now[0]), RateLimiter(other, lambda: now[0])
+            self.assertTrue(first.allow("hint:school:student", 3, 60))
+            self.assertTrue(first.allow("hint:school:student", 3, 60))
+            self.assertTrue(second.allow("hint:school:student", 3, 60))
+            self.assertFalse(second.allow("hint:school:student", 3, 60))
+            self.assertTrue(second.allow("hint:other:student", 3, 60))
+            now[0] = 180.0
+            self.assertTrue(second.allow("hint:school:student", 3, 60))
+        finally:
+            other._conn.close()
 
     def test_lti_handoff_jti_is_consumed_once(self):
         self.assertTrue(self.store.consume_token("jti-unico"))

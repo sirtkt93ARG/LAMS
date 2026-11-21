@@ -338,7 +338,7 @@ class TestApiLogic(unittest.TestCase):
         item_id = M.pending(sid, u)["items"][0]["id"]
         from api.app.limits import RateLimiter
         old = M.LIM
-        M.LIM = RateLimiter()
+        M.LIM = RateLimiter(M.STORE)
         try:
             codes = []
             for _ in range(250):

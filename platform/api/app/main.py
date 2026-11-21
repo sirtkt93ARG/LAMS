@@ -59,7 +59,7 @@ LTI_SERVICE_URL = os.getenv("LTI_SERVICE_URL")
 REQUIRE_CONSENT = os.getenv("REQUIRE_CONSENT", "0" if DEV else "1") == "1"
 LADDER = [{"level": k, "descriptor": DESCRIPTORS[k]} for k in sorted(DESCRIPTORS)]
 MODES = ("practica", "medicion", "dirigida", "piloto")
-LIM, METRICS = RateLimiter(), Counter()
+LIM, METRICS = RateLimiter(STORE), Counter()
 
 
 @app.middleware("http")
