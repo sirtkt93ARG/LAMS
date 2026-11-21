@@ -82,8 +82,10 @@ def launch():
             claims["ags"] = {"iss": data["iss"], "client_id": client_id, "lineitem": ep["lineitem"]}
         nrps_claim = data.get(NRPS_CLAIM) or {}
         memberships_url = nrps_claim.get("context_memberships_url")
+        service_versions = nrps_claim.get("service_versions", [])
         if (role_of(data.get(ROLES, [])) == "teacher" and isinstance(memberships_url, str)
-                and "2.0" in nrps_claim.get("service_versions", [])):
+                and 0 < len(memberships_url) <= 2048 and isinstance(client_id, str) and client_id
+                and isinstance(service_versions, list) and "2.0" in service_versions):
             claims["nrps"] = {"iss": data["iss"], "client_id": client_id,
                               "context_memberships_url": memberships_url}
         token = jwt.encode(claims, HANDOFF_SECRET, algorithm="HS256")
@@ -109,10 +111,12 @@ def nrps_roster():
     if request.headers.get("X-Internal-Secret") != HANDOFF_SECRET:
         return jsonify({"error": "no autorizado"}), 401
     body = request.get_json(force=True, silent=True) or {}
-    claim = body.get("nrps") or {}
+    if not isinstance(body, dict) or not isinstance(body.get("nrps"), dict):
+        return jsonify({"error": "contexto NRPS incompleto"}), 400
+    claim = body["nrps"]
     issuer, client_id = claim.get("iss"), claim.get("client_id")
     memberships_url = claim.get("context_memberships_url")
-    if not all(isinstance(value, str) and value for value in (issuer, client_id, memberships_url)):
+    if not all(isinstance(value, str) and value for value in (issuer, client_id, memberships_url)) or len(memberships_url) > 2048:
         return jsonify({"error": "contexto NRPS incompleto"}), 400
     try:
         reg = tool_registration(issuer, client_id)
