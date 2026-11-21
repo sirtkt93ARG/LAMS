@@ -35,6 +35,13 @@ export default function NetworkPage() {
             <tbody>{data.schools.map(row)}{data.others && row(data.others)}{data.total && row({ school: "Total", ...data.total })}</tbody>
           </table>
         ))}
+        {data && data.pending_tenants.length > 0 && (
+          <div className="notice">
+            <h2>Invitaciones pendientes ({data.pending_invitations})</h2>
+            <p>Estas escuelas todavía no aceptaron compartir sus resultados agregados:</p>
+            <ul>{data.pending_tenants.map((tenant) => <li key={tenant}>{tenant}</li>)}</ul>
+          </div>
+        )}
         {data && <p className="muted">{data.note}</p>}
         <label className="field"><span>Agregar una escuela a la red (identificador)</span>
           <input value={school} onChange={(e) => setSchool(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
