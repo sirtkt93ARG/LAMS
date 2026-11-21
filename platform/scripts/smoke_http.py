@@ -31,7 +31,8 @@ def call(method, url, data=None, headers=None, form=False):
 def check(name, fn):
     try:
         out = fn()
-        results.append((name, out is not False, "" if out in (True, None) else str(out)[:140]))
+        ok = out is True or out is None
+        results.append((name, ok, "" if ok else str(out)[:140]))
     except Exception as e:                       # noqa: BLE001
         results.append((name, False, repr(e)[:140]))
 
