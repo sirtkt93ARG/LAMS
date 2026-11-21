@@ -41,7 +41,7 @@ def _explain(it: Item):
                 ["Escribí el costo de cada plan en función de la cantidad de viajes.", "Buscá cuántos viajes hacen que ambos costos sean iguales."])
     if t == "T7":
         tot = p["p"] * p["q"]; assert tot == int(p["answer"])
-        return ([f"Cada paquete cuesta {_m(p['p'])} y son {p['q']} paquetes.", f"Se multiplica: {p['q']} × {_m(p['p'])} = {_m(tot)}."],
+        return ([f"Cada unidad cuesta {_m(p['p'])} y son {p['q']} unidades.", f"Se multiplica: {p['q']} × {_m(p['p'])} = {_m(tot)}."],
                 ["Comprar varias unidades del mismo precio se resuelve con una multiplicación."," Multiplicá la cantidad por el precio de uno."])
     if t == "T8":
         return ([f"Buscá en la tabla la fila de «{p['names'][p['k']]}».", f"Ahí figura el precio {_m(p['prices'][p['k']])}."],
@@ -60,14 +60,19 @@ def _explain(it: Item):
                 ["Hacé una lista ordenada para no repetir ni olvidar combinaciones.", "Empezá por la moneda más grande."])
     if t == "T11":
         a, d = p["a"], p["d"]
-        return ([f"Entre un diseño y el siguiente se agregan siempre {d} baldosas ({a} → {a + d} → {a + 2 * d}).",
-                 f"Entonces el diseño n tiene {d} × n baldosas más un ajuste: en n = 1 hay {a}, y {d} × 1 = {d}.", f"El ajuste es {a} − {d} = {a - d}, así que la expresión es {d}n + {a - d}."],
+        noun, unit = p.get("noun", "baldosas"), p.get("unit", "diseño")
+        return ([f"Entre un {unit} y el siguiente se agregan siempre {d} {noun} ({a} → {a + d} → {a + 2 * d}).",
+                 f"Entonces el {unit} n tiene {d} × n {noun} más un ajuste: en n = 1 hay {a}, y {d} × 1 = {d}.", f"El ajuste es {a} − {d} = {a - d}, así que la expresión es {d}n + {a - d}."],
                 ["Calculá cuánto crece la cantidad en cada paso.", "Ese crecimiento multiplica a n; después ajustá con el primer valor."])
     if t == "T12":
-        k = p["k"]
-        return ([f"El área inicial es n × n = n².", f"Al agrandar el lado {k} cm, el lado nuevo es n + {k} y el área nueva es (n + {k})² = n² + {2 * k}n + {k * k}.",
-                 f"El aumento es el área nueva menos la inicial: {2 * k}n + {k * k}."],
-                ["Escribí el área antes y después de agrandar el lado.", "Desarrollá el cuadrado de un binomio y restá n²."])
+        k, a = p["k"], p["a"]
+        if a == 0:
+            return ([f"El área inicial es n × n = n².", f"Al agrandar el lado {k} cm, el lado nuevo es n + {k} y el área nueva es (n + {k})² = n² + {2 * k}n + {k * k}.",
+                     f"El aumento es el área nueva menos la inicial: {2 * k}n + {k * k}."],
+                    ["Escribí el área antes y después de agrandar el lado.", "Desarrollá el cuadrado de un binomio y restá n²."])
+        return ([f"El área inicial es n × (n + {a}) = n² + {a}n.", f"Con los lados agrandados {k} cm, el área nueva es (n + {k}) × (n + {a + k}) = n² + {a + 2 * k}n + {k * (a + k)}.",
+                 f"El aumento es el área nueva menos la inicial: {2 * k}n + {k * (a + k)}."],
+                ["Escribí el área antes y después de agrandar los lados.", "Multiplicá los binomios y restá el área inicial."])
     if t == "T13":
         return ([f"Buscá la barra de {p['k'] and ''}ese día en el eje horizontal y seguí hasta lo alto de la barra.", f"El valor leído en el eje vertical es {p['values'][p['k']]}."],
                 ["Ubicá el día en el eje horizontal.", "Leé el número del eje vertical al que llega la barra."])
@@ -106,7 +111,7 @@ def _explain(it: Item):
                 ["Escribí dos ecuaciones: una con la cantidad de entradas y otra con el dinero.", "Despejá una incógnita de la primera y reemplazala en la segunda."])
     if t == "T22":
         l, leg = p["l"], p["leg"]; h = int(p["answer"]); assert l * l == leg * leg + h * h
-        return ([f"La escalera, la pared y el piso forman un triángulo rectángulo: la escalera es la hipotenusa ({l} m).", f"h² = {l}² − {leg}² = {l * l} − {leg * leg} = {h * h}.", f"h = √{h * h} = {h} m."],
+        return ([f"Los dos lados que forman el ángulo recto y la longitud de {l} m forman un triángulo rectángulo: {l} m es la hipotenusa.", f"h² = {l}² − {leg}² = {l * l} − {leg * leg} = {h * h}.", f"h = √{h * h} = {h} m."],
                 ["Dibujá el triángulo rectángulo.", "Se busca un cateto: restá los cuadrados."])
     if t == "T23":
         C, tt, n = p["C"], p["t"], p["n"]; r = C * tt * n // 100; assert r == int(p["answer"])
