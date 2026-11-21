@@ -1,6 +1,8 @@
 """Validación de configuración sensible antes de arrancar servicios fuera de desarrollo."""
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 MIN_SECRET = 32
 _DEFAULTS = {"cambiar", "cambiar-en-produccion", "changeme", "secret", "password"}
 
@@ -15,7 +17,8 @@ def _weak(value: str | None) -> bool:
 
 
 def _local_http(value: str) -> bool:
-    return value.startswith(("http://localhost", "http://127.0.0.1", "http://[::1]"))
+    parsed = urlparse(value)
+    return parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
 
 
 def check_config(env: dict, dev: bool) -> tuple[list[str], list[str]]:
