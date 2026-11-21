@@ -462,7 +462,8 @@ def courses(user: User = Depends(current_user)):
 def teacher_open_items(user: User = Depends(current_user)):
     _teacher(user)
     return {"items": [{"id": item.id, "stem": item.stem, "stimulus": item.stimulus,
-                       "competencies": competencies_for_item(item.id)}
+                       "competencies": [{**entry, "rubric": rubric_snapshot(entry["id"])}
+                                       for entry in competencies_for_item(item.id)]}
                       for item in BANK.items.values() if item.kind == "open"]}
 
 
@@ -494,8 +495,6 @@ def teacher_create_open_assignment(body: OpenAssignmentIn, user: User = Depends(
     competency_id = body.competency_id
     if competency_id and not valid_competency_for_item(item.id, competency_id):
         raise HTTPException(400, "La competencia seleccionada no está vinculada a esta plantilla del banco.")
-    if not competency_id and len(competencies) == 1:
-        competency_id = competencies[0]["id"]
     snapshot = rubric_snapshot(competency_id) if competency_id else None
     assignment_id = str(uuid.uuid4())
     STORE.create_open_assignment(assignment_id, user.tenant_id, body.course_id, item.id, title,
