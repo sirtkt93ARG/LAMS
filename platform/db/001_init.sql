@@ -90,17 +90,27 @@ END $;
 -- Una escuela solo puede ver invitaciones dirigidas a ella; una red solo sus propias membresías.
 ALTER TABLE tenant_networks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenant_networks FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_network_membership_access ON tenant_networks
-  USING (
-    network_id = NULLIF(current_setting('app.tenant_id', true), '')
-    OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')
-  )
-  WITH CHECK (
+CREATE POLICY tenant_network_membership_select ON tenant_networks
+  FOR SELECT USING (
     network_id = NULLIF(current_setting('app.tenant_id', true), '')
     OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')
   );
+-- Only the network may create invitations. Schools may only accept/decline their own pending invitation.
+CREATE POLICY tenant_network_invite_insert ON tenant_networks
+  FOR INSERT WITH CHECK (network_id = NULLIF(current_setting('app.tenant_id', true), ''));
+CREATE POLICY tenant_network_invite_update ON tenant_networks
+  FOR UPDATE USING (
+    tenant_id = NULLIF(current_setting('app.tenant_id', true), '') AND accepted = false
+  ) WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), ''));
+CREATE POLICY tenant_network_invite_delete ON tenant_networks
+  FOR DELETE USING (
+    network_id = NULLIF(current_setting('app.tenant_id', true), '')
+    OR (tenant_id = NULLIF(current_setting('app.tenant_id', true), '') AND accepted = false)
+  );
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON sessions, responses, tenant_settings, tenant_networks TO matheval_app;
+GRANT SELECT, INSERT, DELETE ON sessions, responses, tenant_settings TO matheval_app;
+GRANT SELECT, INSERT, DELETE ON tenant_networks TO matheval_app;
+GRANT UPDATE (accepted) ON tenant_networks TO matheval_app;
 GRANT SELECT, INSERT ON item_reviews, audit_log TO matheval_app;
 GRANT INSERT, DELETE ON used_tokens TO matheval_app;
 GRANT USAGE, SELECT ON SEQUENCE responses_id_seq, item_reviews_id_seq, audit_log_id_seq TO matheval_app;
