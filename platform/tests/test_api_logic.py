@@ -173,7 +173,6 @@ class TestApiLogic(unittest.TestCase):
         self.assertIsNone(result["erasure_complete"])
         self.assertTrue(result["future_xapi_exports_blocked"])
         self.assertTrue(result["suppression_marker_retained"])
-        self.assertTrue(result["suppression_marker_retained"])
         self.assertEqual(result["external_lrs"]["status"], "not_configured_currently")
 
     def test_student_view_hides_answers(self):
