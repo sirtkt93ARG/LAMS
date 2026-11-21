@@ -25,10 +25,10 @@ ENV/
 .env.*
 !.env.example
 !.env.*.example
-platform/web/.env.local
-platform/web/.env.development.local
-platform/web/.env.test.local
-platform/web/.env.production.local
+web/.env.local
+web/.env.development.local
+web/.env.test.local
+web/.env.production.local
 
 # Node / Next.js
 node_modules/
@@ -49,5 +49,5 @@ Thumbs.db
 *.swo
 
 # Generated private/large source datasets
-platform/data/raw/*
-!platform/data/raw/.gitkeep
+data/raw/*
+!data/raw/.gitkeep
