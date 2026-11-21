@@ -39,6 +39,7 @@ export default function Home() {
               <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
                 <option value="student">Estudiante</option>
                 <option value="teacher">Docente</option>
+                <option value="admin">Administrador de contenido</option>
                 <option value="network">Red de escuelas (jurisdicción)</option>
               </select>
             </label>
