@@ -127,6 +127,9 @@ jobs:
         run: |
           npm install
           npm run build
+      - name: Install Chromium for browser tests
+        working-directory: platform/web
+        run: npx playwright install --with-deps chromium
       - name: Start API, real PyLTI1p3 service, mock LMS, and web
         env:
           MATHEVAL_DEV: "1"
@@ -180,3 +183,4 @@ jobs:
           wait_for http://localhost:8300/
           wait_for http://localhost:3000/
           python scripts/smoke_http.py
+          (cd web && npm run test:e2e)
