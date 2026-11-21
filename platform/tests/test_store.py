@@ -1,4 +1,5 @@
-import os, sys, sqlite3, tempfile, unittest
+import os, sys, sqlite3, tempfile, unittest, threading
+from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, os.getcwd())
 from matheval.adaptive import MSTSession, PoolItem, build_design
 from matheval.models import IRTParams, Status
@@ -61,6 +62,43 @@ class TestStore(unittest.TestCase):
         self.store.add_network_tenant("red", "school-b")
         self.assertTrue(self.store.answer_invite("red", "school-b", False))
         self.assertEqual(self.store.pending_network_tenants("red"), [])
+
+    def test_record_answer_is_atomic_and_rejects_stale_version(self):
+        self.store.create_session("answer-1", "esc", "pid-answer", "practica", {"step": 0})
+        initial = self.store.load_session("answer-1", "esc")
+        self.assertEqual(initial["version"], 0)
+
+        self.assertTrue(self.store.record_answer(
+            "answer-1", "esc", initial["version"], {"step": 1},
+            "item-1", "A", 1.0, None, 2.5
+        ))
+        updated = self.store.load_session("answer-1", "esc")
+        self.assertEqual(updated["version"], 1)
+        self.assertEqual(updated["state"], {"step": 1})
+
+        self.assertFalse(self.store.record_answer(
+            "answer-1", "esc", initial["version"], {"step": 2},
+            "item-2", "B", 0.0, "error", 3.0
+        ))
+        self.assertEqual(self.store.load_session("answer-1", "esc")["state"], {"step": 1})
+        self.assertEqual(len(self.store.responses_for_pid("esc", "pid-answer")), 1)
+
+    def test_concurrent_answers_from_same_version_only_commit_once(self):
+        self.store.create_session("answer-race", "esc", "pid-race", "practica", {"step": 0})
+        barrier = threading.Barrier(2)
+
+        def submit(index):
+            barrier.wait()
+            return self.store.record_answer(
+                "answer-race", "esc", 0, {"step": index},
+                f"item-{index}", "A", 1.0, None, 2.0
+            )
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            outcomes = list(pool.map(submit, (1, 2)))
+        self.assertCountEqual(outcomes, [True, False])
+        self.assertEqual(self.store.load_session("answer-race", "esc")["version"], 1)
+        self.assertEqual(len(self.store.responses_for_pid("esc", "pid-race")), 1)
 
     def test_mst_snapshot_roundtrip(self):
         pool = _pool()

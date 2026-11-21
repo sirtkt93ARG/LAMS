@@ -7,7 +7,7 @@ Empezá por `README.md` (qué es, cómo montarlo y estado real de cada pieza). D
 | Montar y probar la plataforma | `README.md` (sección «Cómo montarlo») |
 | Saber qué funcionalidades hay y cuáles se evaluaron o descartaron | `docs/FUNCIONALIDADES.md` |
 | Ver los riesgos, hallazgos de la auditoría, simulaciones e ideas para ampliar | `docs/AUDITORIA.md` |
-| Aplicar los arreglos de la auditoría (propuestas) | `docs/arreglos_auditoria/LEEME.md` |
+| Consultar el registro histórico de parches y decisiones de auditoría | `docs/arreglos_auditoria/LEEME.md` (no todos los elementos de esa carpeta representan tareas pendientes) |
 | Entender la arquitectura, el análisis legal, el marco de matemática y el plan | `docs/DOCUMENTO_DE_ARQUITECTURA.md` (enlace al documento completo de 25 secciones) |
 | Cargar microdatos de PISA y obtener errores estándar y brechas | `docs/MICRODATOS_PISA.md` |
 | Conocer las fuentes y los límites de los datos del observatorio | `data/observatory/FUENTES.md` |
@@ -24,7 +24,7 @@ Empezá por `README.md` (qué es, cómo montarlo y estado real de cada pieza). D
 | `web/` | Interfaz (Next.js): práctica, resultados, progreso, panel docente, revisión, análisis, observatorio, red e informe imprimible |
 | `db/`, `deploy/` | Esquema PostgreSQL con aislamiento por escuela, Docker, Keycloak |
 | `scripts/` | Arranque en un comando, banco de demostración, calibración, simulación, ingreso de microdatos, pruebas de humo, verificación de PostgreSQL |
-| `tests/` | 91 pruebas automáticas |
+| `tests/` | Suite Python/API/HTTP, integración PostgreSQL 16 y recorridos Playwright/axe en Chromium ejecutados en CI |
 | `data/` | Banco de demostración, QTI de muestra y datos del observatorio |
 
 ## Historial de versiones
@@ -42,7 +42,8 @@ Empezá por `README.md` (qué es, cómo montarlo y estado real de cada pieza). D
 
 ## Estado real de este paquete
 
-- **Probado con pruebas automáticas:** núcleo, lógica de la API, almacén, servicio LTI con sustitutos, devolución de notas por HTTP contra el aula simulada, estadística de PISA con simulaciones.
-- **Verificado por quien montó la v0.2:** recorrido del estudiante y del docente con FastAPI y Next.js reales.
-- **Sin ejecutar:** PyLTI1p3 real, PostgreSQL, Docker, Keycloak, almacén de xAPI y todo lo de la web posterior a la v0.2.
-- **Sin datos reales:** calibración con piloto y microdatos de PISA.
+- **CI automatizado:** pruebas del núcleo, API y HTTP; integración PostgreSQL 16/RLS; PyLTI1p3 real con LMS simulado y devolución AGS; TypeScript, pruebas de librería, build Next.js y seis recorridos Playwright/axe en Chromium.
+- **Stack local:** Docker Compose levanta PostgreSQL, Keycloak en modo desarrollo, API, LTI, LMS simulado y web. El smoke test completa una práctica de 24 respuestas y verifica la nota en el libro del LMS simulado.
+- **Frontend:** Modern Web Guidance `legacy-scan` sin patrones heredados en los archivos revisados (38 guías y 52 reglas; alcance parcial, no auditoría integral).
+- **Pendiente fuera de CI:** Moodle y Keycloak institucionales, LRS xAPI real, despliegue productivo, backups/restauración, monitorización y pruebas manuales con lectores de pantalla y dispositivos reales.
+- **Validación educativa pendiente:** piloto con estudiantes, calibración con respuestas reales, puntos de corte N1–N8 y ejecución con microdatos oficiales de PISA.

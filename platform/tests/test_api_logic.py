@@ -1,6 +1,7 @@
 """Prueba la lógica de los endpoints llamando a las funciones directamente. Si FastAPI no está instalado
 (p. ej. sin red), se usa un sustituto mínimo; con FastAPI real también corre."""
-import os, sys, time, types, unittest
+import os, sys, time, types, unittest, threading
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 import tempfile
 _TMP = tempfile.mkdtemp()
@@ -78,6 +79,38 @@ class TestApiLogic(unittest.TestCase):
         with patch.object(M.BANK, "pool", return_value=[numeric, open_item]), patch.object(M, "DEV", False):
             self.assertEqual(M._pool("practica"), [numeric])
             self.assertEqual(M._pool("medicion"), [numeric])
+
+    def test_concurrent_same_answer_returns_one_result_and_one_duplicate(self):
+        user = User("alumno-concurrente", "escuela-concurrente", "student")
+        started = M.start(M.StartIn(), user)
+        sid = started["session_id"]
+        item_id = M._load(sid, user)["eng"].next_items()[0]
+        item = M.BANK.items[item_id]
+        body = M.AnswerIn(item_id=item_id, response=str(item.correct), duration_s=2.0)
+        original_load = M.STORE.load_session
+        barrier = threading.Barrier(2)
+        calls = 0
+        calls_lock = threading.Lock()
+
+        def synchronized_load(session_id, tenant):
+            nonlocal calls
+            row = original_load(session_id, tenant)
+            with calls_lock:
+                calls += 1
+                wait_for_peer = calls <= 2
+            if wait_for_peer:
+                barrier.wait(timeout=5)
+            return row
+
+        with patch.object(M.STORE, "load_session", side_effect=synchronized_load):
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(
+                    lambda _: M.answer(sid, body, BackgroundTasks(), user), (1, 2)
+                ))
+
+        self.assertCountEqual([bool(result.get("duplicate")) for result in results], [False, True])
+        self.assertEqual({result["answered"] for result in results}, {1})
+        self.assertEqual(len(M.STORE.responses_for_pid(user.tenant_id, M._pid(user))), 1)
 
     def test_student_view_hides_answers(self):
         out = M.start(M.StartIn(), User("a", "t", "student"))
