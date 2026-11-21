@@ -8,7 +8,7 @@ Este procedimiento es una base operativa para PostgreSQL 16. No equivale a un pl
 
 El backup **no incluye** roles globales, contraseñas, parámetros del servidor, certificados, secretos de la aplicación, archivos fuera de PostgreSQL, el estado de Keycloak ni datos almacenados en un LRS externo. Las ACL de los objetos de la base sí se conservan; el rol `matheval_app` debe existir en el destino. Provisioná los roles y credenciales por un canal seguro antes de restaurar.
 
-El archivo no se cifra por sí mismo. Guardalo en un volumen cifrado y cifrá también cualquier copia externa o transferencia. No subas backups con datos de estudiantes al repositorio, a tickets ni a servicios personales.
+El archivo no se cifra por sí mismo. Guardalo en un volumen cifrado y cifrá también cualquier copia externa o transferencia. El directorio de destino debe tener permisos 0700; el script no cambia los permisos de un directorio existente y se niega a escribir si es accesible por otros usuarios. No subas backups con datos de estudiantes al repositorio, a tickets ni a servicios personales.
 
 ## Crear una copia
 
