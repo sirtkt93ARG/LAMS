@@ -165,8 +165,8 @@ html[data-contrast="high"] { --paper: #fff; --grid: #fff; --ink: #000; --muted: 
 .chart.wide { max-width: 40rem; }
 .chart .scroll { overflow-x: auto; }
 .topnav { display: flex; gap: 1rem; flex-wrap: wrap; }
-.topnav a { color: var(--ink); font-weight: 700; text-decoration: none; padding: 0.3rem 0.1rem; border-bottom: 3px solid transparent; }
-.topnav a:hover { border-bottom-color: var(--pen); }
+ .topnav a { color: var(--ink); font-weight: 700; text-decoration-line: underline; text-decoration-color: transparent; text-decoration-thickness: 3px; text-underline-offset: 0.3rem; padding: 0.3rem 0.1rem; }
+.topnav a:hover, .topnav a:focus-visible { text-decoration-color: var(--pen); }
 .controls { border: 1px solid var(--line); padding: 0.5rem 0.9rem 0.75rem; margin: 0.75rem 0; }
 .controls legend { font-weight: 700; padding: 0 0.3rem; }
 .controls label { display: inline-flex; gap: 0.4rem; margin: 0.2rem 1rem 0.2rem 0; align-items: center; cursor: pointer; }
