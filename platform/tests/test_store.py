@@ -55,6 +55,24 @@ class TestStore(unittest.TestCase):
                                                          "pid-deadline", "Respuesta tardía"))
         self.assertEqual(self.store.open_submissions_for_assignment("school-deadline", "oa-expired"), [])
 
+    def test_open_assignment_persists_competency_rubric_snapshot(self):
+        snapshot = {
+            "version": 1, "competency_id": "porcentajes", "competency": "Porcentajes",
+            "criteria": [{"id": "interpretacion", "label": "Interpretación",
+                          "descriptors": {"0": "Sin evidencia"}}],
+        }
+        self.store.create_open_assignment("oa-rubric", "school-rubric", None, "open-1",
+                                           "Actividad", "", "teacher", None,
+                                           "porcentajes", snapshot)
+        assignment = self.store.open_assignments_for_student("school-rubric", None, "pid-rubric")[0]
+        self.assertEqual(assignment["competency_id"], "porcentajes")
+        self.assertEqual(assignment["rubric_snapshot"], snapshot)
+        self.assertTrue(self.store.submit_open_response("sub-rubric", "oa-rubric", "school-rubric",
+                                                        "pid-rubric", "respuesta"))
+        self.assertEqual(self.store.rubric_snapshot_for_submission("school-rubric", "sub-rubric"), snapshot)
+        teacher_row = self.store.open_submissions_for_assignment("school-rubric", "oa-rubric")[0]
+        self.assertEqual(teacher_row["rubric_snapshot"], snapshot)
+
     def test_open_assignment_submission_and_single_teacher_grade(self):
         self.store.create_open_assignment("oa-1", "school-a", None, "open-1", "Argumentá", "Mostrá el procedimiento", "teacher", None)
         self.assertEqual(len(self.store.open_assignments_for_student("school-a", None, "pid-a")), 1)
