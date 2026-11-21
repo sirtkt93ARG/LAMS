@@ -106,18 +106,19 @@ def backup(args: argparse.Namespace) -> int:
     database_url = args.database_url or os.environ.get("DATABASE_URL")
     if not database_url:
         raise ValueError("Definí DATABASE_URL o usá --database-url")
-    database, env, passfile = connection_environment(database_url)
     root = Path(args.output_dir).expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(root, 0o700)
-    created = datetime.now(timezone.utc)
-    stamp = created.strftime("%Y%m%dT%H%M%SZ")
-    final_dir = root / f"{database}-{stamp}"
-    if final_dir.exists():
-        raise FileExistsError(f"Ya existe {final_dir}; no se sobrescriben copias")
-    temporary = Path(tempfile.mkdtemp(prefix=".backup-", dir=root))
-    os.chmod(temporary, 0o700)
+    database, env, passfile = connection_environment(database_url)
+    temporary: Path | None = None
     try:
+        created = datetime.now(timezone.utc)
+        stamp = created.strftime("%Y%m%dT%H%M%SZ")
+        final_dir = root / f"{database}-{stamp}"
+        if final_dir.exists():
+            raise FileExistsError(f"Ya existe {final_dir}; no se sobrescriben copias")
+        temporary = Path(tempfile.mkdtemp(prefix=".backup-", dir=root))
+        os.chmod(temporary, 0o700)
         dump = temporary / "database.dump"
         run(["pg_dump", "--format=custom", "--file", str(dump), "--dbname", database], env)
         os.chmod(dump, 0o600)
@@ -147,11 +148,10 @@ def backup(args: argparse.Namespace) -> int:
         print(f"SHA-256: {manifest['sha256']}")
         return 0
     finally:
-        if temporary.exists():
+        if temporary is not None and temporary.exists():
             shutil.rmtree(temporary, ignore_errors=True)
         if passfile:
             Path(passfile).unlink(missing_ok=True)
-
 
 def restore(args: argparse.Namespace) -> int:
     database_url = args.database_url or os.environ.get("DATABASE_URL")
