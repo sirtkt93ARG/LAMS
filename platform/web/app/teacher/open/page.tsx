@@ -2,12 +2,14 @@
 import { useEffect, useState } from "react";
 import { Shell } from "@/components/Shell";
 import { api, messageFor } from "@/lib/api";
-import type { OpenAssignment, OpenItem, OpenSubmission } from "@/lib/types";
+import type { Course, OpenAssignment, OpenItem, OpenSubmission } from "@/lib/types";
 
 const criteria = ["Comprensión", "Estrategia", "Procedimiento", "Argumentación"];
 
 export default function OpenReviewPage() {
   const [items, setItems] = useState<OpenItem[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState("");
   const [assignments, setAssignments] = useState<OpenAssignment[]>([]);
   const [selected, setSelected] = useState("");
   const [submissions, setSubmissions] = useState<OpenSubmission[]>([]);
@@ -23,8 +25,12 @@ export default function OpenReviewPage() {
   const [notice, setNotice] = useState("");
 
   const loadAssignments = async () => {
-    const [catalog, list] = await Promise.all([api.openItems(), api.teacherOpenAssignments()]);
-    setItems(catalog.items); setAssignments(list.assignments);
+    const [catalog, list, courseList] = await Promise.all([
+      api.openItems(), api.teacherOpenAssignments(), api.courses(),
+    ]);
+    setItems(catalog.items);
+    setAssignments(list.assignments);
+    setCourses(courseList.courses);
     if (!itemId && catalog.items.length) setItemId(catalog.items[0].id);
   };
   const loadSubmissions = async (id: string) => {
@@ -35,9 +41,12 @@ export default function OpenReviewPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setError(""); setNotice("");
     try {
-      await api.createOpenAssignment({ item_id: itemId, title, instructions });
+      await api.createOpenAssignment({
+        item_id: itemId, title, instructions,
+        ...(selectedCourse ? { course_id: selectedCourse } : {}),
+      });
       setTitle(""); setInstructions(""); await loadAssignments();
-      setNotice("Actividad asignada correctamente.");
+      setNotice(selectedCourse ? "Actividad asignada al curso correctamente." : "Actividad asignada a toda la escuela correctamente.");
     } catch (e) { setError(messageFor(e)); } finally { setBusy(false); }
   };
   const choose = async (id: string) => {
@@ -68,6 +77,13 @@ export default function OpenReviewPage() {
       <label className="field"><span>Consigna del banco</span>
         <select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((item) => <option key={item.id} value={item.id}>{item.stem.slice(0, 110)}</option>)}</select>
       </label>
+      <label className="field"><span>Curso destinatario</span>
+        <select value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)}>
+          <option value="">Toda la escuela (sin curso específico)</option>
+          {courses.map((course) => <option key={course.course_id} value={course.course_id}>{course.course_label || course.course_id}</option>)}
+        </select>
+      </label>
+      {courses.length === 0 && <p className="muted">No hay cursos registrados en esta sesión. La actividad se asignará a toda la escuela.</p>}
       <label className="field"><span>Título de la actividad</span><input value={title} maxLength={160} onChange={(e) => setTitle(e.target.value)} required /></label>
       <label className="field"><span>Indicaciones para el estudiante</span><textarea value={instructions} maxLength={4000} rows={3} onChange={(e) => setInstructions(e.target.value)} /></label>
       <button className="btn" type="submit" disabled={busy || !itemId || !title.trim()}>Asignar actividad</button>
