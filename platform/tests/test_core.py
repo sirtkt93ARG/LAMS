@@ -166,6 +166,20 @@ class TestIRTandAdaptive(unittest.TestCase):
         return [PoolItem(f"i{k}", axes[k % 4], IRTParams(float(r.uniform(.8, 1.6)), float(np.clip(r.normal(-.5, 1.3), -3, 3)), 0.0))
                 for k in range(n)]
 
+    def test_mst_randomizes_exposure_without_repeating_content(self):
+        axes = ["numeros_algebra", "funciones_relaciones", "geometria_medida", "datos_azar"]
+        pool = [PoolItem(f"i{k}", axes[k % 4], IRTParams(1.0, (k % 17 - 8) / 4, 0.0), f"fp-{k}")
+                for k in range(240)]
+        first = build_design(pool, rng=random.Random(11))
+        second = build_design(pool, rng=random.Random(29))
+        self.assertNotEqual(first.stage1, second.stage1)
+        by_id = {p.id: p for p in pool}
+        for design in (first, second):
+            ids = design.stage1 + [i for block in design.stage2.values() for i in block] + [i for block in design.stage3.values() for i in block]
+            self.assertEqual(len(ids), len(set(ids)))
+            fps = [by_id[i].fp for i in ids]
+            self.assertEqual(len(fps), len(set(fps)))
+
     def test_mst_routing_and_balance(self):
         pool = self._pool()
         d = build_design(pool)
