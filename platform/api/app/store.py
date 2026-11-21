@@ -13,7 +13,7 @@ _SQLITE_DDL = """
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, pid TEXT NOT NULL, mode TEXT NOT NULL,
   state TEXT NOT NULL, result TEXT, started_at TEXT NOT NULL DEFAULT (datetime('now')), finished_at TEXT,
-  course_id TEXT, course_label TEXT);
+  course_id TEXT, course_label TEXT, version INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS ix_sessions_tenant ON sessions (tenant_id);
 CREATE TABLE IF NOT EXISTS responses (
   id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, session_id TEXT NOT NULL, item_id TEXT NOT NULL,
@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 """
 _SQLITE_NEW_COLUMNS = [("sessions", "course_id", "TEXT"), ("sessions", "course_label", "TEXT"),
                        ("responses", "hints", "INTEGER NOT NULL DEFAULT 0"),
+                       ("sessions", "version", "INTEGER NOT NULL DEFAULT 0"),
                        ("tenant_networks", "accepted", "INTEGER NOT NULL DEFAULT 0")]
 
 
@@ -63,6 +64,18 @@ class Store:
                     cols = {r["name"] for r in self._conn.execute(f"PRAGMA table_info({table})")}
                     if col not in cols:
                         self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+                duplicate = self._conn.execute(
+                    "SELECT tenant_id, session_id, item_id FROM responses "
+                    "GROUP BY tenant_id, session_id, item_id HAVING COUNT(*) > 1 LIMIT 1"
+                ).fetchone()
+                if duplicate:
+                    raise RuntimeError(
+                        "Hay respuestas duplicadas por sesión/ítem; conciliá esos registros antes de activar la idempotencia."
+                    )
+                self._conn.execute(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_responses_session_item "
+                    "ON responses (tenant_id, session_id, item_id)"
+                )
                 self._conn.commit()
         elif url.startswith(("postgresql://", "postgres://")):
             self.dialect = "pg"      # el esquema lo crea db/001_init.sql (o db/002_migracion_v05.sql si ya existía)
@@ -97,20 +110,92 @@ class Store:
                   (sid, tenant, pid, mode, json.dumps(state), course_id, course_label))
 
     def load_session(self, sid: str, tenant: str) -> dict | None:
-        rows = self._run(tenant, "SELECT id, pid, mode, state, result, finished_at, course_id, course_label FROM sessions "
+        rows = self._run(tenant, "SELECT id, pid, mode, state, result, finished_at, course_id, course_label, version FROM sessions "
                                  "WHERE id = ? AND tenant_id = ?", (sid, tenant), fetch=True)
         if not rows:
             return None
         r = rows[0]
-        return {**{k: r[k] for k in ("id", "pid", "mode", "finished_at", "course_id", "course_label")},
+        return {**{k: r[k] for k in ("id", "pid", "mode", "finished_at", "course_id", "course_label", "version")},
                 "state": _loads(r["state"]), "result": _loads(r["result"]) if r["result"] else None}
 
-    def save_session(self, sid: str, tenant: str, state: dict, result: dict | None = None) -> None:
+    def save_session(self, sid: str, tenant: str, state: dict, result: dict | None = None,
+                     expected_version: int | None = None) -> bool:
+        """Actualiza una sesión y avanza su versión; opcionalmente exige una versión concreta."""
+        where = "WHERE id = ? AND tenant_id = ?"
+        params: tuple
         if result is None:
-            self._run(tenant, "UPDATE sessions SET state = {J} WHERE id = ? AND tenant_id = ?", (json.dumps(state), sid, tenant))
+            sql = "UPDATE sessions SET state = {J}, version = version + 1 " + where
+            params = (json.dumps(state), sid, tenant)
         else:
-            self._run(tenant, "UPDATE sessions SET state = {J}, result = {J}, finished_at = {NOW} WHERE id = ? AND tenant_id = ?",
-                      (json.dumps(state), json.dumps(result), sid, tenant))
+            sql = "UPDATE sessions SET state = {J}, result = {J}, finished_at = {NOW}, version = version + 1 " + where
+            params = (json.dumps(state), json.dumps(result), sid, tenant)
+        if expected_version is not None:
+            sql += " AND version = ?"
+            params += (expected_version,)
+        sql = self._sql(sql)
+        if self.dialect == "sqlite":
+            with self._lock:
+                cur = self._conn.execute(sql, params)
+                self._conn.commit()
+                return cur.rowcount == 1
+        import psycopg
+        with psycopg.connect(self.url) as conn:
+            with conn.transaction():
+                conn.execute("SELECT set_config('app.tenant_id', %s, true)", (tenant,))
+                cur = conn.execute(sql, params)
+                return cur.rowcount == 1
+
+    def record_answer(self, sid: str, tenant: str, expected_version: int, state: dict,
+                      item_id: str, response: str, score: float | None, tag: str | None,
+                      duration_s: float | None, hints: int = 0, result: dict | None = None) -> bool:
+        """Guarda el nuevo estado y la respuesta en una sola transacción con compare-and-swap."""
+        if result is None:
+            update_sql = self._sql(
+                "UPDATE sessions SET state = {J}, version = version + 1 "
+                "WHERE id = ? AND tenant_id = ? AND version = ?"
+            )
+            update_params = (json.dumps(state), sid, tenant, expected_version)
+        else:
+            update_sql = self._sql(
+                "UPDATE sessions SET state = {J}, result = {J}, finished_at = {NOW}, version = version + 1 "
+                "WHERE id = ? AND tenant_id = ? AND version = ?"
+            )
+            update_params = (json.dumps(state), json.dumps(result), sid, tenant, expected_version)
+        insert_sql = self._sql(
+            "INSERT INTO responses (tenant_id, session_id, item_id, response, score, error_tag, duration_s, hints) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+        insert_params = (tenant, sid, item_id, response, score, tag, duration_s, hints)
+        if self.dialect == "sqlite":
+            with self._lock:
+                try:
+                    cur = self._conn.execute(update_sql, update_params)
+                    if cur.rowcount != 1:
+                        self._conn.rollback()
+                        return False
+                    self._conn.execute(insert_sql, insert_params)
+                    self._conn.commit()
+                    return True
+                except sqlite3.IntegrityError as exc:
+                    self._conn.rollback()
+                    if "uq_responses_session_item" in str(exc) or "responses.tenant_id, responses.session_id, responses.item_id" in str(exc):
+                        return False
+                    raise
+                except Exception:
+                    self._conn.rollback()
+                    raise
+        import psycopg
+        try:
+            with psycopg.connect(self.url) as conn:
+                with conn.transaction():
+                    conn.execute("SELECT set_config('app.tenant_id', %s, true)", (tenant,))
+                    cur = conn.execute(update_sql, update_params)
+                    if cur.rowcount != 1:
+                        return False
+                    conn.execute(insert_sql, insert_params)
+                    return True
+        except psycopg.errors.UniqueViolation:
+            return False
 
     def add_response(self, tenant: str, sid: str, item_id: str, response: str, score: float | None,
                      tag: str | None, duration_s: float | None, hints: int = 0) -> None:
