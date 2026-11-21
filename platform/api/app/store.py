@@ -356,7 +356,7 @@ class Store:
                 self._conn.execute("BEGIN IMMEDIATE")
                 try:
                     blocked = self._conn.execute(
-                        "SELECT 1 FROM xapi_erasure_blocks WHERE tenant_id = ? AND pid = ?",
+                        "SELECT 1 FROM xapi_erasure_blocks WHERE tenant_id = ? AND pid_hash = ?",
                         (tenant, pid_hash),
                     ).fetchone()
                     if blocked:
@@ -375,7 +375,7 @@ class Store:
                 conn.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (lock_key,))
                 blocked = conn.execute(
                     "SELECT 1 FROM xapi_erasure_blocks WHERE tenant_id = %s AND pid_hash = %s",
-                    (tenant, pid),
+                    (tenant, pid_hash),
                 ).fetchone()
                 if blocked:
                     return False
@@ -401,7 +401,8 @@ class Store:
         q_insert_erasure_audit = self._sql(
             "INSERT INTO audit_log (tenant_id, actor, action, detail) VALUES (?, 'system', ?, ?)"
         )
-        lock_key = f"{len(tenant)}:{tenant}{pid}"
+        pid_hash = hashlib.sha256(pid.encode("utf-8")).hexdigest()
+        lock_key = f"{len(tenant)}:{tenant}{pid_hash}"
         if self.dialect == "sqlite":
             with self._lock:
                 self._conn.execute("BEGIN IMMEDIATE")
@@ -415,7 +416,7 @@ class Store:
                     self._conn.execute(q_delete_sessions, (tenant, pid))
                     self._conn.execute(
                         "INSERT OR IGNORE INTO xapi_erasure_blocks (tenant_id, pid_hash) VALUES (?, ?)",
-                        (tenant, pid),
+                        (tenant, pid_hash),
                     )
                     summary = {"sessions": n_s, "responses": n_r, "audit_events_redacted": n_a}
                     self._conn.execute(
@@ -441,7 +442,7 @@ class Store:
                 conn.execute(q_delete_sessions, (tenant, pid))
                 conn.execute(
                     "INSERT INTO xapi_erasure_blocks (tenant_id, pid_hash) VALUES (%s, %s) ON CONFLICT DO NOTHING",
-                    (tenant, pid),
+                    (tenant, pid_hash),
                 )
                 summary = {"sessions": n_s, "responses": n_r, "audit_events_redacted": n_a}
                 conn.execute(
