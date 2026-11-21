@@ -55,12 +55,11 @@ class TestProductionConfig(unittest.TestCase):
         self.assertTrue(any("LTI_HANDOFF_SECRET" in x for x in errors))
         self.assertTrue(any("SESSION_SECRET" in x for x in errors))
 
-    def test_lti_requires_all_signing_secrets(self):
+    def test_api_lti_config_does_not_require_flask_service_secret(self):
         env = {
             "PSEUDONYM_SECRET": "p" * 48,
             "LTI_HANDOFF_SECRET": "h" * 48,
             "SESSION_SECRET": "s" * 48,
-            "LTI_SECRET_KEY": "k" * 48,
             "WEB_ORIGIN": "https://app.example",
             "DATABASE_URL": "postgresql://app:secret@db.example/matheval",
             "WEB_URL": "https://app.example",
