@@ -38,7 +38,7 @@ def _allowed_url(url: str, issuer: str, allowed_hosts: list[str] | None, dev: bo
 def _next_link(header: str | None) -> str | None:
     if not header:
         return None
-    match = re.search(r'<([^>]+)>\\s*;\\s*rel=["\']?next["\']?', header, re.IGNORECASE)
+    match = re.search(r'<([^>]+)>\s*;\s*rel=["\']?next["\']?', header, re.IGNORECASE)
     return match.group(1) if match else None
 
 
