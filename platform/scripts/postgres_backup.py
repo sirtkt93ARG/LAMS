@@ -11,12 +11,13 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 
 def connection_environment(database_url: str) -> tuple[str, dict[str, str], str]:
@@ -77,6 +78,11 @@ def run(command: list[str], env: dict[str, str]) -> str:
     return result.stdout.strip()
 
 
+def backup_directory_name(database: str, stamp: str) -> str:
+    # Evita que nombres de base con barras o segmentos relativos escapen del directorio.
+    return f"{quote(database, safe='')}-{stamp}"
+
+
 def digest(path: Path) -> str:
     hasher = hashlib.sha256()
     with path.open("rb") as stream:
@@ -108,13 +114,14 @@ def backup(args: argparse.Namespace) -> int:
         raise ValueError("Definí DATABASE_URL o usá --database-url")
     root = Path(args.output_dir).expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    os.chmod(root, 0o700)
+    if stat.S_IMODE(root.stat().st_mode) & 0o077:
+        raise ValueError(f"El directorio de backups debe tener permisos 0700: {root}; corregilos antes de continuar")
     database, env, passfile = connection_environment(database_url)
     temporary: Path | None = None
     try:
         created = datetime.now(timezone.utc)
         stamp = created.strftime("%Y%m%dT%H%M%SZ")
-        final_dir = root / f"{database}-{stamp}"
+        final_dir = root / backup_directory_name(database, stamp)
         if final_dir.exists():
             raise FileExistsError(f"Ya existe {final_dir}; no se sobrescriben copias")
         temporary = Path(tempfile.mkdtemp(prefix=".backup-", dir=root))
