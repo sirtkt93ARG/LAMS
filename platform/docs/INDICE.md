@@ -9,6 +9,7 @@ Empezá por `README.md` (qué es, cómo montarlo y estado real de cada pieza). D
 | Ver los riesgos, hallazgos de la auditoría, simulaciones e ideas para ampliar | `docs/AUDITORIA.md` |
 | Consultar el registro histórico de parches y decisiones de auditoría | `docs/arreglos_auditoria/LEEME.md` (no todos los elementos de esa carpeta representan tareas pendientes) |
 | Entender la supresión local y los límites de borrado en un LRS xAPI | `docs/PRIVACIDAD_Y_SUPRESION.md` |
+| Configurar el roster LTI NRPS, su allowlist y las garantías de privacidad | `docs/LTI_NRPS.md` |
 | Crear copias lógicas de PostgreSQL y ensayar una restauración segura | `docs/OPERACION_BACKUPS.md` |
 | Entender la arquitectura, el análisis legal, el marco de matemática y el plan | `docs/DOCUMENTO_DE_ARQUITECTURA.md` (enlace al documento completo de 25 secciones) |
 | Cargar microdatos de PISA y obtener errores estándar y brechas | `docs/MICRODATOS_PISA.md` |
@@ -22,7 +23,7 @@ Empezá por `README.md` (qué es, cómo montarlo y estado real de cada pieza). D
 |---|---|
 | `src/matheval` | Núcleo: plantillas de ejercicios, corrección segura, QTI 3, motor adaptativo (multietapa y CAT), calibración, habilidades y dominio, práctica dirigida, explicaciones, xAPI, observatorio de resultados históricos y estadística de microdatos de PISA |
 | `api/` | API (FastAPI): sesiones, práctica por tema, panel docente, tendencias, red de escuelas, observatorio, consentimiento, borrado de datos, auditoría |
-| `lti_service/`, `tools/mock_lms/` | Ingreso por LTI 1.3 y devolución de notas; aula virtual simulada para probarlo sin Moodle |
+| `lti_service/`, `tools/mock_lms/` | Ingreso por LTI 1.3, devolución AGS de notas y consulta NRPS de roster; aula virtual simulada para probarlo sin Moodle |
 | `web/` | Interfaz (Next.js): práctica, resultados, progreso, panel docente, revisión, análisis, observatorio, red e informe imprimible |
 | `db/`, `deploy/` | Esquema PostgreSQL con aislamiento por escuela, Docker, Keycloak |
 | `scripts/` | Arranque en un comando, banco de demostración, calibración, simulación, ingreso de microdatos, pruebas de humo, verificación de PostgreSQL |
@@ -40,11 +41,12 @@ Empezá por `README.md` (qué es, cómo montarlo y estado real de cada pieza). D
 | 0.5 | Habilidades, dominio, práctica por tema con pistas y ejercicios espejo, 24 plantillas, notas al LMS, consentimiento, accesibilidad |
 | 0.6 | Observatorio de PISA 2000-2025, tendencias, vista de red e informe imprimible |
 | 0.7 | Microdatos de PISA: errores estándar, brechas por nivel socioeconómico y género, pruebas de cambio entre ciclos |
+| 0.8 | Respuestas abiertas, corrección docente, vencimientos, rúbricas orientativas por competencia y consulta NRPS de nombres sin persistir el roster |
 | (auditoría) | Registro de hallazgos, parches y decisiones: `docs/AUDITORIA.md` y `docs/arreglos_auditoria/`; consultar el estado vigente en la auditoría |
 
 ## Estado real de este paquete
 
-- **CI automatizado:** pruebas del núcleo, API y HTTP; integración PostgreSQL 16/RLS; PyLTI1p3 real con LMS simulado y devolución AGS; TypeScript, pruebas de librería, build Next.js y ocho pruebas Playwright/axe en Chromium.
+- **CI automatizado:** pruebas del núcleo, API y HTTP; integración PostgreSQL 16/RLS; PyLTI1p3 con LMS simulado, devolución AGS y consulta NRPS; TypeScript, pruebas de librería, build Next.js y ocho pruebas Playwright/axe en Chromium.
 - **Stack local:** Docker Compose levanta PostgreSQL, Keycloak en modo desarrollo, API, LTI, LMS simulado y web. El smoke test completa una práctica de 24 respuestas y verifica la nota en el libro del LMS simulado.
 - **Frontend:** Modern Web Guidance `legacy-scan` sin patrones heredados en los archivos revisados (38 guías y 52 reglas; alcance parcial, no auditoría integral).
 - **Pendiente fuera de CI:** Moodle y Keycloak institucionales, LRS xAPI real, despliegue productivo, backups/restauración, monitorización y pruebas manuales con lectores de pantalla y dispositivos reales.
