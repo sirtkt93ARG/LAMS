@@ -1,6 +1,6 @@
 """Prueba la lógica de los endpoints llamando a las funciones directamente. Si FastAPI no está instalado
 (p. ej. sin red), se usa un sustituto mínimo; con FastAPI real también corre."""
-import os, sys, time, types, unittest, threading
+import os, sys, time, types, unittest, threading, json
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 import tempfile
@@ -29,7 +29,11 @@ except ImportError:
     class Response:
         def __init__(self, content="", media_type=None, headers=None):
             self.body, self.media_type, self.headers = content.encode() if isinstance(content, str) else content, media_type, headers or {}
-    fr = types.ModuleType("fastapi.responses"); fr.Response = Response
+    class JSONResponse(Response):
+        def __init__(self, content, status_code=200, headers=None):
+            super().__init__(json.dumps(content), media_type="application/json", headers=headers)
+            self.status_code = status_code
+    fr = types.ModuleType("fastapi.responses"); fr.Response, fr.JSONResponse = Response, JSONResponse
     sys.modules["fastapi.responses"] = fr
     fa.Depends = lambda x: x
     fa.Header = lambda default=None: default
@@ -117,6 +121,33 @@ class TestApiLogic(unittest.TestCase):
         with patch.object(M, "apply_reviews", wraps=M.apply_reviews) as refresh:
             M.start(M.StartIn(), user)
         refresh.assert_called_once_with(M.BANK, M.STORE)
+
+    def test_data_erasure_reports_external_lrs_as_manual_and_redacts_audit(self):
+        user = User("alumno-borrar-lrs", "escuela-borrar-lrs", "student")
+        M.start(M.StartIn(), user)
+        M.STORE.audit(user.tenant_id, user.sub, "exportacion_csv", "curso-confidencial")
+        with patch.object(M, "LRS_URL", "https://lrs.example"):
+            result = M.delete_my_data(user)
+
+        self.assertEqual(result.status_code, 202)
+        body = json.loads(result.body)
+        self.assertFalse(body["erasure_complete"])
+        self.assertEqual(body["external_lrs"]["status"], "manual_action_required")
+        self.assertEqual(body["external_lrs"]["agent"]["account"]["name"], M._pid(user))
+        self.assertEqual(body["audit_events_redacted"], 1)
+        events = M.STORE.audit_list(user.tenant_id)
+        self.assertFalse(any(event["actor"] == user.sub for event in events))
+        self.assertTrue(any(event["actor"] == "system" and event["action"] == "supresion_local_de_datos"
+                            for event in events))
+        self.assertEqual(M.STORE.sessions_of(user.tenant_id, M._pid(user)), [])
+
+    def test_data_erasure_is_complete_when_no_external_lrs_is_configured(self):
+        user = User("alumno-borrar-local", "escuela-borrar-local", "student")
+        M.start(M.StartIn(), user)
+        with patch.object(M, "LRS_URL", None):
+            result = M.delete_my_data(user)
+        self.assertTrue(result["erasure_complete"])
+        self.assertEqual(result["external_lrs"]["status"], "not_configured")
 
     def test_student_view_hides_answers(self):
         out = M.start(M.StartIn(), User("a", "t", "student"))
