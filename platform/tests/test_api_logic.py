@@ -358,7 +358,8 @@ class TestApiLogic(unittest.TestCase):
         self.assertEqual(M.cohort(None, User("doc", "escuela-vacia", "teacher"))["n"], 0)
 
     def test_lti_exchange_and_bearer(self):
-        handoff = jwt.encode({"sub": "u-77", "tenant_id": "dep-1", "role": "student", "iss": "x",
+        handoff = jwt.encode({"sub": "u-77", "tenant_id": "dep-1", "role": "student", "iss": "matheval-lti",
+                              "aud": "matheval-api", "iat": int(time.time()), "jti": "api-logic-handoff-1",
                               "exp": int(time.time()) + 60}, "h" * 40, algorithm="HS256")
         out = M.lti_exchange(M.ExchangeIn(token=handoff))
         user = current_user(authorization="Bearer " + out["access_token"], x_dev_user=None)
