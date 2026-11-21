@@ -36,7 +36,7 @@ test("student can start a practice and submit an answer", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Práctica de matemática" })).toBeVisible();
   await page.getByRole("button", { name: "Empezar práctica de 24 preguntas" }).click();
 
-  const radios = page.locator('input[type="radio"]');
+  const radios = page.locator(".choices input[type=\"radio\"]");
   if (await radios.count()) {
     await radios.first().check();
   } else {
