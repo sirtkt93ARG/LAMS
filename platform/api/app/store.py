@@ -34,6 +34,11 @@ CREATE TABLE IF NOT EXISTS used_tokens (
 CREATE TABLE IF NOT EXISTS audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL DEFAULT (datetime('now')), tenant_id TEXT, actor TEXT NOT NULL,
   action TEXT NOT NULL, detail TEXT);
+CREATE TABLE IF NOT EXISTS rate_limit_windows (
+  key_hash TEXT PRIMARY KEY,
+  window_start BIGINT NOT NULL,
+  hits INTEGER NOT NULL CHECK (hits > 0)
+);
 CREATE TABLE IF NOT EXISTS xapi_erasure_blocks (
   tenant_id TEXT NOT NULL, pid_hash TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (tenant_id, pid_hash));
@@ -312,6 +317,45 @@ class Store:
                         "DELETE FROM tenant_networks WHERE network_id = %s AND tenant_id = %s AND accepted = FALSE RETURNING tenant_id",
                         (network_id, tenant))
                 return cur.fetchone() is not None
+
+    def increment_rate_limit(self, key_hash: str, window_start: int) -> int:
+        """Incrementa de forma atómica el contador compartido de una ventana."""
+        if self.dialect == "sqlite":
+            with self._lock:
+                row = self._conn.execute(
+                    "INSERT INTO rate_limit_windows (key_hash, window_start, hits) VALUES (?, ?, 1) "
+                    "ON CONFLICT(key_hash) DO UPDATE SET "
+                    "window_start = excluded.window_start, "
+                    "hits = CASE WHEN rate_limit_windows.window_start = excluded.window_start "
+                    "THEN rate_limit_windows.hits + 1 ELSE 1 END RETURNING hits",
+                    (key_hash, window_start),
+                ).fetchone()
+                self._conn.commit()
+                return int(row["hits"])
+        import psycopg
+        with psycopg.connect(self.url) as conn:
+            with conn.transaction():
+                row = conn.execute(
+                    "INSERT INTO rate_limit_windows (key_hash, window_start, hits) VALUES (%s, %s, 1) "
+                    "ON CONFLICT (key_hash) DO UPDATE SET "
+                    "window_start = EXCLUDED.window_start, "
+                    "hits = CASE WHEN rate_limit_windows.window_start = EXCLUDED.window_start "
+                    "THEN rate_limit_windows.hits + 1 ELSE 1 END RETURNING hits",
+                    (key_hash, window_start),
+                ).fetchone()
+                return int(row[0])
+
+    def purge_rate_limits(self, before_window: int) -> None:
+        """Elimina contadores inactivos antiguos; no afecta ventanas actuales."""
+        if self.dialect == "sqlite":
+            with self._lock:
+                self._conn.execute("DELETE FROM rate_limit_windows WHERE window_start < ?", (before_window,))
+                self._conn.commit()
+            return
+        import psycopg
+        with psycopg.connect(self.url) as conn:
+            with conn.transaction():
+                conn.execute("DELETE FROM rate_limit_windows WHERE window_start < %s", (before_window,))
 
     def consume_token(self, jti: str) -> bool:
         """Consume an LTI handoff JTI atomically; a token can be exchanged only once."""
