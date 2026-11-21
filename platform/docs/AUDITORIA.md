@@ -44,6 +44,10 @@ Estado: situación en la rama `main` a 21-11-2026. Los valores numéricos de evi
 | Escala | Iniciar una práctica recorre todo el banco y el dominio por tema recalcula desde las respuestas | Cachear el diseño y guardar el dominio de forma incremental antes de pasar de unos miles de respuestas |
 | Cobertura | La cobertura histórica de 90,6 % corresponde a la suite v0.7 y no se recalculó. CI actual añade HTTP, PostgreSQL 16 y ocho pruebas de navegador con axe | Recalcular cobertura global y ampliar E2E a reportes, progreso y observatorio |
 
+## 3 bis. Salud y disponibilidad
+
+| Operación de API | `/healthz` verifica que el proceso responde; `/readyz` comprueba además conectividad real con la base y devuelve 503 si falla. Compose usa readiness para marcar la API saludable | Configurar el balanceador/orquestador productivo para retirar instancias no listas; definir monitoreo y alertas |
+
 ## 4. Lo que mostraron las simulaciones (valores aproximados)
 
 - **Tamaño del piloto:** con 100 estudiantes por familia de ítems el error de dificultad es de unos 0,5; con 300, de 0,22 (81 % dentro de ±0,25); con 800, de 0,13 (94 %). La plataforma usa 300 como mínimo: sirve para práctica; para medir conviene 500 a 800.
