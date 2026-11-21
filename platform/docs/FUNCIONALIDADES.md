@@ -3,8 +3,8 @@
 La plataforma no es solo un lugar para resolver ejercicios: combina práctica adaptativa, medición, **observatorio de resultados históricos**, **tendencias en el tiempo** y vistas para docentes, escuelas y redes. Esta página resume cómo se reparte cada pieza.
 
 Criterio de selección: valor para el aprendizaje y para el docente, riesgo (sobre todo privacidad de menores y
-cumplimiento), esfuerzo y posibilidad de verificarlo. "Probado" significa con pruebas automáticas en el entorno de
-desarrollo; lo que depende de un navegador, un LMS real o PostgreSQL figura como pendiente de primera ejecución.
+cumplimiento), esfuerzo y posibilidad de verificarlo. El CI actual incluye pruebas Python/HTTP, PostgreSQL 16, PyLTI1p3
+contra un LMS simulado y Playwright/axe en Chromium. Los servicios productivos y la revisión manual siguen pendientes.
 
 ## Incorporado en la versión 0.7: microdatos de PISA, errores estándar y brechas
 
@@ -25,7 +25,7 @@ desarrollo; lo que depende de un navegador, un LMS real o PostgreSQL figura como
 | Registro de calidad de cada dato (oficial u secundaria) y avisos de límites | Evita presentar como firme lo que no lo es: no se declara significancia sin errores estándar | Probado |
 | Tendencias mensuales de la escuela o del curso (nivel promedio y % que alcanza el mínimo) | Muestra el progreso real de las prácticas en el tiempo | Probado en la API |
 | «Mi evolución» del estudiante | Línea de tiempo de sus niveles | Pendiente de navegador |
-| Vista de red o jurisdicción con supresión de celdas de menos de 10 estudiantes | Cubre la necesidad de gobiernos y redes sin exponer escuelas chicas ni permitir deducciones por diferencia | Probado |
+| Vista de red o jurisdicción con supresión de celdas de menos de 10 estudiantes | Cubre la necesidad de gobiernos y redes sin exponer escuelas chicas ni permitir deducciones por diferencia | API y Playwright/axe; PostgreSQL RLS, invitación, aceptación y revocación probados |
 | Informe de la escuela para imprimir o guardar como PDF | Entrega un documento listo para reuniones | Pendiente de navegador |
 
 ## Incorporado en la versión 0.5
@@ -41,12 +41,12 @@ desarrollo; lo que depende de un navegador, un LMS real o PostgreSQL figura como
 | Modo piloto (una instancia por plantilla) | Recoge datos balanceados para calibrar | Probado |
 | Calibración por familia de ítems (EM 2PL en formato largo) | Los ítems clonados comparten parámetros: se calibra por plantilla con unos cientos de respuestas, no por cada ítem | Probado con datos simulados |
 | Análisis clásico por plantilla (dificultad, discriminación, tiempos, errores frecuentes, avisos) | Detecta plantillas defectuosas antes de que midan | Probado |
-| Devolución de notas al libro de calificaciones del LMS (LTI Advantage, AGS) | Los docentes ya trabajan en el LMS; así ven nombres sin que la plataforma los guarde | Probado por HTTP contra el LMS simulado; LMS real pendiente |
+| Devolución de notas al libro de calificaciones del LMS (LTI Advantage, AGS) | Los docentes ya trabajan en el LMS; así ven nombres sin que la plataforma los guarde | PyLTI1p3 real probado en CI contra LMS simulado; Moodle real pendiente |
 | Cursos (contexto LTI) y panel docente por curso | Un docente quiere ver su curso, no toda la escuela | Probado en la API |
-| Panel docente: errores frecuentes, dominio por tema, exportación CSV | Convierte datos en decisiones de aula | API probada; pantallas pendientes de navegador |
+| Panel docente: errores frecuentes, dominio por tema, exportación CSV | Convierte datos en decisiones de aula | API probada; panel base cubierto por Playwright/axe en Chromium |
 | Confirmación de consentimiento por la escuela (condición para practicar), supresión de datos, retención y auditoría | Menores de edad: la institución es responsable y la plataforma debe permitir borrar | Probado |
 | Reintentos idempotentes, límites de frecuencia, métricas y ID de solicitud | Conexiones inestables y abuso; PISA 2025 se entregó también sin conexión | Probado en la API |
-| Accesibilidad: tamaño de texto, alto contraste, lectura en voz alta, tablas alternativas a los gráficos | Inclusión y legibilidad | Pendiente de navegador |
+| Accesibilidad: tamaño de texto, alto contraste, lectura en voz alta, tablas alternativas a los gráficos | Inclusión y legibilidad | Login, práctica, docente, curaduría y red pasan axe en Chromium; faltan lectores de pantalla y revisión manual |
 | Progreso del estudiante: temas, historial y recomendaciones | Motivación basada en dominio, sin rankings | API probada; pantalla pendiente |
 
 ## Evaluado y no incorporado
