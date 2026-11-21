@@ -53,12 +53,15 @@ def connection_environment(database_url: str) -> tuple[str, dict[str, str], str]
         host = parsed.hostname or "*"
         port = str(parsed.port or "*")
         user = unquote(parsed.username) if parsed.username else "*"
-        # Escapado del formato .pgpass (dos puntos y barras invertidas).
-        escaped = password.replace("\\", "\\\\").replace(":", "\\:")
+        # Escapado de todos los campos .pgpass (IPv6 y nombres pueden contener dos puntos).
+        def pgpass_field(value: str) -> str:
+            return value.replace("\\", "\\\\").replace(":", "\\:")
+
+        fields = (host, port, database, user, password)
         handle = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", delete=False)
         try:
             os.chmod(handle.name, 0o600)
-            handle.write(f"{host}:{port}:{database}:{user}:{escaped}\n")
+            handle.write(":".join(pgpass_field(value) for value in fields) + "\n")
         finally:
             handle.close()
         env["PGPASSFILE"] = handle.name
