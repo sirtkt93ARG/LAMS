@@ -129,7 +129,7 @@ export default function OpenReviewPage() {
     {selected && <><h2>Entregas</h2>
       {submissions.length === 0 ? <p>Aún no hay entregas para esta actividad.</p> : <ul>
         {submissions.map((s) => <li key={s.id}>
-          <p><strong>{s.student_label}</strong> · {s.status === "pendiente" ? "Pendiente" : `Corregida · ${s.score}/100`}</p>
+          <p><strong>{s.student_name ?? s.student_label}</strong> · {s.status === "pendiente" ? "Pendiente" : `Corregida · ${s.score}/100`}</p>
           <blockquote>{s.response}</blockquote>
           {s.status === "pendiente" && <button className="btn" type="button" onClick={() => startGrade(s)}>Corregir entrega</button>}
           {s.status === "corregida" && <p className="muted">{s.feedback}</p>}
