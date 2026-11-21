@@ -22,7 +22,7 @@ class TestPostgresBackupSafety(unittest.TestCase):
             self.assertEqual(env["PGUSER"], "matheval")
             self.assertEqual(env["PGSSLMODE"], "verify-full")
             self.assertEqual(stat.S_IMODE(os.stat(passfile).st_mode), 0o600)
-            self.assertIn(r"db.internal:5433:matheval prod:matheval:p\\:a\\\\ss", Path(passfile).read_text())
+            self.assertIn(r"db.internal:5433:matheval prod:matheval:p\:a\\ss", Path(passfile).read_text())
         finally:
             if passfile:
                 Path(passfile).unlink(missing_ok=True)
