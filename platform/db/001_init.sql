@@ -1,4 +1,4 @@
--- Esquema PostgreSQL equivalente al de api/app/store.py (SQLite). NO PROBADO en este entorno (sin PostgreSQL).
+-- Esquema PostgreSQL equivalente al de api/app/store.py (SQLite). La integración se prueba en CI contra PostgreSQL 16.
 -- Aislamiento por escuela con seguridad a nivel de fila (RLS). La API opera con el rol `matheval_app`
 -- (sin BYPASSRLS) y ejecuta, dentro de cada transacción: SELECT set_config('app.tenant_id', '<escuela>', true);
 -- Solo se guarda el identificador seudónimo (pid): nunca el identificador real del usuario.
