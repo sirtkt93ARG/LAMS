@@ -42,7 +42,9 @@ class ItemBank:
             ok = {Status.REVISADO, Status.PILOTO}
         else:
             raise BankError("modo desconocido")
-        return [i for i in self.items.values() if i.status in ok and "NC" not in i.license.upper().split("-")]
+        # Las respuestas abiertas requieren corrección humana; no deben entrar en un diseño que estima nivel automáticamente.
+        return [i for i in self.items.values()
+                if i.status in ok and i.kind != "open" and "NC" not in i.license.upper().split("-")]
 
     def dump(self, path: str | Path) -> None:
         with open(path, "w", encoding="utf-8") as f:
