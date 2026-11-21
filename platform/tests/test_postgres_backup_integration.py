@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
 from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
@@ -40,8 +41,6 @@ class TestPostgresBackupRestore(unittest.TestCase):
                 }
 
             with self.subTest("logical backup and restore"):
-                import tempfile
-
                 with tempfile.TemporaryDirectory(prefix="matheval-backup-") as temporary:
                     output_root = Path(temporary) / "backups"
                     output_root.mkdir(mode=0o700)
