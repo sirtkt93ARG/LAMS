@@ -106,3 +106,36 @@ test("network role can open the aggregated dashboard", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Invitar una escuela" })).toBeVisible();
   await expectNoA11yViolations(page);
 });
+
+
+test("only network and administrator roles can open the network dashboard", async ({ page }) => {
+  await login(page, "teacher");
+  await page.goto("/network");
+  await expect(page).toHaveURL(/\\/teacher$/);
+  await expect(page.getByRole("heading", { name: "Resumen de la red de escuelas" })).toHaveCount(0);
+});
+
+test("network invitation form validates input and announces success", async ({ page }) => {
+  await login(page, "network");
+  await expect(page).toHaveURL(/\\/network$/);
+
+  const tenantInput = page.getByRole("textbox", { name: "Identificador de la escuela" });
+  await tenantInput.fill("   ");
+  await page.getByRole("button", { name: "Enviar invitación" }).click();
+  await expect(tenantInput).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByText(/Error: ingresá un identificador de escuela/)).toBeVisible();
+  await expect(tenantInput).toHaveAttribute("aria-describedby", /school-tenant-error/);
+  await expectNoA11yViolations(page);
+
+  const tenantId = "school-e2e-network-form";
+  await tenantInput.fill(tenantId);
+  await expect(tenantInput).toHaveAttribute("aria-invalid", "false");
+  const inviteResponse = page.waitForResponse((response) =>
+    response.url().includes("/v1/network/tenants") && response.request().method() === "POST"
+  );
+  await page.getByRole("button", { name: "Enviar invitación" }).click();
+  expect((await inviteResponse).status()).toBe(200);
+  await expect(page.getByRole("status")).toContainText("Invitación enviada");
+  await expect(page.getByText(tenantId, { exact: true })).toBeVisible();
+  await expectNoA11yViolations(page);
+});
