@@ -210,6 +210,8 @@ def start(body: StartIn, user: User = Depends(current_user)):
     if body.mode not in MODES:
         raise HTTPException(400, "modo inválido")
     _consent_gate(user)
+    # Las decisiones de curaduría viven en la base; cada worker refresca el banco antes de crear una sesión.
+    apply_reviews(BANK, STORE)
     pid = _pid(user)
     if body.mode in ("practica", "medicion"):
         pool = [PoolItem(i.id, i.axis.value, _params(i, body.mode), i.provenance.get("fp")) for i in _pool(body.mode)]
@@ -464,6 +466,7 @@ def audit(user: User = Depends(current_user)):
 @app.get("/v1/review/templates")
 def review_templates(user: User = Depends(current_user)):
     _curator(user)
+    apply_reviews(BANK, STORE)
     out = []
     for tid, spec in TPL.SPEC.items():
         revs = STORE.reviews(scope_of(tid))

@@ -112,6 +112,12 @@ class TestApiLogic(unittest.TestCase):
         self.assertEqual({result["answered"] for result in results}, {1})
         self.assertEqual(len(M.STORE.responses_for_pid(user.tenant_id, M._pid(user))), 1)
 
+    def test_new_sessions_refresh_persisted_review_decisions(self):
+        user = User("alumno-review-refresh", "escuela-review-refresh", "student")
+        with patch.object(M, "apply_reviews", wraps=M.apply_reviews) as refresh:
+            M.start(M.StartIn(), user)
+        refresh.assert_called_once_with(M.BANK, M.STORE)
+
     def test_student_view_hides_answers(self):
         out = M.start(M.StartIn(), User("a", "t", "student"))
         blob = str(out)
@@ -160,7 +166,9 @@ class TestApiLogic(unittest.TestCase):
 
     def test_review_endpoints(self):
         doc = User("curador-9", "institucion", "admin")
-        listing = M.review_templates(doc)
+        with patch.object(M, "apply_reviews", wraps=M.apply_reviews) as refresh:
+            listing = M.review_templates(doc)
+        refresh.assert_called_once_with(M.BANK, M.STORE)
         self.assertEqual(len(listing["templates"]), 24)
         sample = M.review_sample("T1", 5, doc)
         self.assertEqual(len(sample["items"]), 5)
