@@ -36,7 +36,7 @@ Alrededor: API (FastAPI), interfaz web (Next.js), servicio LTI 1.3, Keycloak, es
 - **Calidad:** modo piloto, calibración por familia de ítems (`scripts/calibrate_from_db.py`) y análisis por plantilla.
 - **Docentes:** cursos, errores frecuentes, dominio por tema, exportación CSV, análisis de ejercicios y confirmación de consentimiento.
 - **LMS:** la nota (nivel de 1 a 8) vuelve al libro de calificaciones por LTI Advantage; el aula simulada tiene su libro en `http://localhost:8300/gradebook`.
-- **Cumplimiento:** la escuela confirma el consentimiento antes de que se practique; derecho de supresión (`DELETE /v1/me/data`); retención (`scripts/purge_old.py`); auditoría.
+- **Cumplimiento:** consentimiento institucional, retención y auditoría. `DELETE /v1/me/data` elimina datos locales; si hay un LRS externo devuelve 202 y exige la supresión administrativa del proveedor. Ver `docs/PRIVACIDAD_Y_SUPRESION.md`.
 - **Robustez y accesibilidad:** respuestas idempotentes con reintentos, límites de frecuencia, métricas, tamaño de texto, alto contraste y lectura en voz alta.
 
 ## Cómo probar el núcleo
