@@ -85,7 +85,20 @@ DO $$ DECLARE t text; BEGIN
       USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), ''))
       WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), ''))$p$, t);
   END LOOP;
-END $$;
+END $;
+
+-- Una escuela solo puede ver invitaciones dirigidas a ella; una red solo sus propias membresías.
+ALTER TABLE tenant_networks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenant_networks FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_network_membership_access ON tenant_networks
+  USING (
+    network_id = NULLIF(current_setting('app.tenant_id', true), '')
+    OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')
+  )
+  WITH CHECK (
+    network_id = NULLIF(current_setting('app.tenant_id', true), '')
+    OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')
+  );
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON sessions, responses, tenant_settings, tenant_networks TO matheval_app;
 GRANT SELECT, INSERT ON item_reviews, audit_log TO matheval_app;
