@@ -254,7 +254,8 @@ def hint(sid: str, item_id: str, level: int = 1, user: User = Depends(current_us
         raise HTTPException(409, "ítem no pendiente")
     level = max(1, min(2, level))
     s["hints"][item_id] = max(level, s["hints"].get(item_id, 0))
-    STORE.save_session(sid, user.tenant_id, _state_of(s))
+    if not STORE.save_session(sid, user.tenant_id, _state_of(s), expected_version=s["version"]):
+        raise HTTPException(409, "La sesión cambió mientras pedías la pista. Actualizá la actividad e intentá de nuevo.")
     return {"level": level, "hint": explain(BANK.items[item_id])["hints"][level - 1]}
 
 
@@ -282,8 +283,18 @@ def answer(sid: str, body: AnswerIn, tasks: BackgroundTasks, user: User = Depend
     if e.done:
         theta, se = e.estimate()
         result = {"theta": round(theta, 3), "se": round(se, 3), "level": level_of(theta), "kind": getattr(e, "kind", "mst")}
-    STORE.save_session(sid, user.tenant_id, _state_of(s), result)
-    STORE.add_response(user.tenant_id, sid, item.id, res.normalized or "", res.score, res.tag, body.duration_s, hints)
+    saved = STORE.record_answer(
+        sid, user.tenant_id, s["version"], _state_of(s), item.id, res.normalized or "",
+        res.score, res.tag, body.duration_s, hints, result
+    )
+    if not saved:
+        latest = _load(sid, user)
+        if body.item_id in latest["eng"].administered:
+            duplicate = {**_state(latest), "duplicate": True}
+            if show:
+                duplicate["correct"] = bool(next(r[1] for r in latest["eng"].responses if r[0] == body.item_id))
+            return duplicate
+        raise HTTPException(409, "La sesión cambió mientras respondías. Actualizá la actividad antes de continuar.")
     if LRS_URL:
         stmt = answered_statement(pid=_pid(user), tenant_home=f"https://{user.tenant_id}.tenants.matheval.example",
                                   item_id=item.id, item_title=item.provenance.get("title", item.template),
