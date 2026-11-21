@@ -80,14 +80,14 @@ def run(command: list[str], env: dict[str, str]) -> str:
 
 
 def server_major_version(version: str) -> int:
-    match = re.match(r"\\s*(\\d+)(?:\\.\\d+)?", version)
+    match = re.match(r"\s*(\d+)(?:\.\d+)?", version)
     if not match:
         raise ValueError(f"No se pudo interpretar la versión del servidor PostgreSQL: {version!r}")
     return int(match.group(1))
 
 
 def client_major_version(version: str) -> int:
-    match = re.search(r"\\)\\s*(\\d+)(?:\\.\\d+)?", version)
+    match = re.search(r"\)\s*(\d+)(?:\.\d+)?", version)
     if not match:
         raise ValueError(f"No se pudo interpretar la versión del cliente PostgreSQL: {version!r}")
     return int(match.group(1))
