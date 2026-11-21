@@ -58,7 +58,7 @@ class Store:
         self.url = url
         if url.startswith("sqlite:///"):
             self.dialect = "sqlite"
-            self._conn = sqlite3.connect(url[len("sqlite:///"):], check_same_thread=False)
+            self._conn = sqlite3.connect(url[len("sqlite:///"):], timeout=15.0, check_same_thread=False)
             self._conn.row_factory = sqlite3.Row
             self._lock = threading.Lock()
             with self._lock:
