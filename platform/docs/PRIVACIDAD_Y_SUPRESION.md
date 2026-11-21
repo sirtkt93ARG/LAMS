@@ -29,3 +29,11 @@ Esto no es un detalle de implementación que podamos resolver con un `DELETE` ge
 5. Solo entonces cambiar el estado de la solicitud a completado.
 
 La escuela o institución es responsable de definir la base legal, los plazos y las instrucciones aplicables. Esta guía describe el comportamiento técnico actual; no sustituye una revisión jurídica.
+
+## Coordinación con exportaciones xAPI pendientes
+
+Cada envío xAPI en segundo plano se ejecuta bajo un bloqueo transaccional compartido con la supresión local. Si el envío obtiene primero el bloqueo, la supresión espera a que termine; si la supresión obtiene primero el bloqueo, el envío pendiente se descarta. La supresión crea además una marca persistente por escuela y seudónimo (tabla xapi_erasure_blocks), que impide exportaciones posteriores de ese mismo seudónimo, incluso si se inicia otra sesión.
+
+En PostgreSQL, el bloqueo usa un advisory lock transaccional y la marca está protegida por RLS. En SQLite, se usa una transacción de escritura BEGIN IMMEDIATE. El envío externo ocurre mientras se mantiene el bloqueo; por eso el timeout HTTP está acotado y la supresión puede tener que esperar a un envío en curso.
+
+Esta coordinación requiere que todas las instancias de la API ejecuten esta versión antes de considerar cubierta la carrera. Durante un despliegue gradual, hay que detener o drenar las instancias antiguas que todavía puedan enviar Statements sin tomar el bloqueo. La marca no elimina Statements ya aceptados por el LRS: sigue siendo necesaria la acción administrativa externa descrita arriba.
