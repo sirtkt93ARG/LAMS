@@ -20,7 +20,7 @@ export function Shell({ children, showExit = true }: { children: React.ReactNode
     <>
       <a className="skip" href="#contenido">Saltar al contenido</a>
       <header className="topbar">
-        <Link href="/" className="brand">[Nombre del producto]</Link>
+        <Link href="/" className="brand">matheval</Link>
         <nav className="topnav" aria-label="Secciones">{links.map(([href, label]) => <Link key={href} href={href}>{label}</Link>)}</nav>
         <div className="topbar-right">
           <A11yPanel />
