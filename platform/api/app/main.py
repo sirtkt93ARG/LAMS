@@ -9,6 +9,7 @@ import logging
 import os
 import random
 import time
+from datetime import datetime, timezone
 import urllib.request
 import uuid
 from collections import Counter, defaultdict
@@ -353,6 +354,14 @@ def student_open_assignments(user: User = Depends(current_user)):
     for assignment in assignments:
         item = BANK.items.get(assignment["item_id"])
         assignment["item"] = _public(item) if item and item.kind == "open" else None
+        due_at = assignment.get("due_at")
+        if isinstance(due_at, datetime):
+            due_at = due_at if due_at.tzinfo else due_at.replace(tzinfo=timezone.utc)
+        elif due_at:
+            due_at = datetime.fromisoformat(str(due_at).replace("Z", "+00:00"))
+            if due_at.tzinfo is None:
+                due_at = due_at.replace(tzinfo=timezone.utc)
+        assignment["expired"] = bool(due_at and due_at <= datetime.now(timezone.utc))
     return {"assignments": assignments}
 
 
@@ -369,6 +378,8 @@ def student_open_submit(assignment_id: str, body: OpenSubmissionIn, user: User =
         raise HTTPException(404, "actividad no encontrada")
     ok = STORE.submit_open_response(str(uuid.uuid4()), assignment_id, user.tenant_id, _pid(user), response)
     if not ok:
+        if STORE.open_assignment_expired(user.tenant_id, assignment_id):
+            raise HTTPException(410, "El plazo de entrega de esta actividad ya venció.")
         raise HTTPException(409, "Ya entregaste esta actividad. No se puede reemplazar la entrega.")
     STORE.audit(user.tenant_id, _pid(user), "respuesta_abierta_entregada", assignment_id)
     return {"status": "pendiente"}
@@ -464,9 +475,21 @@ def teacher_create_open_assignment(body: OpenAssignmentIn, user: User = Depends(
         raise HTTPException(400, "Título obligatorio (máximo 160 caracteres) e instrucciones de hasta 4000 caracteres.")
     if body.course_id and not any(c["course_id"] == body.course_id for c in STORE.courses(user.tenant_id)):
         raise HTTPException(404, "curso no encontrado en esta escuela")
+    due_at = None
+    if body.due_at:
+        try:
+            parsed_due = datetime.fromisoformat(body.due_at.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise HTTPException(400, "La fecha límite debe ser una fecha ISO 8601 válida con zona horaria.") from exc
+        if parsed_due.tzinfo is None:
+            raise HTTPException(400, "La fecha límite debe incluir zona horaria.")
+        parsed_due = parsed_due.astimezone(timezone.utc)
+        if parsed_due <= datetime.now(timezone.utc):
+            raise HTTPException(400, "La fecha límite debe estar en el futuro.")
+        due_at = parsed_due.isoformat()
     assignment_id = str(uuid.uuid4())
     STORE.create_open_assignment(assignment_id, user.tenant_id, body.course_id, item.id, title,
-                                 instructions, _pid(user), body.due_at)
+                                 instructions, _pid(user), due_at)
     STORE.audit(user.tenant_id, _pid(user), "actividad_abierta_creada", assignment_id)
     return {"id": assignment_id, "status": "created"}
 
