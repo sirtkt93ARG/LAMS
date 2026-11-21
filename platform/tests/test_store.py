@@ -146,7 +146,7 @@ class TestStore(unittest.TestCase):
         bank = ItemBank([T.generate("T1", i) for i in range(5)] + [T.generate("T2", i) for i in range(5)])
         R.apply_reviews(bank, self.store)
         self.assertTrue(all(i.status == Status.VERIFICADO for i in bank.items.values()))
-        self.store.add_review("template:T1", "docente-1", "aprobar", "", {k: True for k in R.CHECKLIST})
+        self.assertTrue(self.store.add_review("template:T1", "docente-1", "aprobar", "", {k: True for k in R.CHECKLIST}))
         R.apply_reviews(bank, self.store)
         t1 = [i for i in bank.items.values() if i.template == "T1"]
         self.assertTrue(all(i.status == Status.REVISADO and i.provenance["reviewed_by"] == "docente-1" for i in t1))
@@ -157,8 +157,10 @@ class TestStore(unittest.TestCase):
         self.assertEqual(len(bank.pool("practica")), 5)
         R.apply_reviews(bank, self.store)                       # idempotente
         self.assertEqual(len(bank.pool("practica")), 5)
-        with self.assertRaises(Exception):                       # un revisor no vota dos veces
+        self.assertFalse(                                      # un revisor no vota dos veces
             self.store.add_review("template:T1", "docente-1", "aprobar", "", {})
+        )
+        self.assertEqual(len(self.store.reviews("template:T1")), 1)
 
     def test_template_status_needs_required_approvals(self):
         old = R.REQUIRED
