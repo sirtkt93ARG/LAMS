@@ -1,16 +1,24 @@
 export type Role = "student" | "teacher" | "admin" | "network";
 
-export type OpenItem = { id: string; stem: string; stimulus: Stimulus | null };
-export type OpenAssignmentDraft = { item_id: string; title: string; instructions?: string; course_id?: string; due_at?: string };
+export type RubricCriterion = { id: string; label: string; descriptors: Record<string, string> };
+export type RubricSnapshot = {
+  version: number; competency_id: string; competency: string; focus: string;
+  criteria: RubricCriterion[]; scale: { min: number; max: number; meaning: string }; notice: string;
+};
+export type ItemCompetency = { id: string; name: string; rubric: RubricSnapshot };
+export type OpenItem = { id: string; stem: string; stimulus: Stimulus | null; competencies?: ItemCompetency[] };
+export type OpenAssignmentDraft = { item_id: string; title: string; instructions?: string; course_id?: string; due_at?: string; competency_id?: string };
 export type OpenAssignment = {
   id: string; item_id: string; title: string; instructions: string; due_at: string | null;
   created_at: string; submission_id?: string | null; status?: "pendiente" | "corregida" | null;
-  score?: number | null; feedback?: string | null; rubric?: Record<string, number> | null; item?: OpenItem | null;
+  score?: number | null; feedback?: string | null; rubric?: Record<string, number> | null;
+  competency_id?: string | null; rubric_snapshot?: RubricSnapshot | null; item?: OpenItem | null;
   submissions?: number; pending?: number; expired?: boolean;
 };
 export type OpenSubmission = {
   id: string; student_label: string; response: string; status: "pendiente" | "corregida";
-  score: number | null; feedback: string | null; rubric: Record<string, number> | null; submitted_at: string;
+  score: number | null; feedback: string | null; rubric: Record<string, number> | null;
+  competency_id?: string | null; rubric_snapshot?: RubricSnapshot | null; submitted_at: string;
 };
 
 export type TableStimulus = { type: "table"; header: string[]; rows: string[][] };
