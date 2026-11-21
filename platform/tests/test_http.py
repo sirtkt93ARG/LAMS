@@ -105,6 +105,42 @@ class TestHttp(unittest.TestCase):
         self.assertEqual(self.c.get(f"/v1/student/open-submissions/{submission_id}",
                                     headers={"X-Dev-User": "otro:escuela-h:student"}).status_code, 404)
 
+    def test_competency_rubric_is_snapshotted_and_enforced_over_http(self):
+        from matheval.rubrics import competencies_for_item
+
+        item = next((i for i in M.BANK.items.values()
+                     if i.kind == "open" and competencies_for_item(i.id)), None)
+        if item is None:
+            self.skipTest("el banco de pruebas no tiene ítems abiertos vinculados a competencias")
+        competency = competencies_for_item(item.id)[0]
+        created = self.c.post("/v1/teacher/open-assignments", headers=T, json={
+            "item_id": item.id, "title": "Rúbrica por competencia",
+            "competency_id": competency["id"],
+        })
+        self.assertEqual(created.status_code, 200, created.text)
+        assignment_id = created.json()["id"]
+        assignment = next(a for a in self.c.get("/v1/student/open-assignments", headers=S).json()["assignments"]
+                          if a["id"] == assignment_id)
+        snapshot = assignment["rubric_snapshot"]
+        self.assertEqual(snapshot["competency_id"], competency["id"])
+        self.assertEqual(len(snapshot["criteria"]), 3)
+        submitted = self.c.post(f"/v1/student/open-assignments/{assignment_id}/submit", headers=S,
+                                json={"response": "Desarrollo y justificación."})
+        self.assertEqual(submitted.status_code, 200, submitted.text)
+        submission_id = self.c.get(
+            f"/v1/teacher/open-assignments/{assignment_id}/submissions", headers=T
+        ).json()["submissions"][0]["id"]
+        rejected = self.c.post(f"/v1/teacher/open-submissions/{submission_id}/grade", headers=T,
+                               json={"score": 80, "rubric": {"interpretacion": 3}})
+        self.assertEqual(rejected.status_code, 400, rejected.text)
+        scores = {criterion["id"]: 3 for criterion in snapshot["criteria"]}
+        graded = self.c.post(f"/v1/teacher/open-submissions/{submission_id}/grade", headers=T,
+                             json={"score": 80, "feedback": "Buen trabajo.", "rubric": scores})
+        self.assertEqual(graded.status_code, 200, graded.text)
+        result = self.c.get(f"/v1/student/open-submissions/{submission_id}", headers=S)
+        self.assertEqual(result.json()["rubric_snapshot"], snapshot)
+        self.assertEqual(result.json()["rubric"], scores)
+
     def test_open_assignment_deadline_validation_and_expiration_over_http(self):
         item = next((i for i in M.BANK.items.values() if i.kind == "open"), None)
         if item is None:
