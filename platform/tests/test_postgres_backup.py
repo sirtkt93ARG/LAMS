@@ -7,7 +7,7 @@ from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.postgres_backup import connection_environment, digest, load_and_verify_backup, restore
+from scripts.postgres_backup import backup, backup_directory_name, connection_environment, digest, load_and_verify_backup, restore
 
 
 class TestPostgresBackupSafety(unittest.TestCase):
@@ -34,6 +34,22 @@ class TestPostgresBackupSafety(unittest.TestCase):
     def test_rejects_non_postgres_url(self):
         with self.assertRaises(ValueError):
             connection_environment("sqlite:///local.db")
+
+    def test_backup_directory_name_cannot_escape_output_root(self):
+        name = backup_directory_name("../outside/../../db", "20261121T000000Z")
+        self.assertNotIn("/", name)
+        self.assertNotEqual(name, "..")
+
+    def test_backup_refuses_world_readable_destination_without_chmodding_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "public-backups"
+            root.mkdir(mode=0o755)
+            os.chmod(root, 0o755)
+            args = Namespace(database_url="postgresql://user@localhost/db", output_dir=str(root))
+            with patch("scripts.postgres_backup.connection_environment", side_effect=AssertionError("must not connect")):
+                with self.assertRaisesRegex(ValueError, "permisos 0700"):
+                    backup(args)
+            self.assertEqual(stat.S_IMODE(root.stat().st_mode), 0o755)
 
     def test_backup_manifest_detects_corruption(self):
         with tempfile.TemporaryDirectory() as tmp:
