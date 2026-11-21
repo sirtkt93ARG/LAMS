@@ -31,6 +31,11 @@ CREATE TABLE responses (
 );
 CREATE INDEX ix_responses_session ON responses (tenant_id, session_id);
 
+CREATE TABLE used_tokens (
+  jti text PRIMARY KEY,
+  used_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE tenant_settings (
   tenant_id           text PRIMARY KEY,
   consent_attested_at timestamptz,
@@ -77,4 +82,5 @@ END $$;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON sessions, responses, tenant_settings TO matheval_app;
 GRANT SELECT, INSERT ON item_reviews, audit_log TO matheval_app;
+GRANT INSERT, DELETE ON used_tokens TO matheval_app;
 GRANT USAGE, SELECT ON SEQUENCE responses_id_seq, item_reviews_id_seq, audit_log_id_seq TO matheval_app;
