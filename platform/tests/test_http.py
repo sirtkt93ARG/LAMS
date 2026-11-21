@@ -27,7 +27,7 @@ class TestHttp(unittest.TestCase):
     def test_health_and_auth_required(self):
         r = self.c.get("/healthz")
         self.assertEqual(r.status_code, 200)
-        self.assertGreaterEqual(r.json()["items"], 4800)
+        self.assertGreaterEqual(r.json()["items"], 3500)  # banco deduplicado por contenido
         self.assertEqual(self.c.post("/v1/sessions", json={"mode": "practica"}).status_code, 401)
         self.assertEqual(self.c.post("/v1/sessions", json={"mode": "practica"}, headers={"X-Dev-User": "mal"}).status_code, 400)
 
