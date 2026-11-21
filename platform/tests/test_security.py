@@ -108,6 +108,21 @@ class TestOneTimeHandoff(unittest.TestCase):
         self.assertEqual((user.sub, user.tenant_id, user.role), ("student-1", "school-1", "student"))
         self.assertEqual(seen, ["handoff-123"])
 
+    def test_nrps_context_survives_one_time_handoff_and_session_minting(self):
+        old_session = auth.SESSION_SECRET
+        auth.SESSION_SECRET = "s" * 48
+        nrps = {"iss": "https://lms.example", "client_id": "client-1",
+                "context_memberships_url": "https://lms.example/api/members"}
+        auth.set_token_consumer(lambda _jti: True)
+        try:
+            user = auth.verify_handoff(self.token(nrps=nrps, role="teacher"))
+            self.assertEqual(user.nrps, nrps)
+            session = auth.mint_session_token(user)
+            restored = auth.current_user("Bearer " + session, None)
+            self.assertEqual(restored.nrps, nrps)
+        finally:
+            auth.SESSION_SECRET = old_session
+
     def test_replayed_token_is_rejected(self):
         auth.set_token_consumer(lambda _jti: False)
         with self.assertRaises(HTTPException) as ctx:

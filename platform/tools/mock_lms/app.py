@@ -12,12 +12,13 @@ import jwt
 from flask import Flask, jsonify, request
 from jwt.algorithms import RSAAlgorithm
 from lti_service.ags import public_jwk
-from .platform import SCOPE_SCORE, MockPlatform
+from .platform import SCOPE_SCORE, SCOPE_NRPS, ROLE_STUDENT, ROLE_TEACHER, MockPlatform
 
 ISS = os.getenv("MOCK_ISS", "http://localhost:8300")
 TOOL_BASE = os.getenv("TOOL_BASE", "http://localhost:8200").rstrip("/")
 TOOL_INTERNAL_BASE = os.getenv("TOOL_INTERNAL_BASE", TOOL_BASE).rstrip("/")
 LINEITEM_BASE = os.getenv("MOCK_LINEITEM_BASE", ISS).rstrip("/")
+NRPS_BASE = os.getenv("MOCK_NRPS_BASE", ISS).rstrip("/")
 CLIENT_ID, DEPLOYMENT_ID = "mock-client", "mock-deployment-1"
 
 app = Flask(__name__)
@@ -72,7 +73,9 @@ def auth():
         return jsonify({"error": "client_id o redirect_uri no registrados"}), 400
     role = "teacher" if v.get("lti_message_hint") == "teacher" else "student"
     token = P.build_id_token(sub=v.get("login_hint", "usuario-sin-id"), role=role, nonce=v.get("nonce", ""),
-                             target_link_uri=redirect_uri, course=COURSE, lineitem=LINEITEM)
+                             target_link_uri=redirect_uri, course=COURSE, lineitem=LINEITEM,
+                             nrps={"context_memberships_url": f"{NRPS_BASE}/nrps/contexts/{COURSE['id']}/members",
+                                   "service_versions": ["2.0"]})
     return ('<!doctype html><meta charset="utf-8"><body onload="document.forms[0].submit()">'
             f'<form method="post" action="{html.escape(redirect_uri)}">'
             f'<input type="hidden" name="id_token" value="{html.escape(token)}">'
@@ -93,11 +96,12 @@ def token():
         jwt.decode(assertion, RSAAlgorithm.from_jwk(json.dumps(jwk)), algorithms=["RS256"], audience=[request.base_url, ISS], issuer=CLIENT_ID)
     except Exception as e:                                                       # noqa: BLE001
         return jsonify({"error": "invalid_client", "detail": str(e)}), 401
-    if SCOPE_SCORE not in v.get("scope", "").split():
+    scopes = set(v.get("scope", "").split())
+    if not scopes or not scopes.issubset({SCOPE_SCORE, SCOPE_NRPS}):
         return jsonify({"error": "invalid_scope"}), 400
     tok = secrets.token_urlsafe(24)
-    app.config["TOKENS"][tok] = time.time() + 3600
-    return jsonify({"access_token": tok, "token_type": "Bearer", "expires_in": 3600, "scope": SCOPE_SCORE})
+    app.config["TOKENS"][tok] = {"expires_at": time.time() + 3600, "scopes": scopes}
+    return jsonify({"access_token": tok, "token_type": "Bearer", "expires_in": 3600, "scope": " ".join(sorted(scopes))})
 
 
 @app.get("/lineitems/1")
@@ -108,13 +112,32 @@ def lineitem():
 @app.post("/lineitems/1/scores")
 def scores():
     auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer ") or app.config["TOKENS"].get(auth[7:], 0) < time.time():
+    token_data = app.config["TOKENS"].get(auth[7:]) if auth.startswith("Bearer ") else None
+    if not token_data or token_data["expires_at"] < time.time() or SCOPE_SCORE not in token_data["scopes"]:
         return jsonify({"error": "no autorizado"}), 401
     b = request.get_json(force=True, silent=True) or {}
     if not {"userId", "scoreGiven", "scoreMaximum"} <= b.keys() or "score+json" not in request.headers.get("Content-Type", ""):
         return jsonify({"error": "puntaje inválido"}), 400
     app.config["GRADES"].append(b)
     return jsonify({"ok": True})
+
+
+@app.get("/nrps/contexts/curso-4a/members")
+def nrps_members():
+    auth = request.headers.get("Authorization", "")
+    token_data = app.config["TOKENS"].get(auth[7:]) if auth.startswith("Bearer ") else None
+    if not token_data or token_data["expires_at"] < time.time() or SCOPE_NRPS not in token_data["scopes"]:
+        return jsonify({"error": "no autorizado"}), 401
+    return jsonify({
+        "id": f"{ISS}/nrps/contexts/{COURSE['id']}/members",
+        "context": COURSE,
+        "members": [
+            {"user_id": "alumno-lms-1", "name": "Alumno Uno", "roles": [ROLE_STUDENT], "status": "Active"},
+            {"user_id": "alumno-lms-2", "given_name": "María", "family_name": "Pérez", "roles": [ROLE_STUDENT], "status": "Active"},
+            {"user_id": "docente-lms-1", "name": "Docente de prueba", "roles": [ROLE_TEACHER], "status": "Active"},
+            {"user_id": "alumno-inactivo", "name": "Cuenta inactiva", "roles": [ROLE_STUDENT], "status": "Inactive"},
+        ],
+    })
 
 
 @app.get("/gradebook")

@@ -33,6 +33,7 @@ class User:
     course_id: str | None = None
     course_label: str | None = None
     ags: dict | None = None    # datos para devolver la nota al LMS (LTI Advantage); solo en accesos por LTI
+    nrps: dict | None = None   # contexto firmado para consultar el roster del LMS; no contiene nombres
 
 
 def verify_handoff(token: str) -> User:
@@ -54,7 +55,7 @@ def verify_handoff(token: str) -> User:
         raise HTTPException(503, "protección de reutilización LTI no configurada")
     if not _token_consumer(c["jti"]):
         raise HTTPException(401, "token de acceso ya utilizado")
-    return User(c["sub"], c["tenant_id"], c["role"], c.get("course_id"), c.get("course_label"), c.get("ags"))
+    return User(c["sub"], c["tenant_id"], c["role"], c.get("course_id"), c.get("course_label"), c.get("ags"), c.get("nrps"))
 
 
 def mint_session_token(u: User) -> str:
@@ -63,7 +64,7 @@ def mint_session_token(u: User) -> str:
     now = int(time.time())
     claims = {"sub": u.sub, "tenant_id": u.tenant_id, "role": u.role, "iss": "matheval-lti", "aud": AUDIENCE,
               "iat": now, "exp": now + SESSION_TTL_S}
-    for k in ("course_id", "course_label", "ags"):
+    for k in ("course_id", "course_label", "ags", "nrps"):
         if getattr(u, k):
             claims[k] = getattr(u, k)
     return jwt.encode(claims, SESSION_SECRET, algorithm="HS256")
@@ -84,7 +85,7 @@ def current_user(authorization: str | None = Header(default=None), x_dev_user: s
             if not SESSION_SECRET:
                 raise HTTPException(401, "token inválido")
             c = jwt.decode(token, SESSION_SECRET, algorithms=["HS256"], audience=AUDIENCE, issuer="matheval-lti")
-            return User(c["sub"], c["tenant_id"], c["role"], c.get("course_id"), c.get("course_label"), c.get("ags"))
+            return User(c["sub"], c["tenant_id"], c["role"], c.get("course_id"), c.get("course_label"), c.get("ags"), c.get("nrps"))
         if _jwks is None:
             raise HTTPException(401, "no autenticado")
         key = _jwks.get_signing_key_from_jwt(token).key

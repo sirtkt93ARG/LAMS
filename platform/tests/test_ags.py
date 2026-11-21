@@ -46,6 +46,39 @@ class TestAgs(unittest.TestCase):
         self.assertIn("alumno-ags", page)
         self.assertIn("6 / 8", page)
 
+    def test_nrps_roster_uses_readonly_scope_and_returns_minimal_active_learners(self):
+        from lti_service import nrps
+
+        kid = self.ags.public_jwk(self.pub)["kid"]
+        roster = nrps.fetch_roster(
+            f"{self.base}/nrps/contexts/curso-4a/members",
+            self.base, "mock-client", f"{self.base}/token", self.priv, kid,
+            allowed_hosts=["127.0.0.1"], dev=True,
+        )
+        self.assertEqual(roster, [
+            {"user_id": "alumno-lms-1", "name": "Alumno Uno"},
+            {"user_id": "alumno-lms-2", "name": "María Pérez"},
+        ])
+        self.assertNotIn("email", roster[0])
+
+    def test_nrps_next_link_parser_handles_link_rel_header(self):
+        from lti_service import nrps
+
+        header = '<https://lms.example/members?page=2>; rel="next", <https://lms.example/members?page=1>; rel="prev"'
+        self.assertEqual(nrps._next_link(header), "https://lms.example/members?page=2")
+        self.assertIsNone(nrps._next_link(None))
+
+    def test_nrps_rejects_unapproved_host_before_request(self):
+        from lti_service import nrps
+
+        kid = self.ags.public_jwk(self.pub)["kid"]
+        with self.assertRaises(ValueError):
+            nrps.fetch_roster(
+                f"{self.base}/nrps/contexts/curso-4a/members",
+                self.base, "mock-client", f"{self.base}/token", self.priv, kid,
+                allowed_hosts=["evil.example"], dev=True,
+            )
+
     def test_rejections(self):
         other_priv, other_pub = _keys()
         kid = self.ags.public_jwk(self.pub)["kid"]

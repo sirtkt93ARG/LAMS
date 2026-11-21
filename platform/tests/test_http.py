@@ -1,5 +1,6 @@
 """Pruebas por HTTP con el TestClient de FastAPI (requiere fastapi y httpx reales; si no están, se omiten)."""
-import os, sys, tempfile, time, unittest
+import os, sys, tempfile, time, unittest, io, json
+from unittest.mock import patch
 _TMP = tempfile.mkdtemp()
 for k, v in {"MATHEVAL_DEV": "1", "BANK_PATH": "data/bank_demo.jsonl", "DATABASE_URL": f"sqlite:///{_TMP}/http.db",
              "SESSION_SECRET": "s" * 40, "LTI_HANDOFF_SECRET": "h" * 40}.items():
@@ -93,9 +94,15 @@ class TestHttp(unittest.TestCase):
         self.assertEqual(submitted.status_code, 200, submitted.text)
         self.assertEqual(self.c.post(f"/v1/student/open-assignments/{assignment_id}/submit", headers=S,
                                      json={"response": "duplicada"}).status_code, 409)
-        submissions = self.c.get(f"/v1/teacher/open-assignments/{assignment_id}/submissions", headers=T)
+        with patch.object(M, "_nrps_names", return_value={
+            M._student_key("alumno-h1", "escuela-h"): "Nombre de prueba",
+        }):
+            submissions = self.c.get(f"/v1/teacher/open-assignments/{assignment_id}/submissions", headers=T)
         self.assertEqual(submissions.status_code, 200, submissions.text)
-        submission_id = submissions.json()["submissions"][0]["id"]
+        submission_row = submissions.json()["submissions"][0]
+        self.assertEqual(submission_row["student_name"], "Nombre de prueba")
+        self.assertNotIn("student_key", submission_row)
+        submission_id = submission_row["id"]
         graded = self.c.post(f"/v1/teacher/open-submissions/{submission_id}/grade", headers=T,
                              json={"score": 82, "feedback": "Buen desarrollo.", "rubric": {"argumentacion": 4}})
         self.assertEqual(graded.status_code, 200, graded.text)
@@ -104,6 +111,25 @@ class TestHttp(unittest.TestCase):
         self.assertEqual(result.json()["score"], 82)
         self.assertEqual(self.c.get(f"/v1/student/open-submissions/{submission_id}",
                                     headers={"X-Dev-User": "otro:escuela-h:student"}).status_code, 404)
+
+    def test_nrps_names_are_resolved_in_memory_without_persisting_roster(self):
+        user = M.User(sub="docente-lms-1", tenant_id="escuela-h", role="teacher",
+                      nrps={"iss": "https://lms.example", "client_id": "client-1",
+                            "context_memberships_url": "https://lms.example/members"})
+        payload = {"members": [
+            {"user_id": "alumno-h1", "name": "Nombre Alumno", "email": "private@example.test"},
+        ]}
+        original_url = M.LTI_SERVICE_URL
+        M.LTI_SERVICE_URL = "http://lti.internal"
+        try:
+            with patch("api.app.main.urllib.request.urlopen",
+                       return_value=io.BytesIO(json.dumps(payload).encode())):
+                names = M._nrps_names(user)
+        finally:
+            M.LTI_SERVICE_URL = original_url
+        label = M._student_key("alumno-h1", "escuela-h")
+        self.assertEqual(names, {label: "Nombre Alumno"})
+        self.assertNotIn("private@example.test", str(names))
 
     def test_competency_rubric_is_snapshotted_and_enforced_over_http(self):
         from matheval.rubrics import competencies_for_item
