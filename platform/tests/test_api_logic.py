@@ -318,6 +318,15 @@ class TestApiLogic(unittest.TestCase):
             M.network_summary(User("doc", "escuela-n1", "teacher"))
         self.assertEqual(c.exception.status_code, 403)
 
+    def test_network_invite_insert_and_acceptance(self):
+        network = User("red-regression", "red-regression", "network")
+        school = User("teacher-regression", "school-regression", "teacher")
+        M.network_add(M.NetworkInviteIn(tenant_id="school-regression"), network)
+        self.assertEqual(M.STORE.pending_network_tenants("red-regression"), ["school-regression"])
+        self.assertEqual(M.network_invites(school)["invites"], ["red-regression"])
+        M.network_invite_answer("red-regression", "accept", school)
+        self.assertEqual(M.STORE.network_tenants("red-regression"), ["school-regression"])
+
     def test_network_invitations_require_school_acceptance(self):
         network = User("red-p", "red-p", "network")
         school_teacher = User("doc-p", "escuela-pendiente", "teacher")
