@@ -1,47 +1,159 @@
-# Entorno local. NO PROBADO en este entorno (sin Docker ni red). Revisar versiones de imagen y las variables
-# de Ralph y ClickHouse en su documentación antes de usar. Ejecutar desde la carpeta deploy/.
+# Stack local de desarrollo. No es una configuración de producción.
+# Ejecutar desde platform/: docker compose -f deploy/docker-compose.yml up --build
 services:
   db:
     image: postgres:16
-    environment: { POSTGRES_PASSWORD: cambiar, POSTGRES_DB: matheval }
-    volumes: ["../db/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro", "pgdata:/var/lib/postgresql/data"]
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-postgres-only}
+      POSTGRES_DB: matheval
+    volumes:
+      - ../db/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d matheval"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
-    command: start-dev --import-realm
-    environment: { KC_BOOTSTRAP_ADMIN_USERNAME: admin, KC_BOOTSTRAP_ADMIN_PASSWORD: cambiar }
-    volumes: ["./keycloak/matheval-realm.json:/opt/keycloak/data/import/matheval-realm.json:ro"]
-    ports: ["8080:8080"]
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-local-keycloak-only}
+      KC_HOSTNAME: http://localhost:8080
+    volumes:
+      - ./keycloak/matheval-realm.json:/opt/keycloak/data/import/matheval-realm.json:ro
+    ports:
+      - "8080:8080"
+
+  # Genera claves efímeras y una configuración LTI de desarrollo en un volumen compartido.
+  init-lti:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.lti
+    user: "0:0"
+    command:
+      - sh
+      - -c
+      - python /app/scripts/gen_lti_keys.py --force && chown -R app:app /app/lti_service/configs
+    environment:
+      MOCK_ISS: http://localhost:8300
+      MOCK_AUTH_LOGIN_URL: http://localhost:8300/auth
+      MOCK_AUTH_TOKEN_URL: http://mock-lms:8300/token
+      MOCK_KEY_SET_URL: http://mock-lms:8300/jwks
+    volumes:
+      - lti-config:/app/lti_service/configs
+    restart: "no"
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    environment:
+      MATHEVAL_DEV: "1"
+      OIDC_ISSUER: http://localhost:8080/realms/matheval
+      OIDC_JWKS_URL: http://keycloak:8080/realms/matheval/protocol/openid-connect/certs
+      WEB_ORIGIN: http://localhost:3000
+      SESSION_SECRET: local-session-secret-only-0123456789abcdef0123456789
+      LTI_HANDOFF_SECRET: local-handoff-secret-only-0123456789abcdef012345
+      PSEUDONYM_SECRET: local-pseudonym-secret-only-0123456789abcdef012345
+      DATABASE_URL: postgresql://matheval_app:cambiar-en-produccion@db:5432/matheval
+      LTI_SERVICE_URL: http://lti:8200
+      LRS_URL: ${LRS_URL:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+
+  lti:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.lti
+    environment:
+      MATHEVAL_DEV: "1"
+      LTI_SECRET_KEY: local-flask-secret-only-0123456789abcdef012345
+      LTI_HANDOFF_SECRET: local-handoff-secret-only-0123456789abcdef012345
+      WEB_URL: http://localhost:3000
+      LTI_CONFIG: /app/lti_service/configs/lti.mock.json
+    volumes:
+      - lti-config:/app/lti_service/configs:ro
+    depends_on:
+      init-lti:
+        condition: service_completed_successfully
+    ports:
+      - "8200:8200"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8200/lti/jwks/', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+
+  mock-lms:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.mock-lms
+    environment:
+      MOCK_ISS: http://localhost:8300
+      MOCK_LINEITEM_BASE: http://mock-lms:8300
+      TOOL_BASE: http://localhost:8200
+      TOOL_INTERNAL_BASE: http://lti:8200
+    depends_on:
+      lti:
+        condition: service_healthy
+    ports:
+      - "8300:8300"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8300/jwks', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_DEV: "1"
+        NEXT_PUBLIC_KC_URL: http://localhost:8080
+        NEXT_PUBLIC_KC_REALM: matheval
+        NEXT_PUBLIC_KC_CLIENT: matheval-web
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+
+  # Componentes xAPI opcionales: activar solo cuando se haya configurado y validado el LRS.
   clickhouse:
     image: clickhouse/clickhouse-server:24.8
-    volumes: ["chdata:/var/lib/clickhouse"]
-  ralph:                                    # LRS xAPI (MIT). Verificar imagen y variables en la documentación de Ralph
+    profiles: ["xapi"]
+    volumes:
+      - chdata:/var/lib/clickhouse
+
+  ralph:
     image: fundocker/ralph:latest
-    depends_on: [clickhouse]
-    ports: ["8100:8100"]
-  api:
-    build: { context: .., dockerfile: deploy/Dockerfile.api }
-    environment:
-      MATHEVAL_DEV: "1"                      # quitar en producción
-      OIDC_ISSUER: http://keycloak:8080/realms/matheval
-      WEB_ORIGIN: http://localhost:3000
-      SESSION_SECRET: cambiar-por-un-valor-largo-y-aleatorio-1234567890
-      LTI_HANDOFF_SECRET: cambiar-por-otro-valor-largo-y-aleatorio-123456
-      PSEUDONYM_SECRET: cambiar
-      DATABASE_URL: postgresql://matheval_app:cambiar-en-produccion@db:5432/matheval
-      LRS_URL: http://ralph:8100
-    depends_on: [db, keycloak]
-    ports: ["8000:8000"]
-  lti:
-    build: { context: .., dockerfile: deploy/Dockerfile.lti }
-    environment:
-      MATHEVAL_DEV: "1"                      # mismo modo local que la API; quitar en producción
-      LTI_SECRET_KEY: cambiar
-      LTI_HANDOFF_SECRET: cambiar-por-otro-valor-largo-y-aleatorio-123456
-      WEB_URL: http://localhost:3000
-      LTI_CONFIG: /app/lti_service/configs/lti.json
-    ports: ["8200:8200"]
-  web:
-    build: { context: .., dockerfile: deploy/Dockerfile.web }
-    depends_on: [api]
-    ports: ["3000:3000"]
-volumes: { pgdata: {}, chdata: {} }
+    profiles: ["xapi"]
+    depends_on:
+      - clickhouse
+    ports:
+      - "8100:8100"
+
+volumes:
+  pgdata:
+  chdata:
+  lti-config:
