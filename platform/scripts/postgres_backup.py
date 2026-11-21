@@ -99,6 +99,8 @@ def load_and_verify_backup(backup_dir: Path) -> tuple[Path, dict]:
     if dump.is_symlink() or manifest_path.is_symlink() or not dump.is_file() or not manifest_path.is_file():
         raise ValueError("La copia debe contener archivos regulares database.dump y manifest.json")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict):
+        raise ValueError("El manifiesto debe ser un objeto JSON")
     if manifest.get("format") != "pg_dump_custom" or not isinstance(manifest.get("database"), str) or not manifest["database"]:
         raise ValueError("Formato o metadatos de backup no reconocidos")
     if manifest.get("sha256") != digest(dump):
