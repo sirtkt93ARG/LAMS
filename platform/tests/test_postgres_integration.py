@@ -136,6 +136,23 @@ class TestPostgresStore(unittest.TestCase):
         self.assertEqual(self.store.open_submissions_for_assignment(tenant, assignment)[0]["id"], second)
         self.assertEqual(self.store.open_assignments_for_teacher(tenant)[0]["pending"], 1)
 
+    def test_open_assignment_cancellation_is_tenant_scoped_and_preserves_attempts(self):
+        suffix = uuid4().hex
+        tenant, other, pid = f"school-cancel-{suffix}", f"other-cancel-{suffix}", f"student-cancel-{suffix}"
+        assignment, submission = f"assignment-cancel-{suffix}", f"submission-cancel-{suffix}"
+        self.store.create_open_assignment(assignment, tenant, None, "open-item", "Cancelar", "", "teacher", None)
+        self.assertTrue(self.store.submit_open_response(submission, assignment, tenant, pid, "Entrega conservada"))
+        self.assertTrue(self.store.cancel_open_assignment(tenant, assignment, "Reprogramación"))
+        self.assertFalse(self.store.cancel_open_assignment(tenant, assignment, "Otro motivo"))
+        self.assertFalse(self.store.open_assignment_cancelled(other, assignment))
+        self.assertFalse(self.store.submit_open_response(f"late-{suffix}", assignment, tenant, pid, "Tardía"))
+        student_assignment = self.store.open_assignments_for_student(tenant, None, pid)[0]
+        self.assertIsNotNone(student_assignment["cancelled_at"])
+        self.assertEqual(student_assignment["cancellation_reason"], "Reprogramación")
+        self.assertEqual(self.store.open_submission_history_for_student(tenant, assignment, pid)[0]["response"],
+                         "Entrega conservada")
+        self.assertEqual(self.store.open_submission_history_for_student(other, assignment, pid), [])
+
     def test_concurrent_resubmissions_after_grading_create_one_pending_attempt(self):
         suffix = uuid4().hex
         tenant, pid, assignment = f"school-retry-{suffix}", f"student-retry-{suffix}", f"assignment-retry-{suffix}"
