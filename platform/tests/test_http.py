@@ -132,6 +132,38 @@ class TestHttp(unittest.TestCase):
         self.assertEqual(self.c.get(f"/v1/student/open-submissions/{submission_id}",
                                     headers={"X-Dev-User": "otro:escuela-h:student"}).status_code, 404)
 
+    def test_teacher_can_cancel_open_activity_without_erasing_student_work(self):
+        item = next((i for i in M.BANK.items.values() if i.kind == "open"), None)
+        if item is None:
+            self.skipTest("el banco de pruebas no contiene ítems abiertos")
+        created = self.c.post("/v1/teacher/open-assignments", headers=T,
+                              json={"item_id": item.id, "title": "Actividad a cancelar"})
+        self.assertEqual(created.status_code, 200, created.text)
+        assignment_id = created.json()["id"]
+        submitted = self.c.post(f"/v1/student/open-assignments/{assignment_id}/submit", headers=S,
+                                json={"response": "Trabajo que debe conservarse"})
+        self.assertEqual(submitted.status_code, 200, submitted.text)
+        cancelled = self.c.post(f"/v1/teacher/open-assignments/{assignment_id}/cancel", headers=T,
+                                json={"reason": "Reprogramación institucional"})
+        self.assertEqual(cancelled.status_code, 200, cancelled.text)
+        self.assertEqual(cancelled.json()["status"], "cancelled")
+        duplicate = self.c.post(f"/v1/teacher/open-assignments/{assignment_id}/cancel", headers=T,
+                                json={"reason": "Otro motivo"})
+        self.assertEqual(duplicate.status_code, 409)
+        student_assignment = next(a for a in self.c.get("/v1/student/open-assignments", headers=S).json()["assignments"]
+                                   if a["id"] == assignment_id)
+        self.assertTrue(student_assignment["cancelled"])
+        self.assertEqual(student_assignment["cancellation_reason"], "Reprogramación institucional")
+        late = self.c.post(f"/v1/student/open-assignments/{assignment_id}/submit", headers=S,
+                           json={"response": "No debe aceptarse"})
+        self.assertEqual(late.status_code, 410, late.text)
+        history = self.c.get(f"/v1/student/open-assignments/{assignment_id}/history", headers=S)
+        self.assertEqual(history.status_code, 200, history.text)
+        self.assertEqual(len(history.json()["attempts"]), 1)
+        self.assertEqual(history.json()["attempts"][0]["response"], "Trabajo que debe conservarse")
+        self.assertEqual(self.c.post(f"/v1/teacher/open-assignments/{assignment_id}/cancel", headers=S,
+                                     json={"reason": "No autorizado"}).status_code, 403)
+
     def test_nrps_names_are_resolved_in_memory_without_persisting_roster(self):
         user = M.User(sub="docente-lms-1", tenant_id="escuela-h", role="teacher",
                       nrps={"iss": "https://lms.example", "client_id": "client-1",
