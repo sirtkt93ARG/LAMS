@@ -21,7 +21,7 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** Reintenta solo errores de red; la API es idempotente, así que repetir una respuesta no la duplica. */
+/** Reintenta solo operaciones de sesión cuyo servidor controla mediante versión/idempotencia. */
 async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
   let last: unknown;
   for (let i = 0; i < tries; i++) {
@@ -92,7 +92,7 @@ export const api = {
   studentOpenAssignments: () => req<{ assignments: OpenAssignment[] }>("/v1/student/open-assignments"),
   studentSubmissionHistory: (assignmentId: string) => req<{ attempts: OpenSubmission[] }>(`/v1/student/open-assignments/${assignmentId}/history`),
   submitOpenResponse: (id: string, response: string) =>
-    req<{ status: string }>(`/v1/student/open-assignments/${id}/submit`, { method: "POST", body: JSON.stringify({ response }) }),
+    req<{ status: string; attempt_number?: number }>(`/v1/student/open-assignments/${id}/submit`, { method: "POST", body: JSON.stringify({ response }) }),
   cohort: (course?: string) => req<Cohort>(`/v1/teacher/cohort${q({ course })}`),
   reviewList: () => req<ReviewList>("/v1/review/templates"),
   reviewSample: (tid: string) => req<ReviewSample>(`/v1/review/templates/${tid}/sample?n=5`),
