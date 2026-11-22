@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS xapi_erasure_blocks (
 CREATE TABLE IF NOT EXISTS open_assignments (
   id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, course_id TEXT, item_id TEXT NOT NULL,
   title TEXT NOT NULL, instructions TEXT NOT NULL DEFAULT '', assigned_by TEXT NOT NULL,
-  due_at TEXT, competency_id TEXT, rubric_snapshot TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  due_at TEXT, competency_id TEXT, rubric_snapshot TEXT, cancelled_at TEXT, cancellation_reason TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS ix_open_assignments_tenant_course ON open_assignments (tenant_id, course_id);
 CREATE TABLE IF NOT EXISTS open_submissions (
@@ -73,7 +74,9 @@ _SQLITE_NEW_COLUMNS = [("sessions", "course_id", "TEXT"), ("sessions", "course_l
                        ("sessions", "version", "INTEGER NOT NULL DEFAULT 0"),
                        ("tenant_networks", "accepted", "INTEGER NOT NULL DEFAULT 0"),
                        ("open_assignments", "competency_id", "TEXT"),
-                       ("open_assignments", "rubric_snapshot", "TEXT")]
+                       ("open_assignments", "rubric_snapshot", "TEXT"),
+                       ("open_assignments", "cancelled_at", "TEXT"),
+                       ("open_assignments", "cancellation_reason", "TEXT")]
 
 
 def _loads(x):
@@ -576,7 +579,7 @@ class Store:
                    competency_id, json.dumps(rubric_snapshot) if rubric_snapshot is not None else None))
 
     def open_assignments_for_student(self, tenant: str, course_id: str | None, pid: str) -> list[dict]:
-        rows = self._run(tenant, "SELECT a.id, a.item_id, a.title, a.instructions, a.due_at, a.competency_id, a.rubric_snapshot, a.created_at, s.id AS submission_id, s.status, s.score, s.feedback, s.rubric, s.submitted_at, s.attempt_number FROM open_assignments a LEFT JOIN open_submission_attempts s ON s.id = (SELECT latest.id FROM open_submission_attempts latest WHERE latest.assignment_id = a.id AND latest.tenant_id = a.tenant_id AND latest.pid = ? ORDER BY latest.attempt_number DESC LIMIT 1) WHERE a.tenant_id = ? AND (a.course_id IS NULL OR a.course_id = ?) ORDER BY a.created_at DESC",
+        rows = self._run(tenant, "SELECT a.id, a.item_id, a.title, a.instructions, a.due_at, a.competency_id, a.rubric_snapshot, a.cancelled_at, a.cancellation_reason, a.created_at, s.id AS submission_id, s.status, s.score, s.feedback, s.rubric, s.submitted_at, s.attempt_number FROM open_assignments a LEFT JOIN open_submission_attempts s ON s.id = (SELECT latest.id FROM open_submission_attempts latest WHERE latest.assignment_id = a.id AND latest.tenant_id = a.tenant_id AND latest.pid = ? ORDER BY latest.attempt_number DESC LIMIT 1) WHERE a.tenant_id = ? AND (a.course_id IS NULL OR a.course_id = ?) ORDER BY a.created_at DESC",
                          (pid, tenant, course_id), fetch=True)
         return [{**r, "rubric": _loads(r["rubric"]) if r["rubric"] else None,
                  "rubric_snapshot": _loads(r["rubric_snapshot"]) if r.get("rubric_snapshot") else None} for r in rows]
@@ -593,11 +596,22 @@ class Store:
                          "COALESCE((SELECT MAX(old.attempt_number) + 1 FROM open_submission_attempts old "
                          "WHERE old.assignment_id = a.id AND old.tenant_id = a.tenant_id AND old.pid = ?), 1) "
                          "FROM open_assignments a WHERE a.id = ? AND a.tenant_id = ? " + due_filter +
-                         " AND NOT EXISTS (SELECT 1 FROM open_submission_attempts pending WHERE "
+                         " AND a.cancelled_at IS NULL AND NOT EXISTS (SELECT 1 FROM open_submission_attempts pending WHERE "
                          "pending.assignment_id = a.id AND pending.tenant_id = a.tenant_id AND pending.pid = ? "
                          "AND pending.status = 'pendiente') "
                          "ON CONFLICT (tenant_id, assignment_id, pid, attempt_number) DO NOTHING RETURNING id",
                          (submission_id, pid, response, pid, assignment_id, tenant, pid), fetch=True)
+        return bool(rows)
+
+    def cancel_open_assignment(self, tenant: str, assignment_id: str, reason: str) -> bool:
+        rows = self._run(tenant, "UPDATE open_assignments SET cancelled_at = {NOW}, cancellation_reason = ? "
+                         "WHERE id = ? AND tenant_id = ? AND cancelled_at IS NULL RETURNING id",
+                         (reason, assignment_id, tenant), fetch=True)
+        return bool(rows)
+
+    def open_assignment_cancelled(self, tenant: str, assignment_id: str) -> bool:
+        rows = self._run(tenant, "SELECT id FROM open_assignments WHERE id = ? AND tenant_id = ? "
+                         "AND cancelled_at IS NOT NULL", (assignment_id, tenant), fetch=True)
         return bool(rows)
 
     def open_assignment_expired(self, tenant: str, assignment_id: str) -> bool:
@@ -608,7 +622,7 @@ class Store:
         return bool(rows)
 
     def open_assignments_for_teacher(self, tenant: str, course_id: str | None = None) -> list[dict]:
-        sql = "SELECT a.id, a.course_id, a.item_id, a.title, a.instructions, a.due_at, a.competency_id, a.rubric_snapshot, a.created_at, COUNT(s.id) AS submissions, SUM(CASE WHEN s.status = 'pendiente' THEN 1 ELSE 0 END) AS pending FROM open_assignments a LEFT JOIN open_submission_attempts s ON s.assignment_id = a.id AND s.tenant_id = a.tenant_id AND s.attempt_number = (SELECT MAX(latest.attempt_number) FROM open_submission_attempts latest WHERE latest.assignment_id = a.id AND latest.tenant_id = a.tenant_id AND latest.pid = s.pid) WHERE a.tenant_id = ?"
+        sql = "SELECT a.id, a.course_id, a.item_id, a.title, a.instructions, a.due_at, a.competency_id, a.rubric_snapshot, a.cancelled_at, a.cancellation_reason, a.created_at, COUNT(s.id) AS submissions, SUM(CASE WHEN s.status = 'pendiente' THEN 1 ELSE 0 END) AS pending FROM open_assignments a LEFT JOIN open_submission_attempts s ON s.assignment_id = a.id AND s.tenant_id = a.tenant_id AND s.attempt_number = (SELECT MAX(latest.attempt_number) FROM open_submission_attempts latest WHERE latest.assignment_id = a.id AND latest.tenant_id = a.tenant_id AND latest.pid = s.pid) WHERE a.tenant_id = ?"
         params: tuple = (tenant,)
         if course_id:
             sql += " AND a.course_id = ?"; params += (course_id,)

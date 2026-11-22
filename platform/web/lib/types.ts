@@ -15,6 +15,7 @@ export type OpenAssignment = {
   attempt_number?: number | null;
   competency_id?: string | null; rubric_snapshot?: RubricSnapshot | null; item?: OpenItem | null;
   submissions?: number; pending?: number; expired?: boolean;
+  cancelled_at?: string | null; cancellation_reason?: string | null; cancelled?: boolean;
 };
 export type OpenSubmission = {
   id: string; student_label?: string; student_name?: string; response: string; status: "pendiente" | "corregida";

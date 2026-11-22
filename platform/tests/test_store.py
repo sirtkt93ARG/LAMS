@@ -86,6 +86,24 @@ class TestStore(unittest.TestCase):
         finally:
             migrated._conn.close()
 
+    def test_cancel_open_assignment_preserves_existing_attempts_and_blocks_new_ones(self):
+        self.store.create_open_assignment("oa-cancel", "school-cancel", None, "open-1",
+                                          "Actividad", "", "teacher", None)
+        self.assertTrue(self.store.submit_open_response("sub-cancel", "oa-cancel", "school-cancel",
+                                                        "pid-cancel", "Trabajo entregado"))
+        self.assertTrue(self.store.cancel_open_assignment("school-cancel", "oa-cancel", "Cambio de calendario"))
+        self.assertFalse(self.store.cancel_open_assignment("school-cancel", "oa-cancel", "Segundo motivo"))
+        self.assertTrue(self.store.open_assignment_cancelled("school-cancel", "oa-cancel"))
+        self.assertFalse(self.store.open_assignment_cancelled("other-school", "oa-cancel"))
+        self.assertFalse(self.store.submit_open_response("sub-cancel-2", "oa-cancel", "school-cancel",
+                                                         "pid-cancel", "Nuevo intento"))
+        assignment = self.store.open_assignments_for_student("school-cancel", None, "pid-cancel")[0]
+        self.assertIsNotNone(assignment["cancelled_at"])
+        self.assertEqual(assignment["cancellation_reason"], "Cambio de calendario")
+        self.assertEqual(len(self.store.open_submission_history_for_student(
+            "school-cancel", "oa-cancel", "pid-cancel"
+        )), 1)
+
     def test_open_assignment_deadline_blocks_submission_atomically(self):
         self.store.create_open_assignment("oa-expired", "school-deadline", None, "open-1",
                                           "Actividad vencida", "", "teacher", "2000-01-01T00:00:00+00:00")

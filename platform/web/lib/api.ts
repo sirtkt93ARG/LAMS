@@ -85,6 +85,7 @@ export const api = {
   openItems: () => req<{ items: OpenItem[] }>("/v1/teacher/open-items"),
   createOpenAssignment: (draft: OpenAssignmentDraft) => req<{ id: string; status: string }>("/v1/teacher/open-assignments", { method: "POST", body: JSON.stringify(draft) }),
   teacherOpenAssignments: (course?: string) => req<{ assignments: OpenAssignment[] }>(`/v1/teacher/open-assignments${q({ course })}`),
+  cancelOpenAssignment: (id: string, reason = "") => req<{ status: string }>(`/v1/teacher/open-assignments/${id}/cancel`, { method: "POST", body: JSON.stringify({ reason }) }),
   openSubmissions: (assignmentId: string) => req<{ submissions: OpenSubmission[] }>(`/v1/teacher/open-assignments/${assignmentId}/submissions`),
   teacherSubmissionHistory: (submissionId: string) => req<{ attempts: OpenSubmission[] }>(`/v1/teacher/open-submissions/${submissionId}/history`),
   gradeOpenSubmission: (id: string, score: number, feedback: string, rubric: Record<string, number>) =>
