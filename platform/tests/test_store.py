@@ -88,7 +88,21 @@ class TestStore(unittest.TestCase):
         self.assertEqual(result["score"], 85)
         self.assertEqual(result["feedback"], "Buen razonamiento")
         self.assertIsNone(self.store.open_submission_for_student("school-a", "sub-1", "pid-b"))
-        self.assertEqual(self.store.open_assignments_for_teacher("school-a")[0]["pending"], 0)
+        self.assertTrue(self.store.submit_open_response("sub-2", "oa-1", "school-a", "pid-a", "Segunda versión"))
+        self.assertFalse(self.store.submit_open_response("sub-3", "oa-1", "school-a", "pid-a", "No debe duplicar un pendiente"))
+        latest = self.store.open_assignments_for_student("school-a", None, "pid-a")[0]
+        self.assertEqual(latest["submission_id"], "sub-2")
+        self.assertEqual(latest["attempt_number"], 2)
+        self.assertEqual(latest["status"], "pendiente")
+        history = self.store.open_submission_history_for_student("school-a", "oa-1", "pid-a")
+        self.assertEqual([row["attempt_number"] for row in history], [2, 1])
+        self.assertEqual(history[1]["score"], 85)
+        self.assertEqual(history[1]["response"], "Mi procedimiento")
+        teacher_history = self.store.open_submission_history_for_teacher("school-a", "sub-2")
+        self.assertEqual(len(teacher_history), 2)
+        self.assertNotIn("pid", teacher_history[0])
+        self.assertEqual(self.store.open_submissions_for_assignment("school-a", "oa-1")[0]["id"], "sub-2")
+        self.assertEqual(self.store.open_assignments_for_teacher("school-a")[0]["pending"], 1)
 
     def test_lti_handoff_jti_is_consumed_once(self):
         self.assertTrue(self.store.consume_token("jti-unico"))
