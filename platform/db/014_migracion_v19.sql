@@ -27,6 +27,7 @@ INSERT INTO open_submission_attempts
 SELECT id, assignment_id, tenant_id, pid, response, status, score, feedback, rubric,
        submitted_at, reviewed_by, reviewed_at, 1
 FROM open_submissions
+WHERE true
 ON CONFLICT (id) DO NOTHING;
 
 ALTER TABLE open_submission_attempts ENABLE ROW LEVEL SECURITY;
