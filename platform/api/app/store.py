@@ -58,7 +58,8 @@ CREATE TABLE IF NOT EXISTS open_submissions (
 CREATE INDEX IF NOT EXISTS ix_open_submissions_tenant_status ON open_submissions (tenant_id, status);
 CREATE TABLE IF NOT EXISTS open_submission_attempts (
   id TEXT PRIMARY KEY, assignment_id TEXT NOT NULL, tenant_id TEXT NOT NULL, pid TEXT NOT NULL,
-  response TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pendiente', score REAL, feedback TEXT,
+  response TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pendiente' CHECK (status IN ('pendiente', 'corregida')),
+  score REAL CHECK (score IS NULL OR (score >= 0 AND score <= 100)), feedback TEXT,
   rubric TEXT, submitted_at TEXT NOT NULL DEFAULT (datetime('now')), reviewed_by TEXT, reviewed_at TEXT,
   attempt_number INTEGER NOT NULL CHECK (attempt_number > 0),
   UNIQUE (tenant_id, assignment_id, pid, attempt_number),
