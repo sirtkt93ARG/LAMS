@@ -17,6 +17,8 @@ export default function OpenReviewPage() {
   const [active, setActive] = useState<OpenSubmission | null>(null);
   const [historyFor, setHistoryFor] = useState<string | null>(null);
   const [history, setHistory] = useState<OpenSubmission[]>([]);
+  const [cancelConfirm, setCancelConfirm] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
   const [title, setTitle] = useState("");
   const [instructions, setInstructions] = useState("");
   const [dueAt, setDueAt] = useState("");
@@ -61,6 +63,16 @@ export default function OpenReviewPage() {
   const choose = async (id: string) => {
     setSelected(id); setActive(null); setHistoryFor(null); setHistory([]); setError("");
     try { await loadSubmissions(id); } catch (e) { setError(messageFor(e)); }
+  };
+  const cancelAssignment = async (id: string) => {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await api.cancelOpenAssignment(id, cancelReason);
+      setCancelConfirm(null); setCancelReason("");
+      await loadAssignments();
+      if (selected === id) await loadSubmissions(id);
+      setNotice("Actividad cancelada. Las entregas y correcciones existentes se conservaron.");
+    } catch (e) { setError(messageFor(e)); } finally { setBusy(false); }
   };
   const showHistory = async (submission: OpenSubmission) => {
     if (historyFor === submission.id) { setHistoryFor(null); return; }
@@ -134,6 +146,13 @@ export default function OpenReviewPage() {
         <button className="btn ghost" type="button" onClick={() => choose(a.id)} aria-pressed={selected === a.id}>{a.title} — {a.pending ?? 0} pendientes / {a.submissions ?? 0} entregas</button>
         {a.competency_id && <p className="muted">Competencia: {a.rubric_snapshot?.competency ?? a.competency_id}</p>}
         {a.due_at && <p className="muted">Vence: {new Date(a.due_at).toLocaleString()}</p>}
+        {a.cancelled ? <p className="error" role="status">Cancelada{a.cancellation_reason ? `: ${a.cancellation_reason}` : ""}</p> : cancelConfirm === a.id ? <>
+          <label className="field"><span>Motivo de cancelación (opcional)</span>
+            <input value={cancelReason} maxLength={1000} onChange={(e) => setCancelReason(e.target.value)} />
+          </label>
+          <button className="btn" type="button" disabled={busy} onClick={() => cancelAssignment(a.id)}>Confirmar cancelación</button>
+          <button className="btn ghost" type="button" onClick={() => { setCancelConfirm(null); setCancelReason(""); }}>Volver</button>
+        </> : <button className="btn ghost" type="button" onClick={() => setCancelConfirm(a.id)}>Cancelar actividad</button>}
       </li>)}
     </ul>}
     {selected && <><h2>Entregas</h2>
