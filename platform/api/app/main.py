@@ -241,6 +241,10 @@ class OpenAssignmentIn(BaseModel):
     competency_id: str | None = None
 
 
+class OpenAssignmentCancelIn(BaseModel):
+    reason: str = ""
+
+
 class OpenSubmissionIn(BaseModel):
     response: str
 
@@ -394,6 +398,7 @@ def student_open_assignments(user: User = Depends(current_user)):
             if due_at.tzinfo is None:
                 due_at = due_at.replace(tzinfo=timezone.utc)
         assignment["expired"] = bool(due_at and due_at <= datetime.now(timezone.utc))
+        assignment["cancelled"] = bool(assignment.get("cancelled_at"))
     return {"assignments": assignments}
 
 
@@ -410,6 +415,8 @@ def student_open_submit(assignment_id: str, body: OpenSubmissionIn, user: User =
         raise HTTPException(404, "actividad no encontrada")
     ok = STORE.submit_open_response(str(uuid.uuid4()), assignment_id, user.tenant_id, _pid(user), response)
     if not ok:
+        if STORE.open_assignment_cancelled(user.tenant_id, assignment_id):
+            raise HTTPException(410, "Esta actividad fue cancelada por el docente.")
         if STORE.open_assignment_expired(user.tenant_id, assignment_id):
             raise HTTPException(410, "El plazo de entrega de esta actividad ya venció.")
         raise HTTPException(409, "Ya existe una entrega pendiente de corrección. Podrás enviar otro intento cuando el docente la corrija.")
@@ -551,6 +558,22 @@ def teacher_create_open_assignment(body: OpenAssignmentIn, user: User = Depends(
 def teacher_open_assignments(course: str | None = None, user: User = Depends(current_user)):
     _teacher(user)
     return {"assignments": STORE.open_assignments_for_teacher(user.tenant_id, course)}
+
+
+@app.post("/v1/teacher/open-assignments/{assignment_id}/cancel")
+def teacher_cancel_open_assignment(assignment_id: str, body: OpenAssignmentCancelIn,
+                                   user: User = Depends(current_user)):
+    _teacher(user)
+    reason = body.reason.strip()
+    if len(reason) > 1000:
+        raise HTTPException(400, "El motivo de cancelación no puede superar 1000 caracteres.")
+    if not STORE.cancel_open_assignment(user.tenant_id, assignment_id, reason):
+        assignments = {a["id"] for a in STORE.open_assignments_for_teacher(user.tenant_id)}
+        if assignment_id not in assignments:
+            raise HTTPException(404, "actividad no encontrada")
+        raise HTTPException(409, "La actividad ya fue cancelada.")
+    STORE.audit(user.tenant_id, _pid(user), "actividad_abierta_cancelada", assignment_id)
+    return {"status": "cancelled"}
 
 
 @app.get("/v1/teacher/open-assignments/{assignment_id}/submissions")
