@@ -413,10 +413,12 @@ def student_open_submit(assignment_id: str, body: OpenSubmissionIn, user: User =
         if STORE.open_assignment_expired(user.tenant_id, assignment_id):
             raise HTTPException(410, "El plazo de entrega de esta actividad ya venció.")
         raise HTTPException(409, "Ya existe una entrega pendiente de corrección. Podrás enviar otro intento cuando el docente la corrija.")
-    STORE.audit(user.tenant_id, _pid(user), "respuesta_abierta_entregada", assignment_id)
     latest = next((a for a in STORE.open_assignments_for_student(user.tenant_id, user.course_id, _pid(user))
                    if a["id"] == assignment_id), {})
-    return {"status": "pendiente", "attempt_number": latest.get("attempt_number")}
+    attempt_number = latest.get("attempt_number")
+    action = "respuesta_abierta_reentregada" if attempt_number and attempt_number > 1 else "respuesta_abierta_entregada"
+    STORE.audit(user.tenant_id, _pid(user), action, assignment_id)
+    return {"status": "pendiente", "attempt_number": attempt_number}
 
 
 @app.get("/v1/student/open-assignments/{assignment_id}/history")
