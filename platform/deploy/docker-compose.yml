@@ -13,6 +13,7 @@ services:
       - ../db/012_migracion_v17.sql:/docker-entrypoint-initdb.d/012_migracion_v17.sql:ro
       - ../db/013_migracion_v18.sql:/docker-entrypoint-initdb.d/013_migracion_v18.sql:ro
       - ../db/014_migracion_v19.sql:/docker-entrypoint-initdb.d/014_migracion_v19.sql:ro
+      - ../db/015_migracion_v20.sql:/docker-entrypoint-initdb.d/015_migracion_v20.sql:ro
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d matheval"]
