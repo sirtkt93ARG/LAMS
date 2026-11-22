@@ -44,7 +44,7 @@ export default function OpenAssignmentsPage() {
     {assignments.map((a) => <article key={a.id}>
       <h2>{a.title}</h2><p>{a.instructions}</p>
       {a.due_at && <p className="muted">Fecha límite: {new Date(a.due_at).toLocaleString()}{a.expired ? " · Plazo vencido" : ""}</p>}
-      {a.cancelled && <p className="error" role="status">Actividad cancelada por el docente{a.cancellation_reason ? `: ${a.cancellation_reason}` : ". No se aceptan nuevas entregas."}</p>}
+      {a.cancelled && <p className="error" role="status">Actividad cancelada por el docente{a.cancellation_reason ? `: ${a.cancellation_reason}` : ""}. No se aceptan nuevas entregas.</p>}
       {a.item && <div className="notice"><p className="stem">{a.item.stem}</p><Stimulus s={a.item.stimulus} /></div>}
       {a.status === "corregida" && <div className="notice">
         <p><strong>Última calificación · intento {a.attempt_number ?? 1}: {a.score}/100</strong></p><p>{a.feedback}</p>
