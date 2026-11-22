@@ -44,6 +44,7 @@ export default function OpenAssignmentsPage() {
     {assignments.map((a) => <article key={a.id}>
       <h2>{a.title}</h2><p>{a.instructions}</p>
       {a.due_at && <p className="muted">Fecha límite: {new Date(a.due_at).toLocaleString()}{a.expired ? " · Plazo vencido" : ""}</p>}
+      {a.cancelled && <p className="error" role="status">Actividad cancelada por el docente{a.cancellation_reason ? `: ${a.cancellation_reason}` : ". No se aceptan nuevas entregas."}</p>}
       {a.item && <div className="notice"><p className="stem">{a.item.stem}</p><Stimulus s={a.item.stimulus} /></div>}
       {a.status === "corregida" && <div className="notice">
         <p><strong>Última calificación · intento {a.attempt_number ?? 1}: {a.score}/100</strong></p><p>{a.feedback}</p>
@@ -73,7 +74,7 @@ export default function OpenAssignmentsPage() {
       </div>}
       {a.status === "pendiente" && <p className="muted">Intento {a.attempt_number ?? 1} entregado. Está pendiente de corrección docente; podrás volver a entregar después de recibir la devolución.</p>}
       {a.expired && <p className="error" role="status">El plazo venció. No se aceptan nuevos intentos.</p>}
-      {!a.expired && a.status !== "pendiente" && <>
+      {!a.expired && !a.cancelled && a.status !== "pendiente" && <>
         <label className="field"><span>{a.status === "corregida" ? "Tu nuevo desarrollo" : "Tu desarrollo"}</span>
           <textarea rows={7} maxLength={20000} value={drafts[a.id] ?? ""} onChange={(e) => setDrafts((old) => ({ ...old, [a.id]: e.target.value }))} />
         </label>
