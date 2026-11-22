@@ -31,6 +31,7 @@ ON CONFLICT (id) DO NOTHING;
 
 ALTER TABLE open_submission_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE open_submission_attempts FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON open_submission_attempts;
 CREATE POLICY tenant_isolation ON open_submission_attempts
   USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), ''))
   WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), ''));
