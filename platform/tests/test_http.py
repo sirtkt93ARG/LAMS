@@ -109,6 +109,26 @@ class TestHttp(unittest.TestCase):
         result = self.c.get(f"/v1/student/open-submissions/{submission_id}", headers=S)
         self.assertEqual(result.status_code, 200, result.text)
         self.assertEqual(result.json()["score"], 82)
+        retry = self.c.post(f"/v1/student/open-assignments/{assignment_id}/submit", headers=S,
+                            json={"response": "Revisé la devolución y mejoré mi justificación."})
+        self.assertEqual(retry.status_code, 200, retry.text)
+        self.assertEqual(retry.json()["attempt_number"], 2)
+        self.assertEqual(self.c.post(f"/v1/student/open-assignments/{assignment_id}/submit", headers=S,
+                                     json={"response": "No debe duplicar el intento pendiente"}).status_code, 409)
+        latest = next(a for a in self.c.get("/v1/student/open-assignments", headers=S).json()["assignments"]
+                      if a["id"] == assignment_id)
+        self.assertEqual(latest["attempt_number"], 2)
+        self.assertEqual(latest["status"], "pendiente")
+        student_history = self.c.get(f"/v1/student/open-assignments/{assignment_id}/history", headers=S)
+        self.assertEqual(student_history.status_code, 200, student_history.text)
+        self.assertEqual([a["attempt_number"] for a in student_history.json()["attempts"]], [2, 1])
+        self.assertEqual(student_history.json()["attempts"][1]["score"], 82)
+        teacher_history = self.c.get(f"/v1/teacher/open-submissions/{submission_id}/history", headers=T)
+        self.assertEqual(teacher_history.status_code, 200, teacher_history.text)
+        self.assertEqual(len(teacher_history.json()["attempts"]), 2)
+        self.assertNotIn("pid", teacher_history.json()["attempts"][0])
+        self.assertEqual(self.c.get(f"/v1/student/open-assignments/{assignment_id}/history",
+                                    headers={"X-Dev-User": "otro:escuela-h:student"}).status_code, 404)
         self.assertEqual(self.c.get(f"/v1/student/open-submissions/{submission_id}",
                                     headers={"X-Dev-User": "otro:escuela-h:student"}).status_code, 404)
 

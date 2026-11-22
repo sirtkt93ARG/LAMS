@@ -15,6 +15,8 @@ export default function OpenReviewPage() {
   const [selected, setSelected] = useState("");
   const [submissions, setSubmissions] = useState<OpenSubmission[]>([]);
   const [active, setActive] = useState<OpenSubmission | null>(null);
+  const [historyFor, setHistoryFor] = useState<string | null>(null);
+  const [history, setHistory] = useState<OpenSubmission[]>([]);
   const [title, setTitle] = useState("");
   const [instructions, setInstructions] = useState("");
   const [dueAt, setDueAt] = useState("");
@@ -57,8 +59,16 @@ export default function OpenReviewPage() {
     } catch (e) { setError(messageFor(e)); } finally { setBusy(false); }
   };
   const choose = async (id: string) => {
-    setSelected(id); setActive(null); setError("");
+    setSelected(id); setActive(null); setHistoryFor(null); setHistory([]); setError("");
     try { await loadSubmissions(id); } catch (e) { setError(messageFor(e)); }
+  };
+  const showHistory = async (submission: OpenSubmission) => {
+    if (historyFor === submission.id) { setHistoryFor(null); return; }
+    setBusy(true); setError("");
+    try {
+      const out = await api.teacherSubmissionHistory(submission.id);
+      setHistory(out.attempts); setHistoryFor(submission.id);
+    } catch (e) { setError(messageFor(e)); } finally { setBusy(false); }
   };
   const startGrade = (submission: OpenSubmission) => {
     setActive(submission); setScore(String(submission.score ?? 0)); setFeedback(submission.feedback ?? "");
@@ -129,10 +139,21 @@ export default function OpenReviewPage() {
     {selected && <><h2>Entregas</h2>
       {submissions.length === 0 ? <p>Aún no hay entregas para esta actividad.</p> : <ul>
         {submissions.map((s) => <li key={s.id}>
-          <p><strong>{s.student_name ?? s.student_label}</strong> · {s.status === "pendiente" ? "Pendiente" : `Corregida · ${s.score}/100`}</p>
+          <p><strong>{s.student_name ?? s.student_label}</strong> · Intento {s.attempt_number} · {s.status === "pendiente" ? "Pendiente" : `Corregida · ${s.score}/100`}</p>
           <blockquote>{s.response}</blockquote>
           {s.status === "pendiente" && <button className="btn" type="button" onClick={() => startGrade(s)}>Corregir entrega</button>}
           {s.status === "corregida" && <p className="muted">{s.feedback}</p>}
+          <button className="btn ghost" type="button" disabled={busy} onClick={() => showHistory(s)}>
+            {historyFor === s.id ? "Ocultar historial" : "Ver historial"}
+          </button>
+          {historyFor === s.id && <div className="notice">
+            <h3>Intentos anteriores</h3>
+            <ol>{history.map((attempt) => <li key={attempt.id}>
+              <p><strong>Intento {attempt.attempt_number} · {new Date(attempt.submitted_at).toLocaleString()}</strong></p>
+              <p>{attempt.response}</p>
+              {attempt.status === "corregida" ? <p>{attempt.score}/100 · {attempt.feedback}</p> : <p className="muted">Pendiente de corrección</p>}
+            </li>)}</ol>
+          </div>}
         </li>)}
       </ul>}
     </>}

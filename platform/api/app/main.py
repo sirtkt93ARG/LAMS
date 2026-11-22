@@ -412,9 +412,24 @@ def student_open_submit(assignment_id: str, body: OpenSubmissionIn, user: User =
     if not ok:
         if STORE.open_assignment_expired(user.tenant_id, assignment_id):
             raise HTTPException(410, "El plazo de entrega de esta actividad ya venció.")
-        raise HTTPException(409, "Ya entregaste esta actividad. No se puede reemplazar la entrega.")
-    STORE.audit(user.tenant_id, _pid(user), "respuesta_abierta_entregada", assignment_id)
-    return {"status": "pendiente"}
+        raise HTTPException(409, "Ya existe una entrega pendiente de corrección. Podrás enviar otro intento cuando el docente la corrija.")
+    latest = next((a for a in STORE.open_assignments_for_student(user.tenant_id, user.course_id, _pid(user))
+                   if a["id"] == assignment_id), {})
+    attempt_number = latest.get("attempt_number")
+    action = "respuesta_abierta_reentregada" if attempt_number and attempt_number > 1 else "respuesta_abierta_entregada"
+    STORE.audit(user.tenant_id, _pid(user), action, assignment_id)
+    return {"status": "pendiente", "attempt_number": attempt_number}
+
+
+@app.get("/v1/student/open-assignments/{assignment_id}/history")
+def student_open_submission_history(assignment_id: str, user: User = Depends(current_user)):
+    if user.role != "student":
+        raise HTTPException(403, "solo estudiantes")
+    _consent_gate(user)
+    visible = {a["id"] for a in STORE.open_assignments_for_student(user.tenant_id, user.course_id, _pid(user))}
+    if assignment_id not in visible:
+        raise HTTPException(404, "actividad no encontrada")
+    return {"attempts": STORE.open_submission_history_for_student(user.tenant_id, assignment_id, _pid(user))}
 
 
 @app.get("/v1/student/open-submissions/{submission_id}")
@@ -552,6 +567,21 @@ def teacher_open_submissions(assignment_id: str, user: User = Depends(current_us
         if student_name:
             submission["student_name"] = student_name
     return {"submissions": submissions}
+
+
+@app.get("/v1/teacher/open-submissions/{submission_id}/history")
+def teacher_open_submission_history(submission_id: str, user: User = Depends(current_user)):
+    _teacher(user)
+    attempts = STORE.open_submission_history_for_teacher(user.tenant_id, submission_id)
+    if not attempts:
+        raise HTTPException(404, "entrega no encontrada")
+    names = _nrps_names(user)
+    for attempt in attempts:
+        student_key = attempt.pop("student_key", None)
+        student_name = names.get(student_key)
+        if student_name:
+            attempt["student_name"] = student_name
+    return {"attempts": attempts}
 
 
 @app.post("/v1/teacher/open-submissions/{submission_id}/grade")

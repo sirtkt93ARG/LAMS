@@ -12,13 +12,15 @@ export type OpenAssignment = {
   id: string; item_id: string; title: string; instructions: string; due_at: string | null;
   created_at: string; submission_id?: string | null; status?: "pendiente" | "corregida" | null;
   score?: number | null; feedback?: string | null; rubric?: Record<string, number> | null;
+  attempt_number?: number | null;
   competency_id?: string | null; rubric_snapshot?: RubricSnapshot | null; item?: OpenItem | null;
   submissions?: number; pending?: number; expired?: boolean;
 };
 export type OpenSubmission = {
-  id: string; student_label: string; student_name?: string; response: string; status: "pendiente" | "corregida";
+  id: string; student_label?: string; student_name?: string; response: string; status: "pendiente" | "corregida";
   score: number | null; feedback: string | null; rubric: Record<string, number> | null;
   competency_id?: string | null; rubric_snapshot?: RubricSnapshot | null; submitted_at: string;
+  attempt_number: number; reviewed_at?: string | null;
 };
 
 export type TableStimulus = { type: "table"; header: string[]; rows: string[][] };

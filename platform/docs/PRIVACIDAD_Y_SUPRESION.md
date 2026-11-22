@@ -2,7 +2,7 @@
 
 ## Qué elimina la plataforma
 
-`DELETE /v1/me/data` elimina de la base local las sesiones y respuestas asociadas al seudónimo del usuario dentro de su escuela. En la misma operación anonimiza los eventos de auditoría cuyo actor coincide con el usuario, conservando el evento sin el identificador ni el detalle que pudiera volver a vincularlo.
+`DELETE /v1/me/data` elimina de la base local las sesiones, respuestas de práctica y todos los intentos de actividades abiertas asociados al seudónimo del usuario dentro de su escuela. El historial de entregas no sobrevive a una solicitud de supresión del estudiante. En la misma operación anonimiza los eventos de auditoría cuyo actor coincide con el usuario, conservando el evento sin el identificador ni el detalle que pudiera volver a vincularlo.
 
 La respuesta incluye los conteos de sesiones, respuestas y eventos de auditoría anonimizados, además de `future_xapi_exports_blocked = true` y `suppression_marker_retained = true`. Para impedir que un trabajo pendiente vuelva a exportar datos, se conserva un marcador técnico mínimo por escuela: un SHA-256 del seudónimo, no el seudónimo original. Este marcador sigue siendo un dato seudónimo vinculable por el sistema y debe tratarse como tal; no se presenta como borrado absoluto de todo dato relacionado. La auditoría conserva un evento mínimo de tipo `supresion_local_de_datos`, registrado por `system`, sin guardar el seudónimo del estudiante.
 

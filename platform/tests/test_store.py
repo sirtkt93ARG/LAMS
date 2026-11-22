@@ -46,6 +46,45 @@ class TestStore(unittest.TestCase):
         self.store.delete_learner("school-erase", "pid-erase")
         self.assertIsNone(self.store.open_submission_for_student("school-erase", "sub-erase", "pid-erase"))
         self.assertEqual(self.store.open_assignments_for_teacher("school-erase")[0]["submissions"], 0)
+        self.assertEqual(self.store.open_submission_history_for_student("school-erase", "oa-erase", "pid-erase"), [])
+
+    def test_existing_open_submission_is_migrated_as_attempt_one(self):
+        path = f"{self.tmp.name}/legacy-open.db"
+        conn = sqlite3.connect(path)
+        conn.executescript("""
+            CREATE TABLE open_assignments (
+                id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, course_id TEXT, item_id TEXT NOT NULL,
+                title TEXT NOT NULL, instructions TEXT NOT NULL DEFAULT '', assigned_by TEXT NOT NULL,
+                due_at TEXT, competency_id TEXT, rubric_snapshot TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE open_submissions (
+                id TEXT PRIMARY KEY, assignment_id TEXT NOT NULL, tenant_id TEXT NOT NULL, pid TEXT NOT NULL,
+                response TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pendiente', score REAL, feedback TEXT,
+                rubric TEXT, submitted_at TEXT NOT NULL DEFAULT (datetime('now')), reviewed_by TEXT, reviewed_at TEXT,
+                UNIQUE (tenant_id, assignment_id, pid)
+            );
+            INSERT INTO open_assignments (id, tenant_id, item_id, title, assigned_by)
+                VALUES ('legacy-assignment', 'legacy-school', 'item-open', 'Actividad antigua', 'teacher');
+            INSERT INTO open_submissions (id, assignment_id, tenant_id, pid, response, status, score, feedback)
+                VALUES ('legacy-submission', 'legacy-assignment', 'legacy-school', 'legacy-pid',
+                        'Respuesta existente', 'corregida', 77, 'Devolución anterior');
+        """)
+        conn.commit()
+        conn.close()
+        migrated = Store(f"sqlite:///{path}")
+        try:
+            history = migrated.open_submission_history_for_student(
+                "legacy-school", "legacy-assignment", "legacy-pid"
+            )
+            self.assertEqual(len(history), 1)
+            self.assertEqual(history[0]["attempt_number"], 1)
+            self.assertEqual(history[0]["score"], 77)
+            self.assertTrue(migrated.submit_open_response(
+                "legacy-submission-2", "legacy-assignment", "legacy-school", "legacy-pid", "Nueva respuesta"
+            ))
+        finally:
+            migrated._conn.close()
 
     def test_open_assignment_deadline_blocks_submission_atomically(self):
         self.store.create_open_assignment("oa-expired", "school-deadline", None, "open-1",
@@ -54,6 +93,28 @@ class TestStore(unittest.TestCase):
         self.assertFalse(self.store.submit_open_response("sub-expired", "oa-expired", "school-deadline",
                                                          "pid-deadline", "Respuesta tardía"))
         self.assertEqual(self.store.open_submissions_for_assignment("school-deadline", "oa-expired"), [])
+
+    def test_concurrent_resubmissions_after_grade_create_one_pending_attempt(self):
+        self.store.create_open_assignment("oa-concurrent-retry", "school-retry", None, "open-1",
+                                          "Reintentos", "", "teacher", None)
+        self.assertTrue(self.store.submit_open_response("sub-retry-1", "oa-concurrent-retry",
+                                                        "school-retry", "pid-retry", "Primera"))
+        self.assertTrue(self.store.grade_open_submission("school-retry", "sub-retry-1",
+                                                         "teacher", 70, "Revisar", {}))
+        barrier = threading.Barrier(6)
+        def retry(index):
+            barrier.wait()
+            return self.store.submit_open_response(
+                f"sub-retry-{index + 2}", "oa-concurrent-retry", "school-retry", "pid-retry",
+                f"Versión {index}"
+            )
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            results = list(pool.map(retry, range(6)))
+        self.assertEqual(sum(results), 1)
+        history = self.store.open_submission_history_for_student("school-retry", "oa-concurrent-retry", "pid-retry")
+        self.assertEqual(len(history), 2)
+        self.assertEqual(history[0]["attempt_number"], 2)
+        self.assertEqual(history[0]["status"], "pendiente")
 
     def test_open_assignment_persists_competency_rubric_snapshot(self):
         snapshot = {
@@ -88,7 +149,21 @@ class TestStore(unittest.TestCase):
         self.assertEqual(result["score"], 85)
         self.assertEqual(result["feedback"], "Buen razonamiento")
         self.assertIsNone(self.store.open_submission_for_student("school-a", "sub-1", "pid-b"))
-        self.assertEqual(self.store.open_assignments_for_teacher("school-a")[0]["pending"], 0)
+        self.assertTrue(self.store.submit_open_response("sub-2", "oa-1", "school-a", "pid-a", "Segunda versión"))
+        self.assertFalse(self.store.submit_open_response("sub-3", "oa-1", "school-a", "pid-a", "No debe duplicar un pendiente"))
+        latest = self.store.open_assignments_for_student("school-a", None, "pid-a")[0]
+        self.assertEqual(latest["submission_id"], "sub-2")
+        self.assertEqual(latest["attempt_number"], 2)
+        self.assertEqual(latest["status"], "pendiente")
+        history = self.store.open_submission_history_for_student("school-a", "oa-1", "pid-a")
+        self.assertEqual([row["attempt_number"] for row in history], [2, 1])
+        self.assertEqual(history[1]["score"], 85)
+        self.assertEqual(history[1]["response"], "Mi procedimiento")
+        teacher_history = self.store.open_submission_history_for_teacher("school-a", "sub-2")
+        self.assertEqual(len(teacher_history), 2)
+        self.assertNotIn("pid", teacher_history[0])
+        self.assertEqual(self.store.open_submissions_for_assignment("school-a", "oa-1")[0]["id"], "sub-2")
+        self.assertEqual(self.store.open_assignments_for_teacher("school-a")[0]["pending"], 1)
 
     def test_lti_handoff_jti_is_consumed_once(self):
         self.assertTrue(self.store.consume_token("jti-unico"))

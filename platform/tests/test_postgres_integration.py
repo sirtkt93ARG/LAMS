@@ -41,6 +41,7 @@ class TestPostgresStore(unittest.TestCase):
                 root / "db/011_migracion_v16.sql",
                 root / "db/012_migracion_v17.sql",
                 root / "db/013_migracion_v18.sql",
+                root / "db/014_migracion_v19.sql",
             ):
                 conn.execute(migration.read_text(encoding="utf-8"), prepare=False)
         cls.store = Store(APP_URL)
@@ -122,6 +123,39 @@ class TestPostgresStore(unittest.TestCase):
         self.assertFalse(self.store.grade_open_submission(tenant, submission, "teacher-pseudonym", 95, "Revisión duplicada", {}))
         self.assertEqual(self.store.open_submission_for_student(tenant, submission, pid)["score"], 91)
         self.assertIsNone(self.store.open_submission_for_student(other, submission, pid))
+        self.assertEqual(self.store.open_submission_history_for_student(other, assignment, pid), [])
+        self.assertEqual(self.store.open_submission_history_for_teacher(other, submission), [])
+        second = f"submission-second-{suffix}"
+        self.assertTrue(self.store.submit_open_response(second, assignment, tenant, pid, "Segunda versión"))
+        self.assertFalse(self.store.submit_open_response(f"submission-third-{suffix}", assignment, tenant, pid, "Pendiente duplicado"))
+        history = self.store.open_submission_history_for_student(tenant, assignment, pid)
+        self.assertEqual([row["attempt_number"] for row in history], [2, 1])
+        self.assertEqual(history[1]["score"], 91)
+        self.assertEqual(len(self.store.open_submission_history_for_teacher(tenant, second)), 2)
+        self.assertEqual(self.store.open_submissions_for_assignment(tenant, assignment)[0]["id"], second)
+        self.assertEqual(self.store.open_assignments_for_teacher(tenant)[0]["pending"], 1)
+
+    def test_concurrent_resubmissions_after_grading_create_one_pending_attempt(self):
+        suffix = uuid4().hex
+        tenant, pid, assignment = f"school-retry-{suffix}", f"student-retry-{suffix}", f"assignment-retry-{suffix}"
+        self.store.create_open_assignment(assignment, tenant, None, "open-item", "Reintento", "", "teacher", None)
+        first = f"submission-first-{suffix}"
+        self.assertTrue(self.store.submit_open_response(first, assignment, tenant, pid, "Primera respuesta"))
+        self.assertTrue(self.store.grade_open_submission(tenant, first, "teacher", 70, "Revisar", {}))
+        barrier = threading.Barrier(8)
+        def retry(index):
+            barrier.wait()
+            return self.store.submit_open_response(
+                f"submission-retry-{index}-{suffix}", assignment, tenant, pid, f"Intento concurrente {index}"
+            )
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            results = list(pool.map(retry, range(8)))
+        self.assertEqual(sum(results), 1)
+        history = self.store.open_submission_history_for_student(tenant, assignment, pid)
+        self.assertEqual(len(history), 2)
+        self.assertEqual(history[0]["attempt_number"], 2)
+        self.assertEqual(history[0]["status"], "pendiente")
+        self.assertEqual(history[1]["score"], 70)
 
     def test_session_rows_are_isolated_by_tenant(self):
         suffix = uuid4().hex

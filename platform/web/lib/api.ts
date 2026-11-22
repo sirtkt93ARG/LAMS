@@ -21,7 +21,7 @@ async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** Reintenta solo errores de red; la API es idempotente, así que repetir una respuesta no la duplica. */
+/** Reintenta solo operaciones de sesión cuyo servidor controla mediante versión/idempotencia. */
 async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
   let last: unknown;
   for (let i = 0; i < tries; i++) {
@@ -86,11 +86,13 @@ export const api = {
   createOpenAssignment: (draft: OpenAssignmentDraft) => req<{ id: string; status: string }>("/v1/teacher/open-assignments", { method: "POST", body: JSON.stringify(draft) }),
   teacherOpenAssignments: (course?: string) => req<{ assignments: OpenAssignment[] }>(`/v1/teacher/open-assignments${q({ course })}`),
   openSubmissions: (assignmentId: string) => req<{ submissions: OpenSubmission[] }>(`/v1/teacher/open-assignments/${assignmentId}/submissions`),
+  teacherSubmissionHistory: (submissionId: string) => req<{ attempts: OpenSubmission[] }>(`/v1/teacher/open-submissions/${submissionId}/history`),
   gradeOpenSubmission: (id: string, score: number, feedback: string, rubric: Record<string, number>) =>
     req<{ status: string }>(`/v1/teacher/open-submissions/${id}/grade`, { method: "POST", body: JSON.stringify({ score, feedback, rubric }) }),
   studentOpenAssignments: () => req<{ assignments: OpenAssignment[] }>("/v1/student/open-assignments"),
+  studentSubmissionHistory: (assignmentId: string) => req<{ attempts: OpenSubmission[] }>(`/v1/student/open-assignments/${assignmentId}/history`),
   submitOpenResponse: (id: string, response: string) =>
-    req<{ status: string }>(`/v1/student/open-assignments/${id}/submit`, { method: "POST", body: JSON.stringify({ response }) }),
+    req<{ status: string; attempt_number?: number }>(`/v1/student/open-assignments/${id}/submit`, { method: "POST", body: JSON.stringify({ response }) }),
   cohort: (course?: string) => req<Cohort>(`/v1/teacher/cohort${q({ course })}`),
   reviewList: () => req<ReviewList>("/v1/review/templates"),
   reviewSample: (tid: string) => req<ReviewSample>(`/v1/review/templates/${tid}/sample?n=5`),
