@@ -423,6 +423,7 @@ def student_open_submit(assignment_id: str, body: OpenSubmissionIn, user: User =
 def student_open_submission_history(assignment_id: str, user: User = Depends(current_user)):
     if user.role != "student":
         raise HTTPException(403, "solo estudiantes")
+    _consent_gate(user)
     visible = {a["id"] for a in STORE.open_assignments_for_student(user.tenant_id, user.course_id, _pid(user))}
     if assignment_id not in visible:
         raise HTTPException(404, "actividad no encontrada")
