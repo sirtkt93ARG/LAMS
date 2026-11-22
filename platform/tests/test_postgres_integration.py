@@ -123,6 +123,8 @@ class TestPostgresStore(unittest.TestCase):
         self.assertFalse(self.store.grade_open_submission(tenant, submission, "teacher-pseudonym", 95, "Revisión duplicada", {}))
         self.assertEqual(self.store.open_submission_for_student(tenant, submission, pid)["score"], 91)
         self.assertIsNone(self.store.open_submission_for_student(other, submission, pid))
+        self.assertEqual(self.store.open_submission_history_for_student(other, assignment, pid), [])
+        self.assertEqual(self.store.open_submission_history_for_teacher(other, submission), [])
         second = f"submission-second-{suffix}"
         self.assertTrue(self.store.submit_open_response(second, assignment, tenant, pid, "Segunda versión"))
         self.assertFalse(self.store.submit_open_response(f"submission-third-{suffix}", assignment, tenant, pid, "Pendiente duplicado"))
