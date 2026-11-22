@@ -56,6 +56,16 @@ CREATE TABLE IF NOT EXISTS open_submissions (
   FOREIGN KEY (assignment_id) REFERENCES open_assignments(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS ix_open_submissions_tenant_status ON open_submissions (tenant_id, status);
+CREATE TABLE IF NOT EXISTS open_submission_attempts (
+  id TEXT PRIMARY KEY, assignment_id TEXT NOT NULL, tenant_id TEXT NOT NULL, pid TEXT NOT NULL,
+  response TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pendiente', score REAL, feedback TEXT,
+  rubric TEXT, submitted_at TEXT NOT NULL DEFAULT (datetime('now')), reviewed_by TEXT, reviewed_at TEXT,
+  attempt_number INTEGER NOT NULL CHECK (attempt_number > 0),
+  UNIQUE (tenant_id, assignment_id, pid, attempt_number),
+  FOREIGN KEY (assignment_id) REFERENCES open_assignments(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ix_open_attempts_tenant_assignment ON open_submission_attempts (tenant_id, assignment_id, pid, attempt_number);
+CREATE INDEX IF NOT EXISTS ix_open_attempts_tenant_status ON open_submission_attempts (tenant_id, status);
 """
 _SQLITE_NEW_COLUMNS = [("sessions", "course_id", "TEXT"), ("sessions", "course_label", "TEXT"),
                        ("responses", "hints", "INTEGER NOT NULL DEFAULT 0"),
@@ -100,6 +110,13 @@ class Store:
                 self._conn.execute(
                     "CREATE UNIQUE INDEX IF NOT EXISTS uq_responses_session_item "
                     "ON responses (tenant_id, session_id, item_id)"
+                )
+                self._conn.execute(
+                    "INSERT OR IGNORE INTO open_submission_attempts "
+                    "(id, assignment_id, tenant_id, pid, response, status, score, feedback, rubric, submitted_at, "
+                    "reviewed_by, reviewed_at, attempt_number) "
+                    "SELECT id, assignment_id, tenant_id, pid, response, status, score, feedback, rubric, submitted_at, "
+                    "reviewed_by, reviewed_at, 1 FROM open_submissions"
                 )
                 self._conn.commit()
         elif url.startswith(("postgresql://", "postgres://")):
@@ -483,6 +500,7 @@ class Store:
                     n_a = 0
                     if actor:
                         n_a = self._conn.execute(q_redact, (tenant, actor)).rowcount
+                    self._conn.execute("DELETE FROM open_submission_attempts WHERE tenant_id = ? AND pid = ?", (tenant, pid))
                     self._conn.execute("DELETE FROM open_submissions WHERE tenant_id = ? AND pid = ?", (tenant, pid))
                     self._conn.execute(q_delete_responses, (tenant, tenant, pid))
                     self._conn.execute(q_delete_sessions, (tenant, pid))
@@ -510,6 +528,7 @@ class Store:
                 n_a = 0
                 if actor:
                     n_a = conn.execute(q_redact, (tenant, actor)).rowcount
+                conn.execute("DELETE FROM open_submission_attempts WHERE tenant_id = %s AND pid = %s", (tenant, pid))
                 conn.execute("DELETE FROM open_submissions WHERE tenant_id = %s AND pid = %s", (tenant, pid))
                 conn.execute(q_delete_responses, (tenant, tenant, pid))
                 conn.execute(q_delete_sessions, (tenant, pid))
@@ -556,21 +575,28 @@ class Store:
                    competency_id, json.dumps(rubric_snapshot) if rubric_snapshot is not None else None))
 
     def open_assignments_for_student(self, tenant: str, course_id: str | None, pid: str) -> list[dict]:
-        rows = self._run(tenant, "SELECT a.id, a.item_id, a.title, a.instructions, a.due_at, a.competency_id, a.rubric_snapshot, a.created_at, s.id AS submission_id, s.status, s.score, s.feedback, s.rubric, s.submitted_at FROM open_assignments a LEFT JOIN open_submissions s ON s.assignment_id = a.id AND s.tenant_id = a.tenant_id AND s.pid = ? WHERE a.tenant_id = ? AND (a.course_id IS NULL OR a.course_id = ?) ORDER BY a.created_at DESC",
+        rows = self._run(tenant, "SELECT a.id, a.item_id, a.title, a.instructions, a.due_at, a.competency_id, a.rubric_snapshot, a.created_at, s.id AS submission_id, s.status, s.score, s.feedback, s.rubric, s.submitted_at, s.attempt_number FROM open_assignments a LEFT JOIN open_submission_attempts s ON s.id = (SELECT latest.id FROM open_submission_attempts latest WHERE latest.assignment_id = a.id AND latest.tenant_id = a.tenant_id AND latest.pid = ? ORDER BY latest.attempt_number DESC LIMIT 1) WHERE a.tenant_id = ? AND (a.course_id IS NULL OR a.course_id = ?) ORDER BY a.created_at DESC",
                          (pid, tenant, course_id), fetch=True)
         return [{**r, "rubric": _loads(r["rubric"]) if r["rubric"] else None,
                  "rubric_snapshot": _loads(r["rubric_snapshot"]) if r.get("rubric_snapshot") else None} for r in rows]
 
     def submit_open_response(self, submission_id: str, assignment_id: str, tenant: str, pid: str, response: str) -> bool:
-        # El vencimiento se comprueba en el propio INSERT para cerrar la carrera
-        # entre una validación previa y el instante real de persistencia.
+        # Un intento nuevo solo se admite cuando el anterior ya fue corregido.
+        # La secuencia MAX+1 y el bloqueo de pendientes viven en el mismo INSERT;
+        # la restricción única resuelve dos reintentos simultáneos.
         due_filter = ("AND (a.due_at IS NULL OR a.due_at > now())" if self.dialect == "pg"
                       else "AND (a.due_at IS NULL OR julianday(a.due_at) > julianday('now'))")
-        rows = self._run(tenant, "INSERT INTO open_submissions (id, assignment_id, tenant_id, pid, response) "
-                         "SELECT ?, a.id, a.tenant_id, ?, ? FROM open_assignments a "
-                         "WHERE a.id = ? AND a.tenant_id = ? " + due_filter +
-                         " ON CONFLICT (tenant_id, assignment_id, pid) DO NOTHING RETURNING id",
-                         (submission_id, pid, response, assignment_id, tenant), fetch=True)
+        rows = self._run(tenant, "INSERT INTO open_submission_attempts "
+                         "(id, assignment_id, tenant_id, pid, response, attempt_number) "
+                         "SELECT ?, a.id, a.tenant_id, ?, ?, "
+                         "COALESCE((SELECT MAX(old.attempt_number) + 1 FROM open_submission_attempts old "
+                         "WHERE old.assignment_id = a.id AND old.tenant_id = a.tenant_id AND old.pid = ?), 1) "
+                         "FROM open_assignments a WHERE a.id = ? AND a.tenant_id = ? " + due_filter +
+                         " AND NOT EXISTS (SELECT 1 FROM open_submission_attempts pending WHERE "
+                         "pending.assignment_id = a.id AND pending.tenant_id = a.tenant_id AND pending.pid = ? "
+                         "AND pending.status = 'pendiente') "
+                         "ON CONFLICT (tenant_id, assignment_id, pid, attempt_number) DO NOTHING RETURNING id",
+                         (submission_id, pid, response, pid, assignment_id, tenant, pid), fetch=True)
         return bool(rows)
 
     def open_assignment_expired(self, tenant: str, assignment_id: str) -> bool:
@@ -581,7 +607,7 @@ class Store:
         return bool(rows)
 
     def open_assignments_for_teacher(self, tenant: str, course_id: str | None = None) -> list[dict]:
-        sql = "SELECT a.id, a.course_id, a.item_id, a.title, a.instructions, a.due_at, a.competency_id, a.rubric_snapshot, a.created_at, COUNT(s.id) AS submissions, SUM(CASE WHEN s.status = 'pendiente' THEN 1 ELSE 0 END) AS pending FROM open_assignments a LEFT JOIN open_submissions s ON s.assignment_id = a.id AND s.tenant_id = a.tenant_id WHERE a.tenant_id = ?"
+        sql = "SELECT a.id, a.course_id, a.item_id, a.title, a.instructions, a.due_at, a.competency_id, a.rubric_snapshot, a.created_at, COUNT(s.id) AS submissions, SUM(CASE WHEN s.status = 'pendiente' THEN 1 ELSE 0 END) AS pending FROM open_assignments a LEFT JOIN open_submission_attempts s ON s.assignment_id = a.id AND s.tenant_id = a.tenant_id AND s.attempt_number = (SELECT MAX(latest.attempt_number) FROM open_submission_attempts latest WHERE latest.assignment_id = a.id AND latest.tenant_id = a.tenant_id AND latest.pid = s.pid) WHERE a.tenant_id = ?"
         params: tuple = (tenant,)
         if course_id:
             sql += " AND a.course_id = ?"; params += (course_id,)
@@ -591,14 +617,14 @@ class Store:
                 for r in rows]
 
     def rubric_snapshot_for_submission(self, tenant: str, submission_id: str) -> dict | None:
-        rows = self._run(tenant, "SELECT a.rubric_snapshot FROM open_submissions s JOIN open_assignments a ON a.id = s.assignment_id AND a.tenant_id = s.tenant_id WHERE s.id = ? AND s.tenant_id = ?",
+        rows = self._run(tenant, "SELECT a.rubric_snapshot FROM open_submission_attempts s JOIN open_assignments a ON a.id = s.assignment_id AND a.tenant_id = s.tenant_id WHERE s.id = ? AND s.tenant_id = ?",
                          (submission_id, tenant), fetch=True)
         if not rows or not rows[0]["rubric_snapshot"]:
             return None
         return _loads(rows[0]["rubric_snapshot"])
 
     def open_submissions_for_assignment(self, tenant: str, assignment_id: str) -> list[dict]:
-        rows = self._run(tenant, "SELECT s.id, s.pid, s.response, s.status, s.score, s.feedback, s.rubric, s.submitted_at, s.reviewed_by, s.reviewed_at, a.competency_id, a.rubric_snapshot FROM open_submissions s JOIN open_assignments a ON a.id = s.assignment_id AND a.tenant_id = s.tenant_id WHERE s.tenant_id = ? AND s.assignment_id = ? ORDER BY s.submitted_at",
+        rows = self._run(tenant, "SELECT s.id, s.pid, s.response, s.status, s.score, s.feedback, s.rubric, s.submitted_at, s.reviewed_by, s.reviewed_at, s.attempt_number, a.competency_id, a.rubric_snapshot FROM open_submission_attempts s JOIN open_assignments a ON a.id = s.assignment_id AND a.tenant_id = s.tenant_id WHERE s.tenant_id = ? AND s.assignment_id = ? AND s.attempt_number = (SELECT MAX(latest.attempt_number) FROM open_submission_attempts latest WHERE latest.assignment_id = s.assignment_id AND latest.tenant_id = s.tenant_id AND latest.pid = s.pid) ORDER BY s.submitted_at",
                          (tenant, assignment_id), fetch=True)
         return [{**{k: v for k, v in r.items() if k != "pid"},
                  "student_key": hashlib.sha256(r["pid"].encode()).hexdigest(),
@@ -606,13 +632,28 @@ class Store:
                  "rubric": _loads(r["rubric"]) if r["rubric"] else None,
                  "rubric_snapshot": _loads(r["rubric_snapshot"]) if r.get("rubric_snapshot") else None} for r in rows]
 
+    def open_submission_history_for_student(self, tenant: str, assignment_id: str, pid: str) -> list[dict]:
+        rows = self._run(tenant, "SELECT s.id, s.attempt_number, s.response, s.status, s.score, s.feedback, s.rubric, s.submitted_at, s.reviewed_at, a.competency_id, a.rubric_snapshot FROM open_submission_attempts s JOIN open_assignments a ON a.id = s.assignment_id AND a.tenant_id = s.tenant_id WHERE s.tenant_id = ? AND s.assignment_id = ? AND s.pid = ? ORDER BY s.attempt_number DESC LIMIT 50",
+                         (tenant, assignment_id, pid), fetch=True)
+        return [{**r, "rubric": _loads(r["rubric"]) if r["rubric"] else None,
+                 "rubric_snapshot": _loads(r["rubric_snapshot"]) if r.get("rubric_snapshot") else None} for r in rows]
+
+    def open_submission_history_for_teacher(self, tenant: str, submission_id: str) -> list[dict]:
+        rows = self._run(tenant, "SELECT s.id, s.pid, s.attempt_number, s.response, s.status, s.score, s.feedback, s.rubric, s.submitted_at, s.reviewed_at, a.competency_id, a.rubric_snapshot FROM open_submission_attempts s JOIN open_assignments a ON a.id = s.assignment_id AND a.tenant_id = s.tenant_id WHERE s.tenant_id = ? AND s.assignment_id = (SELECT target.assignment_id FROM open_submission_attempts target WHERE target.id = ? AND target.tenant_id = ?) AND s.pid = (SELECT target.pid FROM open_submission_attempts target WHERE target.id = ? AND target.tenant_id = ?) ORDER BY s.attempt_number DESC LIMIT 50",
+                         (tenant, submission_id, tenant, submission_id, tenant), fetch=True)
+        return [{**{k: v for k, v in r.items() if k != "pid"},
+                 "student_key": hashlib.sha256(r["pid"].encode()).hexdigest(),
+                 "student_label": "Estudiante " + hashlib.sha256(r["pid"].encode()).hexdigest()[:6].upper(),
+                 "rubric": _loads(r["rubric"]) if r["rubric"] else None,
+                 "rubric_snapshot": _loads(r["rubric_snapshot"]) if r.get("rubric_snapshot") else None} for r in rows]
+
     def grade_open_submission(self, tenant: str, submission_id: str, reviewer: str, score: float, feedback: str, rubric: dict) -> bool:
-        rows = self._run(tenant, "UPDATE open_submissions SET status = 'corregida', score = ?, feedback = ?, rubric = {J}, reviewed_by = ?, reviewed_at = {NOW} WHERE id = ? AND tenant_id = ? AND status = 'pendiente' RETURNING id",
+        rows = self._run(tenant, "UPDATE open_submission_attempts SET status = 'corregida', score = ?, feedback = ?, rubric = {J}, reviewed_by = ?, reviewed_at = {NOW} WHERE id = ? AND tenant_id = ? AND status = 'pendiente' RETURNING id",
                          (score, feedback, json.dumps(rubric), reviewer, submission_id, tenant), fetch=True)
         return bool(rows)
 
     def open_submission_for_student(self, tenant: str, submission_id: str, pid: str) -> dict | None:
-        rows = self._run(tenant, "SELECT s.id, s.status, s.score, s.feedback, s.rubric, s.submitted_at, s.reviewed_at, a.competency_id, a.rubric_snapshot FROM open_submissions s JOIN open_assignments a ON a.id = s.assignment_id AND a.tenant_id = s.tenant_id WHERE s.id = ? AND s.tenant_id = ? AND s.pid = ?",
+        rows = self._run(tenant, "SELECT s.id, s.assignment_id, s.attempt_number, s.status, s.score, s.feedback, s.rubric, s.submitted_at, s.reviewed_at, a.competency_id, a.rubric_snapshot FROM open_submission_attempts s JOIN open_assignments a ON a.id = s.assignment_id AND a.tenant_id = s.tenant_id WHERE s.id = ? AND s.tenant_id = ? AND s.pid = ?",
                          (submission_id, tenant, pid), fetch=True)
         if not rows: return None
         r = rows[0]
