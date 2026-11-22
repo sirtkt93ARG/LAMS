@@ -147,7 +147,7 @@ export default function OpenReviewPage() {
         {a.competency_id && <p className="muted">Competencia: {a.rubric_snapshot?.competency ?? a.competency_id}</p>}
         {a.due_at && <p className="muted">Vence: {new Date(a.due_at).toLocaleString()}</p>}
         {a.cancelled ? <p className="error" role="status">Cancelada{a.cancellation_reason ? `: ${a.cancellation_reason}` : ""}</p> : cancelConfirm === a.id ? <>
-          <label className="field"><span>Motivo de cancelación (opcional)</span>
+          <label className="field"><span>Motivo visible para los estudiantes (opcional)</span>
             <input value={cancelReason} maxLength={1000} onChange={(e) => setCancelReason(e.target.value)} />
           </label>
           <button className="btn" type="button" disabled={busy} onClick={() => cancelAssignment(a.id)}>Confirmar cancelación</button>
