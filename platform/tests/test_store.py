@@ -46,6 +46,7 @@ class TestStore(unittest.TestCase):
         self.store.delete_learner("school-erase", "pid-erase")
         self.assertIsNone(self.store.open_submission_for_student("school-erase", "sub-erase", "pid-erase"))
         self.assertEqual(self.store.open_assignments_for_teacher("school-erase")[0]["submissions"], 0)
+        self.assertEqual(self.store.open_submission_history_for_student("school-erase", "oa-erase", "pid-erase"), [])
 
     def test_existing_open_submission_is_migrated_as_attempt_one(self):
         path = f"{self.tmp.name}/legacy-open.db"
