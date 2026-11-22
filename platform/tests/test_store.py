@@ -47,6 +47,44 @@ class TestStore(unittest.TestCase):
         self.assertIsNone(self.store.open_submission_for_student("school-erase", "sub-erase", "pid-erase"))
         self.assertEqual(self.store.open_assignments_for_teacher("school-erase")[0]["submissions"], 0)
 
+    def test_existing_open_submission_is_migrated_as_attempt_one(self):
+        path = f"{self.tmp.name}/legacy-open.db"
+        conn = sqlite3.connect(path)
+        conn.executescript("""
+            CREATE TABLE open_assignments (
+                id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, course_id TEXT, item_id TEXT NOT NULL,
+                title TEXT NOT NULL, instructions TEXT NOT NULL DEFAULT '', assigned_by TEXT NOT NULL,
+                due_at TEXT, competency_id TEXT, rubric_snapshot TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE open_submissions (
+                id TEXT PRIMARY KEY, assignment_id TEXT NOT NULL, tenant_id TEXT NOT NULL, pid TEXT NOT NULL,
+                response TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pendiente', score REAL, feedback TEXT,
+                rubric TEXT, submitted_at TEXT NOT NULL DEFAULT (datetime('now')), reviewed_by TEXT, reviewed_at TEXT,
+                UNIQUE (tenant_id, assignment_id, pid)
+            );
+            INSERT INTO open_assignments (id, tenant_id, item_id, title, assigned_by)
+                VALUES ('legacy-assignment', 'legacy-school', 'item-open', 'Actividad antigua', 'teacher');
+            INSERT INTO open_submissions (id, assignment_id, tenant_id, pid, response, status, score, feedback)
+                VALUES ('legacy-submission', 'legacy-assignment', 'legacy-school', 'legacy-pid',
+                        'Respuesta existente', 'corregida', 77, 'Devolución anterior');
+        """)
+        conn.commit()
+        conn.close()
+        migrated = Store(f"sqlite:///{path}")
+        try:
+            history = migrated.open_submission_history_for_student(
+                "legacy-school", "legacy-assignment", "legacy-pid"
+            )
+            self.assertEqual(len(history), 1)
+            self.assertEqual(history[0]["attempt_number"], 1)
+            self.assertEqual(history[0]["score"], 77)
+            self.assertTrue(migrated.submit_open_response(
+                "legacy-submission-2", "legacy-assignment", "legacy-school", "legacy-pid", "Nueva respuesta"
+            ))
+        finally:
+            migrated._conn.close()
+
     def test_open_assignment_deadline_blocks_submission_atomically(self):
         self.store.create_open_assignment("oa-expired", "school-deadline", None, "open-1",
                                           "Actividad vencida", "", "teacher", "2000-01-01T00:00:00+00:00")
