@@ -94,6 +94,28 @@ class TestStore(unittest.TestCase):
                                                          "pid-deadline", "Respuesta tardía"))
         self.assertEqual(self.store.open_submissions_for_assignment("school-deadline", "oa-expired"), [])
 
+    def test_concurrent_resubmissions_after_grade_create_one_pending_attempt(self):
+        self.store.create_open_assignment("oa-concurrent-retry", "school-retry", None, "open-1",
+                                          "Reintentos", "", "teacher", None)
+        self.assertTrue(self.store.submit_open_response("sub-retry-1", "oa-concurrent-retry",
+                                                        "school-retry", "pid-retry", "Primera"))
+        self.assertTrue(self.store.grade_open_submission("school-retry", "sub-retry-1",
+                                                         "teacher", 70, "Revisar", {}))
+        barrier = threading.Barrier(6)
+        def retry(index):
+            barrier.wait()
+            return self.store.submit_open_response(
+                f"sub-retry-{index + 2}", "oa-concurrent-retry", "school-retry", "pid-retry",
+                f"Versión {index}"
+            )
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            results = list(pool.map(retry, range(6)))
+        self.assertEqual(sum(results), 1)
+        history = self.store.open_submission_history_for_student("school-retry", "oa-concurrent-retry", "pid-retry")
+        self.assertEqual(len(history), 2)
+        self.assertEqual(history[0]["attempt_number"], 2)
+        self.assertEqual(history[0]["status"], "pendiente")
+
     def test_open_assignment_persists_competency_rubric_snapshot(self):
         snapshot = {
             "version": 1, "competency_id": "porcentajes", "competency": "Porcentajes",
