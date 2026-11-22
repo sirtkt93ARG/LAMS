@@ -41,6 +41,7 @@ class TestPostgresStore(unittest.TestCase):
                 root / "db/011_migracion_v16.sql",
                 root / "db/012_migracion_v17.sql",
                 root / "db/013_migracion_v18.sql",
+                root / "db/014_migracion_v19.sql",
             ):
                 conn.execute(migration.read_text(encoding="utf-8"), prepare=False)
         cls.store = Store(APP_URL)
