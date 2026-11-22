@@ -123,6 +123,15 @@ class TestPostgresStore(unittest.TestCase):
         self.assertFalse(self.store.grade_open_submission(tenant, submission, "teacher-pseudonym", 95, "Revisión duplicada", {}))
         self.assertEqual(self.store.open_submission_for_student(tenant, submission, pid)["score"], 91)
         self.assertIsNone(self.store.open_submission_for_student(other, submission, pid))
+        second = f"submission-second-{suffix}"
+        self.assertTrue(self.store.submit_open_response(second, assignment, tenant, pid, "Segunda versión"))
+        self.assertFalse(self.store.submit_open_response(f"submission-third-{suffix}", assignment, tenant, pid, "Pendiente duplicado"))
+        history = self.store.open_submission_history_for_student(tenant, assignment, pid)
+        self.assertEqual([row["attempt_number"] for row in history], [2, 1])
+        self.assertEqual(history[1]["score"], 91)
+        self.assertEqual(len(self.store.open_submission_history_for_teacher(tenant, second)), 2)
+        self.assertEqual(self.store.open_submissions_for_assignment(tenant, assignment)[0]["id"], second)
+        self.assertEqual(self.store.open_assignments_for_teacher(tenant)[0]["pending"], 1)
 
     def test_session_rows_are_isolated_by_tenant(self):
         suffix = uuid4().hex
