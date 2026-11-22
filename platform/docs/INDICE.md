@@ -41,7 +41,7 @@ Empezá por `README.md` (qué es, cómo montarlo y estado real de cada pieza). D
 | 0.5 | Habilidades, dominio, práctica por tema con pistas y ejercicios espejo, 24 plantillas, notas al LMS, consentimiento, accesibilidad |
 | 0.6 | Observatorio de PISA 2000-2025, tendencias, vista de red e informe imprimible |
 | 0.7 | Microdatos de PISA: errores estándar, brechas por nivel socioeconómico y género, pruebas de cambio entre ciclos |
-| 0.8 | Respuestas abiertas, corrección docente, vencimientos, rúbricas orientativas por competencia, reentregas con historial de intentos y consulta NRPS de nombres sin persistir el roster |
+| 0.8 | Respuestas abiertas, corrección docente, vencimientos, rúbricas orientativas por competencia, reentregas con historial de intentos, cancelación de actividades y consulta NRPS de nombres sin persistir el roster |
 | (auditoría) | Registro de hallazgos, parches y decisiones: `docs/AUDITORIA.md` y `docs/arreglos_auditoria/`; consultar el estado vigente en la auditoría |
 
 ## Estado real de este paquete
